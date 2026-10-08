@@ -92,3 +92,8 @@ https://rairen.github.io/SC_Ladder_Co-op_Raid/
 | 불사의 목걸이 | 7% | 레이드당 1회, 쓰러질 때 체력 30으로 버팀 |
 
 역할 스킬 필요 게이지는 받은 입장료 총액 기준입니다 (100 − 입장료 × 0.001).
+
+## 설치와 수정
+
+- 여러 기기에서 같은 레이드를 실시간으로 공유하려면 Firebase 를 연결합니다: [docs/Firebase-연결.md](docs/Firebase-연결.md)
+- 코드 구조와 수치 고치는 곳: [docs/개발가이드.md](docs/개발가이드.md) (게임 수치는 `js/game-data.js`)

@@ -1,0 +1,273 @@
+/* =====================================================================
+   info-window.js — 정보 창(보스 스킬, 역할 스킬, 장비, 룰렛, 규칙)과 시작 전 수치 설정
+   ===================================================================== */
+/* ---------- Skill list window ---------- */
+/* 정보 창은 두 가지로 열립니다.
+   info  : 보스 영역의 정보 버튼. 진행 중인 레이드 값을 보여주기만 함
+   setup : 새 레이드 만들기의 '수치 설정'. 시작 전 값만 고칠 수 있고, 레이드를 시작하면 잠김 */
+let modalMode = 'info', setupSrc = null;
+function SRC(){ return modalMode === 'setup' ? setupSrc : raid; }
+function freshSetupSrc(){
+  const race = $('bossRace').value || 'mixed';
+  return {name: $('raidName').value.trim() || '새 보스', race, bossSkills: BOSS_SETS[race].map(x=>({...x})), roleSkills:null, gauge:null, settings:null, customBoss:false};
+}
+async function saveSrc(patch){
+  if(modalMode !== 'setup' || !setupSrc) return;
+  if(patch.bossSkills) setupSrc.customBoss = true;
+  Object.assign(setupSrc, patch);
+}
+let skTab = 'boss', skDirty = false, bsDraft = null, rsDraft = null, gDraft = null, setDraft = null, setDirty = false;
+function canEditSkills(){ return modalMode === 'setup' && !!setupSrc && !readOnly && !OVERLAY; }
+function pct(w, list){ const t = list.reduce((a,x)=>a+Math.max(0,Number(x.w)||0),0); return t ? Math.round(Math.max(0,Number(w)||0)/t*1000)/10 : 0; }
+function openSkillModal(mode, tab){
+  modalMode = mode || 'info';
+  if(modalMode === 'setup' && !setupSrc) setupSrc = freshSetupSrc();
+  skDirty = false; setDirty = false; bsDraft = rsDraft = gDraft = setDraft = null;
+  $('skillModalTitle').textContent = modalMode === 'setup' ? '레이드 수치 설정 (시작 전)' : (raid ? '레이드 정보' : '기본 정보');
+  $('skillModal').querySelector('[data-sktab="settings"]').textContent = modalMode === 'setup' ? '승리·룰렛 설정' : '승리·룰렛 수치';
+  $('skillModal').hidden = false;
+  const tb = $('skillModal').querySelector(`[data-sktab="${tab || (modalMode === 'setup' ? 'boss' : skTab)}"]`);
+  if(tb) tb.click(); else renderSkillModal();
+  $('skillClose').focus();
+}
+function closeSkillModal(){ $('skillModal').hidden = true; skDirty = false; }
+document.addEventListener('click', e=>{ const b = e.target.closest('[data-info]'); if(b) openSkillModal('info', b.dataset.info); });
+$('setupNums').onclick = ()=>openSkillModal('setup', 'boss');
+$('skillClose').onclick = closeSkillModal;
+$('skillModal').addEventListener('click', e=>{ if(e.target.id === 'skillModal') closeSkillModal(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !$('skillModal').hidden) closeSkillModal(); });
+$('skillModal').querySelector('[role=tablist]').addEventListener('click', e=>{
+  const b = e.target.closest('[data-sktab]'); if(!b) return;
+  skTab = b.dataset.sktab;
+  $('skillModal').querySelectorAll('[data-sktab]').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  renderSkillModal();
+});
+/* ---------- 규칙·난이도 탭 (구글 시트 내용) ---------- */
+let calcIn = {min:20, wr:50, pts:20, loss:20, mult:1.2, n:2};
+try{ Object.assign(calcIn, JSON.parse(localStorage.getItem('sc-boss-raid:calc') || '{}')); }catch(_){}
+function clearTime(p, c){
+  const n = Math.max(1, c.n), perHr = 60 / Math.max(1, c.min), wr = c.wr/100;
+  const hpT = bossHpOf(p, n);
+  const g = n * perHr * wr * c.pts * c.mult;
+  const h = g - n * perHr * (1-wr) * c.loss * (p.rec/100);
+  if(g <= 0 || h <= 0) return {hp:hpT, time:null, skills:null};
+  const t = hpT/2/g + hpT/2/h;
+  return {hp:hpT, time:t, skills: g * t * (p.rageRate ?? 0.5) / p.rage};
+}
+function fmtHours(t){ if(t == null) return '클리어 어려움'; const m = Math.round(t*60); return m >= 60 ? `${Math.floor(m/60)}시간 ${m%60}분` : `${m}분`; }
+function renderRulesTab(){
+  const box = $('skTabRules'); if(box.hidden) return;
+  const G = gaugeOf(SRC()), S = settingsOf(SRC());
+  const rows = ['light','normal','hard'].map(k=>{ const p = PRESETS[k], r = clearTime(p, calcIn);
+    return `<tr><td><b>${p.label}</b></td><td class="r num">${p.hp}</td><td class="r num">${p.bonus}</td><td class="r num">${p.rage}</td><td class="r num">${p.rageRate}</td><td class="r num">${p.rec}%</td>
+      <td class="r num hl">${fmt(r.hp)}</td><td class="r hl">${fmtHours(r.time)}</td><td class="r num">${r.skills==null?'-':(Math.round(r.skills*10)/10)+'회'}</td></tr>`; }).join('');
+  const inp = (k,label,step,suffix) => `<div class="field"><label class="label" for="ci_${k}">${label}</label><input type="number" id="ci_${k}" data-ci="${k}" min="0" step="${step}" value="${calcIn[k]}">${suffix?`<span class="hint">${suffix}</span>`:''}</div>`;
+  const perHr = 60/Math.max(1,calcIn.min), avgG = (G.win*calcIn.wr + G.loss*(100-calcIn.wr))/100;
+  box.innerHTML = `<p class="sk-note">보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1). 분노는 보스가 받은 데미지 × 상승률만큼 오르고, 최대치에 닿으면 보스 스킬이 나갑니다.</p>
+    <h3 class="label" style="margin:4px 0 0">클리어 시간 계산 가정 (이 화면에서만 쓰는 값)</h3>
+    <div class="calc-in">${inp('n','파티 인원',1,'')}${inp('min','한 판 시간(분)',1,'')}${inp('wr','승률(%)',5,'')}${inp('pts','평균 승리 점수',1,'')}${inp('loss','평균 패배 점수',1,'')}${inp('mult','승리 보너스 배율',0.1,'')}</div>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>난이도</th><th class="r">1인당 HP</th><th class="r">인원당 추가</th><th class="r">분노 최대</th><th class="r">분노 상승률</th><th class="r">보스 회복률</th><th class="r">보스 총 HP</th><th class="r">예상 클리어</th><th class="r">예상 보스 스킬</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="sk-note">룰렛, 체인 보너스, 역할 스킬 때문에 실제로는 조금 더 빨리 끝납니다. 역할 스킬은 평균 ${Math.round(G.max / Math.max(1,avgG) * 10)/10}판(약 ${fmtHours(G.max/Math.max(1,avgG)/perHr)})에 한 번 쓸 수 있습니다.</p>
+    <h3 class="label" style="margin:4px 0 0">기본 규칙 수치</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody>
+      <tr><td><b>파티원 기본 체력</b></td><td class="r num">${PARTY_HP}</td><td class="desc">갑옷 보너스가 더해짐. 0이 되면 전투불능</td></tr>
+      <tr><td><b>부활 체력</b></td><td class="r num">${REVIVE_HP}</td><td class="desc">전투불능 상태에서 승리하거나 불사의 목걸이 발동 시</td></tr>
+      <tr><td><b>보스 회복 시작</b></td><td class="r num">50%</td><td class="desc">보스 HP가 이 아래면 패배 점수 × 회복률만큼 보스 회복</td></tr>
+      <tr><td><b>체인 보너스</b></td><td class="r num">${S.chain}%</td><td class="desc">서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지</td></tr>
+      <tr><td><b>역할 스킬 게이지</b></td><td class="r num">${G.max}</td><td class="desc">시작 ${G.start}, 승리 +${G.win}, 패배 +${G.loss}. 필요 게이지 = ${G.max} − 입장료 × ${S.feeGauge}</td></tr>
+      <tr><td><b>성공 / 실패</b></td><td class="r">-</td><td class="desc">보스 HP 0 / 파티 전원 전투불능</td></tr>
+    </tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">보스 이름과 종족</h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>종족</th><th>보스 이름</th><th>스킬 세트</th></tr></thead><tbody>
+      ${Object.entries(BOSS_BY_RACE).map(([k,list])=>`<tr><td><b>${RACES[k]}</b></td><td>${list.map(esc).join(', ')}</td><td class="desc">${BOSS_SETS[k].map(x=>esc(x.name)).join(', ')}</td></tr>`).join('')}
+      <tr><td><b>${RACES.mixed}</b></td><td class="desc">목록에 없는 이름</td><td class="desc">${BOSS_SETS.mixed.map(x=>esc(x.name)).join(', ')}</td></tr>
+    </tbody></table></div>`;
+}
+$('skillModal').addEventListener('input', e=>{
+  const k = e.target.dataset && e.target.dataset.ci; if(!k) return;
+  calcIn[k] = Math.max(0, Number(e.target.value)||0);
+  try{ localStorage.setItem('sc-boss-raid:calc', JSON.stringify(calcIn)); }catch(_){}
+  const id = e.target.id, pos = e.target.selectionStart; renderRulesTab();
+  const el = $(id); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} }
+});
+
+/* ---------- 룰렛 탭 ---------- */
+function renderRouletteTab(){
+  const box = $('skTabRoulette'); if(box.hidden) return;
+  const ws = rouletteWeights(settingsOf(SRC())), tot = ws.reduce((a,x)=>a+x.w,0) || 1;
+  box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 파티원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
+      ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
+    </tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">별풍선 양에 따른 룰렛 등급 <span class="plan-tag">기획안 · 미적용</span></h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>룰렛</th><th class="r">필요 별풍선</th>${TIERS.map(t=>`<th class="r tier-${t}" style="color:var(--tc)">${t}</th>`).join('')}</tr></thead><tbody>
+      ${ROULETTE_PLAN.map(r=>`<tr><td><b>${r.name}</b></td><td class="r num">${fmt(r.cost)}개</td>${r.p.map(v=>`<td class="r num">${v}%</td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">추가 파티 스킬 (룰렛 결과) <span class="plan-tag">기획안 · 미적용</span></h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>스킬</th><th>효과</th></tr></thead><tbody>
+      ${PARTY_SKILL_PLAN.map(x=>`<tr><td class="tier-${x.tier}" style="color:var(--tc)"><b>${x.tier}</b></td><td>${esc(x.name)}</td><td class="desc">${esc(x.desc)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
+function renderSkillModal(){
+  const edit = canEditSkills();
+  $('skTabBoss').hidden = skTab !== 'boss'; $('skTabRole').hidden = skTab !== 'role'; $('skTabGear').hidden = skTab !== 'gear'; $('skTabSettings').hidden = skTab !== 'settings'; $('skTabRules').hidden = skTab !== 'rules'; $('skTabRoulette').hidden = skTab !== 'roulette';
+  renderRulesTab(); renderRouletteTab();
+  const race = (SRC() && SRC().race) || 'mixed';
+  // 보스 스킬
+  const list = bsDraft || bossSkillsOf(SRC()).map(x=>({...x}));
+  const typeOpts = v => Object.entries(SKILL_TYPES).map(([k,t])=>`<option value="${k}"${k===v?' selected':''}>${t.label}</option>`).join('');
+  $('skTabBoss').innerHTML = `<p class="sk-note">${SRC() ? `<b>${esc(SRC().name)}</b> (${RACES[race]})의 스킬입니다. ` : '레이드를 시작하면 보스 종족에 맞는 스킬 세트가 들어갑니다. 아래는 혼합 세트입니다. '}분노 게이지가 가득 차면 비중에 따라 하나가 무작위로 발동합니다.</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>스킬 이름</th><th>종류</th><th class="r">비중</th><th class="r">확률</th><th class="r">수치</th><th>효과</th>${edit?'<th></th>':''}</tr></thead><tbody>
+    ${list.map((x,i)=> edit
+      ? `<tr><td><input type="text" maxlength="16" value="${esc(x.name)}" data-bs="${i}" data-k="name" aria-label="스킬 이름"></td>
+          <td><select data-bs="${i}" data-k="type" aria-label="종류">${typeOpts(x.type)}</select></td>
+          <td class="r"><input type="number" min="0" step="1" value="${x.w}" data-bs="${i}" data-k="w" aria-label="비중"></td>
+          <td class="r num">${pct(x.w, list)}%</td>
+          <td class="r"><input type="number" min="0" step="${x.type==='curse'?'0.1':'1'}" value="${x.v}" data-bs="${i}" data-k="v" aria-label="수치"></td>
+          <td class="desc">${esc((SKILL_TYPES[x.type]||SKILL_TYPES.smash).desc(x.v))}</td>
+          <td><button type="button" class="btn danger" data-bsdel="${i}" aria-label="${esc(x.name)} 삭제">삭제</button></td></tr>`
+      : `<tr><td><b>${esc(x.name)}</b></td><td>${esc((SKILL_TYPES[x.type]||{label:'-'}).label)}</td><td class="r num">${x.w}</td><td class="r num">${pct(x.w, list)}%</td><td class="r num">${x.v}</td><td class="desc">${esc((SKILL_TYPES[x.type]||SKILL_TYPES.smash).desc(x.v))}</td></tr>`
+    ).join('')}</tbody></table></div>
+    ${edit ? `<div class="sk-actions"><button type="button" class="btn" id="bsAdd">스킬 추가</button>
+      <select id="bsPreset" aria-label="기본 세트">${Object.entries(RACES).map(([k,v])=>`<option value="${k}"${k===race?' selected':''}>${v} 기본 세트</option>`).join('')}</select>
+      <button type="button" class="btn" id="bsReset">이 세트로 되돌리기</button>
+      <span style="flex:1"></span><button type="button" class="btn primary" id="bsSave"${skDirty?'':' disabled'}>적용</button></div>
+      <p class="sk-note">적용한 값은 레이드를 시작할 때 들어가고, 시작한 뒤에는 바꿀 수 없습니다.</p>`
+      : '<p class="lock-note">수치는 새 레이드 만들기의 <b>수치 설정</b>에서 시작 전에만 바꿀 수 있습니다.</p>'}`;
+  // 역할 스킬
+  const rs = rsDraft || roleSkillsOf(SRC()), G = gDraft || gaugeOf(SRC());
+  $('skTabRole').innerHTML = `<p class="sk-note">파티원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 찹니다. 입장료를 많이 받을수록 필요 게이지가 줄어듭니다 (필요 게이지 = 최대 − 입장료 × 계수, 계수는 레이드 설정 탭).</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>역할</th><th>스킬 이름</th><th class="r">수치</th><th>효과</th></tr></thead><tbody>
+    ${Object.entries(ROLES).map(([k,R])=> edit
+      ? `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><input type="text" maxlength="16" value="${esc(rs[k].name)}" data-rs="${k}" data-k="name" aria-label="${R.label} 스킬 이름"></td>
+          <td class="r"><input type="number" min="0" step="1" value="${rs[k].v}" data-rs="${k}" data-k="v" aria-label="${R.label} 수치"></td><td class="desc">${esc(R.desc(rs[k].v))}</td></tr>`
+      : `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><b>${esc(rs[k].name)}</b></td><td class="r num">${rs[k].v}</td><td class="desc">${esc(R.desc(rs[k].v))}</td></tr>`).join('')}
+    </tbody></table></div>
+    <h3 class="label" style="margin:6px 0 0">스킬 게이지</h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>최대</th><th>기본 시작값</th><th>승리 시 충전</th><th>패배 시 충전</th></tr></thead><tbody><tr>
+    ${['max','start','win','loss'].map(k=> edit ? `<td><input type="number" min="0" step="5" value="${G[k]}" data-g="${k}" aria-label="게이지 ${k}"></td>` : `<td class="num">${G[k]}</td>`).join('')}
+    </tr></tbody></table></div>
+    ${edit ? `<div class="sk-actions"><button type="button" class="btn" id="rsReset">기본값으로 되돌리기</button><span style="flex:1"></span><button type="button" class="btn primary" id="rsSave"${skDirty?'':' disabled'}>적용</button></div>` : ''}`;
+  // 입장료·장비
+  // 입장료·장비 (설정값 사용, 운영자는 수정)
+  const SD = setDraft || settingsOf(SRC());
+  const gearInfo = {
+    weapon:   {title:'무기',   unit:'%', show:v=> v ? `승리 데미지 +${Math.round(v*100)}%` : '기본', pctv:true},
+    armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
+    accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-', pctv:true}
+  };
+  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 입장료에서 비용을 내고, 아래 확률로 장비 하나가 나옵니다. 지금 것보다 좋은 장비면 바로 장착합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
+    ${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,x)=>a+x.w,0) || 1; return `<div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>장비 룰렛 1회 비용</b></td><td class="r">${edit ? `<input type="number" min="0" step="10" value="${SD.gearCost}" data-sp="gearCost" aria-label="장비 룰렛 비용">` : `<span class="num">${fmt(SD.gearCost)}개</span>`}</td><td class="desc">남은 입장료에서 빠집니다</td></tr><tr><td><b>꽝</b></td><td class="r">${edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll.none}" data-gr="none" aria-label="꽝 비중">` : `<span class="num">${SD.gearRoll.none}</span>`}</td><td class="desc" data-grp="none">${Math.round((gl.find(x=>x.key==='none').w)/gt*1000)/10}%</td></tr></tbody></table></div>`; })()}
+    ${Object.entries(gearInfo).map(([k,info])=>`<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>${info.title}</th><th class="r">확률 비중</th><th class="r">수치${info.unit?' ('+info.unit+')':''}</th><th>효과</th></tr></thead><tbody>
+      ${SD.gear[k].map((x,i)=>{
+        const fixedV = (k==='accessory' && i!==1) || (i===0 && k!=='gauge');
+        const vShown = info.pctv ? Math.round(x.v*100) : x.v;
+        return `<tr><td><b>${esc(x.name || (k==='gauge' ? (i===0?'기본':'단계 '+i) : ''))}</b></td>
+          <td class="r">${i===0 ? '<span class="hint">기본 장비</span>' : (edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll[k+':'+i]}" data-gr="${k}:${i}" aria-label="${info.title} 확률 비중">` : `<span class="num">${SD.gearRoll[k+':'+i]}</span>`) + ` <span class="hint" data-grp="${k}:${i}">${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,y)=>a+y.w,0) || 1; return Math.round((Number(SD.gearRoll[k+':'+i])||0)/gt*1000)/10; })()}%</span>`}</td>
+          <td class="r">${edit && !fixedV ? `<input type="number" min="0" step="1" value="${vShown}" data-gs="${k}" data-gi="${i}" data-gk="v" aria-label="${info.title} 수치">` : `<span class="num">${fixedV && k==='accessory' ? '-' : vShown}</span>`}</td>
+          <td class="desc">${esc(info.show(x.v, i))}</td></tr>`; }).join('')}
+    </tbody></table></div>`).join('')}
+    ${edit ? `<div class="sk-actions"><button type="button" class="btn" data-setreset="gear">기본값으로 되돌리기</button><span style="flex:1"></span><button type="button" class="btn primary" data-setsave="1"${setDirty?'':' disabled'}>적용</button></div>` : ''}`;
+  // 레이드 설정: 승리 유형 배율, 체인 보너스, 룰렛 비중
+  const ws = ITEMS.map(it=>({it, w: Math.max(0, Number(SD.roulette[it.id])||0)})), wt = ws.reduce((a,x)=>a+x.w,0) || 1;
+  const num = (path, val, step, label) => edit ? `<input type="number" min="0" step="${step}" value="${val}" data-sp="${path}" aria-label="${label}">` : `<span class="num">${val}</span>`;
+  $('skTabSettings').innerHTML = `<p class="sk-note">${edit ? '이번 레이드에 쓸 값입니다. 적용한 뒤 레이드를 시작하면 고정됩니다.' : (raid ? '이 레이드에 고정된 값입니다. 다음 레이드의 수치 설정에서 바꿀 수 있습니다.' : '기본값입니다. 새 레이드 만들기의 수치 설정에서 바꿀 수 있습니다.')}</p>
+    <h3 class="label" style="margin:4px 0 0">승리 유형 배율</h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>승리 유형</th><th class="r">배율</th><th>설명</th></tr></thead><tbody>
+      <tr><td><b>일반 승리</b></td><td class="r num">×1</td><td class="desc">기준</td></tr>
+      <tr><td><b>운영 승리</b></td><td class="r">${num('win.multi', SD.win.multi, 0.1, '운영 승리 배율')}</td><td class="desc">앞마당 멀티 확보 후 승리</td></tr>
+      <tr><td><b>빌드 반복</b></td><td class="r">${num('win.same', SD.win.same, 0.1, '빌드 반복 배율')}</td><td class="desc">같은 빌드로 2연속 승리</td></tr>
+      <tr><td><b>초반 올인</b></td><td class="r">${num('win.banned', SD.win.banned, 0.1, '초반 올인 배율')}</td><td class="desc">금지 빌드로 승리 (0이면 데미지 없음)</td></tr>
+    </tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">체인 보너스</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>서로 다른 3명 연속 승리</b></td><td class="r">${num('chain', SD.chain, 0.5, '체인 보너스')}</td><td class="desc">보스 최대 HP의 % 만큼 추가 데미지</td></tr></tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">입장료 → 역할 스킬 필요 게이지</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>입장료 1개당 줄어드는 게이지</b></td><td class="r">${num('feeGauge', SD.feeGauge, 0.001, '입장료 게이지 계수')}</td><td class="desc">필요 게이지 = 최대 게이지 − 입장료 × 이 값. 예: ${fmt(1000)}개 × ${SD.feeGauge} = ${Math.round(1000*SD.feeGauge*10)/10} 감소</td></tr></tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
+      ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
+    </tbody></table></div>
+    ${edit ? `<div class="sk-actions"><button type="button" class="btn" data-setreset="settings">기본값으로 되돌리기</button><span style="flex:1"></span><button type="button" class="btn primary" data-setsave="1"${setDirty?'':' disabled'}>적용</button></div>` : ''}`;
+}
+$('skillModal').addEventListener('input', e=>{
+  const t = e.target;
+  if(t.dataset.gr !== undefined){
+    setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
+    setDraft.gearRoll[t.dataset.gr] = Math.max(0, Number(t.value)||0);
+    const tot = Object.values(setDraft.gearRoll).reduce((a,b)=>a+(Number(b)||0),0) || 1;
+    $('skTabGear').querySelectorAll('[data-grp]').forEach(c=>{ c.textContent = Math.round((Number(setDraft.gearRoll[c.dataset.grp])||0)/tot*1000)/10 + '%'; });
+    setDirty = true; $('skillModal').querySelectorAll('[data-setsave]').forEach(b=>b.disabled = false);
+    return;
+  }
+  if(t.dataset.sp !== undefined || t.dataset.gs !== undefined){
+    setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
+    const val = Math.max(0, Number(t.value)||0);
+    if(t.dataset.sp){
+      const [a,b] = t.dataset.sp.split('.');
+      if(b) setDraft[a][b] = val; else setDraft[a] = val;
+      if(a === 'roulette'){ const tot = Object.values(setDraft.roulette).reduce((x,y)=>x+(Number(y)||0),0) || 1; $('skTabSettings').querySelectorAll('[data-rp]').forEach(c=>{ c.textContent = Math.round((Number(setDraft.roulette[c.dataset.rp])||0)/tot*1000)/10 + '%'; }); }
+    } else {
+      const row = setDraft.gear[t.dataset.gs][+t.dataset.gi];
+      if(t.dataset.gk === 'min') row.min = Math.round(val);
+      else row.v = (t.dataset.gs === 'weapon' || t.dataset.gs === 'accessory') ? val/100 : Math.round(val);
+    }
+    setDirty = true;
+    $('skillModal').querySelectorAll('[data-setsave]').forEach(b=>b.disabled = false);
+    return;
+  }
+  if(t.dataset.bs !== undefined){
+    bsDraft = bsDraft || bossSkillsOf(SRC()).map(x=>({...x}));
+    const row = bsDraft[+t.dataset.bs], k = t.dataset.k;
+    row[k] = (k==='w' || k==='v') ? Math.max(0, Number(t.value)||0) : t.value;
+    skDirty = true;
+    const tr = t.closest('tr');
+    tr.querySelector('.desc').textContent = (SKILL_TYPES[row.type]||SKILL_TYPES.smash).desc(row.v);
+    $('skTabBoss').querySelectorAll('tbody tr').forEach((r,i)=>{ const c = r.children[3]; if(c) c.textContent = pct(bsDraft[i].w, bsDraft)+'%'; });
+    $('bsSave').disabled = false;
+  } else if(t.dataset.rs !== undefined){
+    rsDraft = rsDraft || roleSkillsOf(SRC());
+    const k = t.dataset.k; rsDraft[t.dataset.rs][k] = k==='v' ? Math.max(0, Number(t.value)||0) : t.value;
+    t.closest('tr').querySelector('.desc').textContent = ROLES[t.dataset.rs].desc(rsDraft[t.dataset.rs].v);
+    skDirty = true; $('rsSave').disabled = false;
+  } else if(t.dataset.g !== undefined){
+    gDraft = gDraft || gaugeOf(SRC()); gDraft[t.dataset.g] = Math.max(0, Math.round(Number(t.value)||0));
+    skDirty = true; $('rsSave').disabled = false;
+  }
+});
+$('skillModal').addEventListener('change', e=>{ if(e.target.dataset.k === 'type'){ renderSkillModal(); } });
+$('skillModal').addEventListener('click', e=>{
+  const id = e.target.id;
+  const sr = e.target.closest('[data-setreset]');
+  if(sr){
+    setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
+    const D = JSON.parse(JSON.stringify(settingsOf(null)));
+    if(sr.dataset.setreset === 'gear'){ setDraft.gear = D.gear; setDraft.gearRoll = D.gearRoll; setDraft.gearCost = D.gearCost; } else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.roulette = D.roulette; }
+    setDirty = true; renderSkillModal(); return;
+  }
+  if(e.target.closest('[data-setsave]') && setDraft){
+    const g = {}; for(const k in setDraft.gear) g[k] = setDraft.gear[k].map(x=>({min: Math.max(0, Math.round(Number(x.min)||0)), v: Math.max(0, Number(x.v)||0)}));
+    const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(setDraft.roulette[it.id])||0);
+    if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
+    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), gearCost: Math.max(0, Math.round(+setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +setDraft.gearRoll[k]||0)])), roulette, gear:g};
+    guard(async()=>{ await saveSrc({settings}); setDraft = null; setDirty = false; renderSkillModal(); updateSetupPreview(); toast('수치를 적용했습니다. 레이드 시작 시 반영됩니다.'); });
+    return;
+  }
+  const del = e.target.closest('[data-bsdel]');
+  if(del){ bsDraft = bsDraft || bossSkillsOf(SRC()).map(x=>({...x})); if(bsDraft.length <= 1){ toast('보스 스킬은 하나 이상 있어야 합니다.'); return; } bsDraft.splice(+del.dataset.bsdel, 1); skDirty = true; renderSkillModal(); return; }
+  if(id === 'bsAdd'){ bsDraft = bsDraft || bossSkillsOf(SRC()).map(x=>({...x})); if(bsDraft.length >= 10){ toast('보스 스킬은 10개까지 넣을 수 있습니다.'); return; } bsDraft.push({name:'새 스킬', type:'smash', w:10, v:30}); skDirty = true; renderSkillModal(); return; }
+  if(id === 'bsReset'){ bsDraft = BOSS_SETS[$('bsPreset').value].map(x=>({...x})); skDirty = true; renderSkillModal(); return; }
+  if(id === 'bsSave' && bsDraft){
+    const clean = bsDraft.map(x=>({name: String(x.name||'스킬').trim().slice(0,16) || '스킬', type: SKILL_TYPES[x.type] ? x.type : 'smash', w: Math.max(0, Number(x.w)||0), v: Math.max(0, Number(x.v)||0)}));
+    if(!clean.some(x=>x.w > 0)){ toast('비중이 0보다 큰 스킬이 하나 이상 있어야 합니다.'); return; }
+    guard(async()=>{ await saveSrc({bossSkills: clean}); bsDraft = null; skDirty = false; renderSkillModal(); updateSetupPreview(); toast('보스 스킬을 적용했습니다. 레이드 시작 시 반영됩니다.'); });
+    return;
+  }
+  if(id === 'rsReset'){ rsDraft = JSON.parse(JSON.stringify(DEFAULT_ROLE_SKILLS)); gDraft = {...DEFAULT_GAUGE}; skDirty = true; renderSkillModal(); return; }
+  if(id === 'rsSave'){
+    const rs = rsDraft || roleSkillsOf(SRC()), G = gDraft || gaugeOf(SRC());
+    if(!(G.max > 0)){ toast('게이지 최대값은 0보다 커야 합니다.'); return; }
+    const roleSkills = {}; for(const k in ROLES) roleSkills[k] = {name: String(rs[k].name||'스킬').trim().slice(0,16) || '스킬', v: Math.max(0, Number(rs[k].v)||0)};
+    guard(async()=>{ await saveSrc({roleSkills, gauge: G}); rsDraft = gDraft = null; skDirty = false; renderSkillModal(); updateSetupPreview(); toast('역할 스킬을 적용했습니다. 레이드 시작 시 반영됩니다.'); });
+  }
+});
