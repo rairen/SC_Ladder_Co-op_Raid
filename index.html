@@ -161,6 +161,11 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.join{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.me-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.me-name{font-family:var(--f-display);font-size:24px;line-height:1.2}
+.me-actions{display:flex;gap:8px;flex-wrap:wrap}
+.linkbtn{border:0;background:none;color:var(--accent);text-decoration:underline;padding:0;font-size:12px}
 /* ---- 방송 오버레이 (?overlay) ---- */
 html.overlay,html.overlay body{background:transparent!important}
 html.overlay body{padding:12px}
@@ -243,7 +248,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
       <div class="field">
         <label class="label" for="raidName">보스 이름</label>
         <input type="text" id="raidName" placeholder="예: 1주차 보스 · 심연의 군주" maxlength="40">
-        <label class="label" for="memberList" style="margin-top:10px">참여 파티원 (한 줄에 한 명 또는 쉼표로 구분)</label>
+        <label class="label" for="memberList" style="margin-top:10px">미리 넣을 파티원 (선택 · 비워두면 각자 참가)</label>
         <textarea id="memberList" placeholder="파티원A&#10;파티원B&#10;파티원C"></textarea>
       </div>
       <div class="field">
@@ -299,6 +304,26 @@ tr.hdetail td{background:var(--bg);white-space:normal}
   <div class="grid">
     <div class="col">
       <!-- Result input -->
+      <section class="panel join" id="joinPanel" hidden>
+        <h2>레이드 참가</h2>
+        <p class="hint" style="margin:0 0 10px">방송에서 쓰는 이름으로 참가하면, 이 브라우저에서는 내 결과와 룰렛만 입력하게 됩니다.</p>
+        <div class="add-row" style="margin:0">
+          <input type="text" id="joinName" placeholder="내 이름 (예: 방송 닉네임)" maxlength="20" aria-label="내 이름">
+          <button class="btn primary" id="joinBtn" type="button">참가하기</button>
+        </div>
+        <p class="hint" id="joinExisting" style="margin:10px 0 0"></p>
+      </section>
+
+      <section class="panel" id="mePanel" hidden>
+        <div class="me-row">
+          <div><span class="label">내 이름</span><div class="me-name" id="meNameView"></div></div>
+          <div class="me-actions">
+            <button class="btn" id="myLinkBtn" type="button">내 입력 링크 복사</button>
+            <button class="btn" id="leaveMe" type="button">다른 이름으로</button>
+          </div>
+        </div>
+      </section>
+
       <section class="panel" id="inputPanel">
         <h2>래더 결과 입력</h2>
         <div class="field">
@@ -359,10 +384,10 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           </table>
         </div>
         <div class="add-row">
-          <input type="text" id="addMember" placeholder="중도 합류 파티원 이름" maxlength="20" aria-label="중도 합류 파티원 이름">
-          <button class="btn" id="addMemberBtn" type="button">합류</button>
+          <input type="text" id="addMember" placeholder="운영자가 대신 추가할 파티원 이름" maxlength="20" aria-label="파티원 추가">
+          <button class="btn" id="addMemberBtn" type="button">추가</button>
         </div>
-        <p class="hint" style="margin:6px 0 0">합류하면 1인당 HP와 분노 한도만큼 보스가 강해집니다.</p>
+        <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 늘면 1인당 HP와 분노 한도만큼 보스가 강해집니다.</p>
       </section>
 
       <section class="panel">
@@ -437,6 +462,13 @@ const store = {
     if(local){ events.push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); return; }
     await db.ref(base()+'/events/'+ev.raidId).push(ev);
   },
+  async join(name){
+    if(local){ if(!raid.members.includes(name)){ raid = {...raid, members:[...raid.members, name]}; commit(); } return; }
+    await db.ref(base()+'/raid/members').transaction(list=>{
+      const arr = Array.isArray(list) ? list : Object.values(list || {});
+      return arr.includes(name) ? arr : arr.concat([name]);
+    });
+  },
   async archive(sum){
     if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); return; }
     await db.ref(base()+'/history/'+sum.raidId).set(sum);
@@ -466,7 +498,7 @@ function cfgOf(r){ return r && r.cfg ? r.cfg : {hp:240, rage:120, rec:100}; }
 function compute(r, evs){
   const members = (r && r.members) || [];
   const cfg = cfgOf(r);
-  const n = Math.max(members.length, 1);
+  const n = members.length;
   const maxHp = n*cfg.hp, maxRage = n*cfg.rage, rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [];
   const stats = {}, pending = {}, log = [];
@@ -534,7 +566,7 @@ function compute(r, evs){
     if(hp <= 0){ hp = 0; status = 'clear'; entry.notes.push('보스 처치!'); }
     else if(rage >= maxRage){ status = 'fail'; entry.notes.push('분노 폭발 · 레이드 실패'); }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, log, chain, enraged: hp <= maxHp*0.5, cfg, members};
+  return {maxHp, maxRage, hp, rage, status, stats, pending, log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
 /* ---------- Rendering ---------- */
@@ -560,8 +592,8 @@ function render(){
   const ph = $('phase');
   ph.textContent = !hasRaid ? '-' : s.enraged ? '2페이즈 · 광폭화' : '1페이즈';
   ph.classList.toggle('enrage', hasRaid && s.enraged && s.status==='live');
-  const hpPct = hasRaid ? s.hp/s.maxHp*100 : 100;
-  const ragePct = hasRaid ? Math.min(100, s.rage/s.maxRage*100) : 0;
+  const hpPct = hasRaid && s.maxHp ? s.hp/s.maxHp*100 : 100;
+  const ragePct = hasRaid && s.maxRage ? Math.min(100, s.rage/s.maxRage*100) : 0;
   $('hpFill').style.width = hpPct+'%';
   $('rageFill').style.width = ragePct+'%';
   $('hpMeter').setAttribute('aria-valuenow', Math.round(hpPct));
@@ -596,7 +628,7 @@ function render(){
   $('memberChips').innerHTML = s.members.length ? s.members.map(m=>{
     const pend = s.pending[m];
     return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
-  }).join('') : `<span class="empty">레이드를 시작하면 파티원이 여기에 표시됩니다.</span>`;
+  }).join('') : `<span class="empty">참가한 파티원이 여기에 표시됩니다.</span>`;
 
   // party table
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
@@ -646,6 +678,7 @@ function render(){
   updateGamePreview();
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
   renderTicker(s);
+  renderJoin(s, myName(s));
 }
 
 function topDealer(s){
@@ -696,7 +729,7 @@ function updateSetupPreview(){
   const ms = parseMembers(), c = setupCfg(), n = ms.length;
   $('setupPreview').innerHTML = n
     ? `파티 <b>${n}명</b> → 보스 HP <b>${fmt(n*c.hp)}</b> · 분노 최대치 <b>${fmt(n*c.rage)}</b> · 광폭화 회복률 <b>${c.rec}%</b>`
-    : '파티원을 입력하면 보스 HP와 분노 최대치가 계산됩니다.';
+    : `파티원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 한 명 참가할 때마다 보스 HP <b>+${fmt(c.hp)}</b>, 분노 최대치 <b>+${fmt(c.rage)}</b>`;
   confirmArm = false; $('startRaid').textContent = '레이드 시작'; $('setupHint').textContent = '';
 }
 function openSetup(open){
@@ -727,7 +760,6 @@ $('cancelSetup').onclick = ()=>openSetup(false);
 ['memberList','cHp','cRage','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
 $('startRaid').onclick = ()=>{
   const ms = parseMembers();
-  if(!ms.length){ $('setupHint').textContent = '파티원을 한 명 이상 입력하세요.'; return; }
   const live = raid && lastState && lastState.status==='live' && events.length>0;
   if(live && !confirmArm){
     confirmArm = true; $('startRaid').textContent = '진행 중 레이드를 끝내고 새로 시작';
@@ -800,13 +832,59 @@ $('applyManual').onclick = ()=>{
   guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'roulette', member:selected, item:it.id, manual:true, undone:false}));
 };
 
+function cleanName(v){ return String(v||'').replace(/\s+/g,' ').trim().slice(0,20); }
+function setMe(name){
+  meName = name;
+  try{ name ? localStorage.setItem(ME_KEY, name) : localStorage.removeItem(ME_KEY); }catch(_){}
+  if(name) openSetup(false);
+  render();
+}
+$('joinBtn').onclick = doJoin;
+$('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
+function doJoin(){
+  const name = cleanName($('joinName').value);
+  if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
+  if(!raid){ toast('아직 열린 레이드가 없습니다. 운영자가 레이드를 열면 참가할 수 있습니다.'); return; }
+  const already = raid.members.includes(name);
+  guard(async()=>{
+    await store.join(name);
+    $('joinName').value = '';
+    setMe(name);
+    toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
+  });
+}
+$('joinExisting').addEventListener('click', e=>{ const b = e.target.closest('[data-claim]'); if(b) setMe(b.dataset.claim); });
+$('leaveMe').onclick = ()=>{ setMe(''); toast('운영자 모드로 바꿨습니다. 다른 이름으로 참가하려면 이름을 새로 입력하세요.'); };
+function myLink(){
+  const u = new URL(location.href); u.search = ''; u.hash = '';
+  const q = new URLSearchParams(); if(ROOM !== 'main') q.set('room', ROOM); q.set('me', meName);
+  return u.toString() + '?' + q.toString();
+}
+$('myLinkBtn').onclick = async ()=>{
+  try{ await navigator.clipboard.writeText(myLink()); toast('내 입력 링크를 복사했습니다. 다음 방송부터 이 링크로 들어오면 바로 내 이름으로 열립니다.'); }
+  catch(_){ toast(myLink()); }
+};
+function renderJoin(s, me){
+  const hasRaid = !!raid, live = hasRaid && s.status === 'live';
+  $('joinPanel').hidden = !(live && !me) || OVERLAY;
+  $('mePanel').hidden = !me;
+  $('meNameView').textContent = me || '';
+  $('meSelect').parentElement.hidden = !!me || OVERLAY;
+  if(!me && meName && !$('joinName').value && document.activeElement !== $('joinName')) $('joinName').value = meName;
+  const others = s.members;
+  $('joinExisting').innerHTML = others.length
+    ? '이미 참가한 이름이면 눌러서 들어가세요: ' + others.map(m=>`<button type="button" class="linkbtn" data-claim="${esc(m)}">${esc(m)}</button>`).join(' · ')
+    : '아직 참가한 파티원이 없습니다. 첫 번째로 참가해 보세요.';
+  $('addHint').textContent = me ? '파티원 추가는 운영자 모드에서만 할 수 있습니다.' : '파티원이 늘면 1인당 HP와 분노 한도만큼 보스가 강해집니다.';
+}
+
 $('addMemberBtn').onclick = addMember;
 $('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addMember(); } });
 function addMember(){
   const name = $('addMember').value.trim().slice(0,20);
   if(!name || !raid) return;
   if(raid.members.includes(name)){ toast('이미 파티에 있는 이름입니다.'); return; }
-  guard(async()=>{ await store.updateRaid({members:[...raid.members, name]}); $('addMember').value=''; toast(`${name} 합류 · 보스가 강해졌습니다`); });
+  guard(async()=>{ await store.join(name); $('addMember').value=''; toast(`${name} 추가 · 보스가 강해졌습니다`); });
 }
 
 /* ---------- Overlay ---------- */
@@ -942,6 +1020,7 @@ const LS_KEY = 'sc-boss-raid:' + ROOM;
 /* 스트리머 모드: 이 브라우저에서 "내 이름"을 고르면 자기 기록만 입력·취소할 수 있습니다. */
 const ME_KEY = 'sc-boss-raid:me:' + ROOM;
 let meName = ''; try{ meName = localStorage.getItem(ME_KEY) || ''; }catch(_){}
+{ const qm = new URLSearchParams(location.search).get('me'); if(qm){ meName = String(qm).replace(/\s+/g,' ').trim().slice(0,20); try{ localStorage.setItem(ME_KEY, meName); }catch(_){} } }
 function myName(s){ return meName && s.members.includes(meName) ? meName : ''; }
 $('meSelect').onchange = e=>{
   meName = e.target.value;
