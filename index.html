@@ -161,6 +161,31 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+/* ---- 방송 오버레이 (?overlay) ---- */
+html.overlay,html.overlay body{background:transparent!important}
+html.overlay body{padding:12px}
+html.overlay .top,html.overlay .grid,html.overlay #historyPanel,html.overlay #setup,html.overlay #toast,html.overlay .hud-foot,html.overlay #bossMeta{display:none!important}
+html.overlay .wrap{max-width:none}
+html.overlay .hud{background:color-mix(in srgb,#06090d 82%,transparent);border-color:#ffffff22;padding:14px 18px;box-shadow:0 6px 24px #0008}
+html.overlay .hud-head{margin-bottom:6px}
+html.overlay .hud-head .label{display:none}
+html.overlay .boss-name{font-size:30px;text-shadow:0 2px 6px #000}
+html.overlay .bar{height:38px}
+html.overlay .bar.rage{height:16px}
+html.overlay .g-val{font-size:20px;text-shadow:0 1px 4px #000}
+html.overlay.no-rage .gauge.rage-row{display:none}
+html.overlay .banner{background:color-mix(in srgb,#06090d 70%,transparent)}
+.ticker{display:none}
+html.overlay .ticker{display:flex;align-items:center;gap:10px;margin-top:10px;min-height:24px;font-size:15px;color:var(--fg);text-shadow:0 1px 4px #000;overflow:hidden;white-space:nowrap}
+.ticker .tk-tag{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent-ink);background:var(--accent);padding:1px 6px;border-radius:3px;flex:none}
+.ticker .tk-text{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pop{position:absolute;right:130px;top:50%;z-index:2;font-family:var(--f-display);font-size:34px;color:#fff;text-shadow:0 0 6px var(--hp),0 2px 4px #000;pointer-events:none;animation:pop 1.6s ease-out forwards}
+.pop.heal{text-shadow:0 0 6px var(--good),0 2px 4px #000}
+.pop.rage{text-shadow:0 0 6px var(--rage),0 2px 4px #000}
+@keyframes pop{0%{opacity:0;transform:translateY(-30%) scale(.7)}12%{opacity:1;transform:translateY(-60%) scale(1.1)}70%{opacity:1}100%{opacity:0;transform:translateY(-140%) scale(1)}}
+.gauge{position:relative}
+.ovl-copy{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.ovl-copy code{font-family:var(--f-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);padding:6px 8px;border-radius:6px;overflow-wrap:anywhere;min-width:0;flex:1}
 .hist-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
 .hist-head h2{margin:0}
 .seg.small button{font-family:var(--f-body);font-size:13px;padding:7px 14px}
@@ -184,6 +209,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 .beta{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--accent-ink);background:var(--accent);padding:2px 7px;border-radius:4px;align-self:center}
 .room{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 </style>
+<script>
+(function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); } })();
+</script>
 <script src="config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -203,6 +231,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
       <button class="btn" id="exportBtn" type="button">백업 저장</button>
       <button class="btn" id="importBtn" type="button">백업 불러오기</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <button class="btn" id="ovlBtn" type="button">방송 오버레이</button>
       <button class="btn" id="toggleSetup" type="button">레이드 설정</button>
     </div>
   </header>
@@ -235,6 +264,13 @@ tr.hdetail td{background:var(--bg);white-space:normal}
     </div>
   </section>
 
+  <section class="panel" id="ovlPanel" hidden>
+    <h2>방송 오버레이</h2>
+    <p class="hint" style="margin:0">OBS에서 <b>소스 추가 &gt; 브라우저</b>를 고르고 아래 주소를 넣으세요. 너비 1280, 높이 260 정도를 추천합니다. 배경은 투명합니다.</p>
+    <div class="ovl-copy"><code id="ovlUrl"></code><button class="btn primary" id="ovlCopy" type="button">주소 복사</button></div>
+    <p class="hint" id="ovlNote" style="margin:8px 0 0"></p>
+  </section>
+
   <!-- Boss HUD -->
   <section class="panel hud" id="hud">
     <div class="hud-head">
@@ -250,12 +286,13 @@ tr.hdetail td{background:var(--bg);white-space:normal}
       <div class="bar" role="meter" aria-label="보스 HP" id="hpMeter"><div class="fill" id="hpFill" style="width:100%"></div><div class="ticks"></div><div class="mark" title="광폭화 50%"></div></div>
       <span class="g-val" id="hpVal">0 <small>/ 0</small></span>
     </div>
-    <div class="gauge">
+    <div class="gauge rage-row">
       <span class="g-label" style="color:var(--rage)">분노</span>
       <div class="bar rage" role="meter" aria-label="분노 게이지" id="rageMeter"><div class="fill" id="rageFill" style="width:0%"></div><div class="ticks"></div></div>
       <span class="g-val" id="rageVal">0 <small>/ 0</small></span>
     </div>
     <div class="hud-foot" id="hudFoot"></div>
+    <div class="ticker" id="ticker" aria-live="polite"></div>
     <div class="banner" id="banner" hidden></div>
   </section>
 
@@ -380,6 +417,7 @@ let db = null, local = false, readOnly = false, online = false;
 let history = [], histTab = 'hist', openHist = null;
 let raid = null, events = [], unsubEvents = null, subRaidId = null;
 // 방 코드: 주소 끝에 ?room=코드 를 붙이면 그룹별로 레이드가 분리됩니다.
+const OVERLAY = document.documentElement.classList.contains('overlay');
 const ROOM = ((new URLSearchParams(location.search).get('room')) || 'main').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,32) || 'main';
 const base = () => 'rooms/' + ROOM;
 let selected = null, isWin = true, diff = 'normal', confirmArm = false, spinning = false;
@@ -606,7 +644,8 @@ function render(){
   $('subline').textContent = hasRaid ? `시작 ${new Date(raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
   $('toggleSetup').disabled = readOnly || !!me;
   updateGamePreview();
-  if(typeof autoArchive === 'function' && hasRaid) autoArchive(s);
+  if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
+  renderTicker(s);
 }
 
 function topDealer(s){
@@ -770,6 +809,55 @@ function addMember(){
   guard(async()=>{ await store.updateRaid({members:[...raid.members, name]}); $('addMember').value=''; toast(`${name} 합류 · 보스가 강해졌습니다`); });
 }
 
+/* ---------- Overlay ---------- */
+let lastSeenEv = null, tickerReady = false;
+function evText(e){
+  const ev = e.ev;
+  if(ev.type === 'game'){
+    const p = Number(ev.points)||0;
+    if(p > 0) return `${ev.member} 승리! 보스에게 ${fmt(-e.dHp)} 데미지${e.notes.length ? ' · '+e.notes.join(' · ') : ''}`;
+    if(p < 0) return `${ev.member} 패배… 분노 +${fmt(e.dRage)}${e.dHp > 0 ? ' · 보스 HP +'+fmt(e.dHp)+' 회복' : ''}`;
+    return `${ev.member} 무승부`;
+  }
+  const it = ITEM[ev.item] || ITEM.none;
+  return `${ev.member} 룰렛 [${it.tier}] ${it.name}`;
+}
+function popAt(gaugeSel, text, cls){
+  const m = document.querySelector(gaugeSel); const g = m && m.parentElement; if(!g) return;
+  const el = document.createElement('span'); el.className = 'pop ' + (cls||''); el.textContent = text;
+  g.appendChild(el); setTimeout(()=>el.remove(), 1700);
+}
+function renderTicker(s){
+  const live = s.log.filter(e=>!e.undone && !e.ignored);
+  const last = live[live.length-1];
+  const tk = $('ticker');
+  tk.innerHTML = last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
+  const id = last ? (last.ev._id || last.ev.t) : null;
+  if(tickerReady && id && id !== lastSeenEv && OVERLAY){
+    if(last.dHp < 0) popAt('#hpMeter', '−'+fmt(-last.dHp));
+    else if(last.dHp > 0) popAt('#hpMeter', '+'+fmt(last.dHp), 'heal');
+    if(last.dRage > 0) popAt('#rageMeter', '+'+fmt(last.dRage), 'rage');
+  }
+  lastSeenEv = id; tickerReady = true;
+}
+function overlayUrl(){
+  const u = new URL(location.href); u.search = ''; u.hash = '';
+  const q = new URLSearchParams(); if(ROOM !== 'main') q.set('room', ROOM); q.set('overlay', '1');
+  return u.toString() + '?' + q.toString();
+}
+$('ovlBtn').onclick = ()=>{
+  const p = $('ovlPanel'); p.hidden = !p.hidden;
+  $('ovlUrl').textContent = overlayUrl();
+  $('ovlNote').textContent = local
+    ? '지금은 Firebase가 연결되지 않아 기록이 이 브라우저에만 있습니다. OBS 브라우저 소스는 별도 브라우저라서, 공유 연결 전에는 오버레이에 기록이 보이지 않습니다.'
+    : '모든 파티원의 입력이 오버레이에 실시간으로 반영됩니다. 끝에 &rage=0 을 붙이면 분노 게이지를 숨깁니다.';
+};
+$('ovlCopy').onclick = async ()=>{
+  const t = $('ovlUrl').textContent;
+  try{ await navigator.clipboard.writeText(t); toast('오버레이 주소를 복사했습니다.'); }
+  catch(_){ const r = document.createRange(); r.selectNodeContents($('ovlUrl')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('주소를 선택해 두었습니다. Ctrl+C로 복사하세요.'); }
+};
+
 /* ---------- Raid history ---------- */
 function summarize(r, s, stopped){
   const members = {};
@@ -875,7 +963,7 @@ function commit(){
   render();
 }
 window.addEventListener('storage', e=>{ if(!local) return; if(e.key === LS_KEY){ loadLocal(); render(); } if(e.key === LS_HIST){ loadHistory(); renderHistory(); } });
-function startLocal(){ local = true; loadLocal(); loadHistory(); render(); renderHistory(); if(!raid) openSetup(true); }
+function startLocal(){ local = true; loadLocal(); loadHistory(); render(); renderHistory(); if(!raid && !OVERLAY) openSetup(true); }
 
 $('exportBtn').onclick = ()=>{
   if(!raid){ toast('저장할 레이드가 없습니다.'); return; }
@@ -932,7 +1020,7 @@ render();
         unsubEvents = ()=>ref.off('value', handler);
       }
     }
-    if(!raid && $('setup').hidden && !meName) openSetup(true);
+    if(!raid && $('setup').hidden && !meName && !OVERLAY) openSetup(true);
     render();
   }, ()=>{ toast('레이드 정보를 불러오지 못했습니다. Firebase 보안 규칙을 확인하세요.'); });
 })();
