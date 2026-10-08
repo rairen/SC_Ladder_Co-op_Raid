@@ -3,11 +3,11 @@
    ---------------------------------------------------------------------
    Firebase 를 연결했을 때만 동작합니다. (브라우저 저장 모드에서는 로그인 없음)
      users/<uid>   내 프로필 {name, ladder, gw}       본인만 쓰기
-     admins/<uid>  운영자 표시 true                   운영자만 쓰기 (첫 운영자는 Firebase 콘솔에서 직접 등록)
+     admins/<uid>  운영자 표시 true                   사이트에서는 못 씀 (Firebase 콘솔에서만 등록·삭제)
    권한
      로그인 안 함   보기만 가능
      로그인        참가하기, 내 결과·룰렛·장비·역할 스킬 입력
-     운영자        레이드 열기·종료, 파티원 추가, 모든 파티원 입력, 데이터 초기화
+     운영자        레이드 열기·종료, 파티원 추가, 모든 파티원 입력, 데이터 초기화 (콘솔에서 지정)
    ===================================================================== */
 let auth = null, authUser = null, profile = null, admins = {}, adminsLoaded = false, unsubProfile = null;
 
@@ -91,23 +91,10 @@ function openProfile(open){
 }
 function renderProfile(){
   $('pfEmail').textContent = authUser ? (authUser.email || '') : '';
-  const noAdmins = adminsLoaded && !Object.values(admins).some(v=>v===true);
+  const idHtml = `내 계정 ID: <code class="uid">${esc(authUser ? authUser.uid : '')}</code> <button class="btn sm" type="button" id="copyUid">복사</button>`;
   $('pfAdmin').innerHTML = isAdmin()
     ? '<b class="ok">운영자</b> · 레이드 열기·종료, 파티원 추가, 데이터 초기화를 할 수 있습니다.'
-    : noAdmins
-      ? `아직 운영자가 없습니다. 첫 운영자는 Firebase 콘솔에서 등록합니다. 내 계정 ID: <code class="uid">${esc(authUser ? authUser.uid : '')}</code> <button class="btn sm" type="button" id="copyUid">복사</button>`
-      : '스트리머 계정입니다. 운영자가 운영자 목록에서 권한을 줄 수 있습니다.';
-  // 운영자: 로그인한 사용자 목록에서 운영자 지정
-  const list = $('pfUsers');
-  list.hidden = !isAdmin();
-  if(isAdmin()){
-    db.ref('users').once('value').then(snap=>{
-      const users = snap.val() || {};
-      const rows = Object.entries(users).sort((a,b)=>String(a[1].name||'').localeCompare(String(b[1].name||'')));
-      list.innerHTML = `<div class="label" style="margin-top:6px">운영자 지정</div>` + (rows.length ? rows.map(([uid,u])=>
-        `<label class="pf-user"><input type="checkbox" data-admin="${esc(uid)}"${admins[uid]===true?' checked':''}${uid===authUser.uid?' disabled':''}> ${esc(u.name||'(이름 없음)')}${u.ladder?` <span class="hint">${esc(u.ladder)}</span>`:''}</label>`).join('') : '<p class="hint">아직 로그인한 사람이 없습니다.</p>');
-    }).catch(()=>{});
-  }
+    : `스트리머 계정입니다. 운영자 권한은 Firebase 콘솔에서만 줄 수 있습니다.<br>${idHtml}`;
 }
 async function saveProfile(){
   const name = cleanName($('pfName').value);
@@ -131,9 +118,5 @@ document.addEventListener('click', e=>{
   else if(id === 'pfSave') saveProfile();
   else if(id === 'pfLogout'){ auth.signOut(); openProfile(false); toast('로그아웃했습니다.'); }
   else if(id === 'copyUid'){ navigator.clipboard.writeText(authUser.uid).then(()=>toast('계정 ID를 복사했습니다.'), ()=>toast(authUser.uid)); }
-});
-$('profileModal').addEventListener('change', e=>{
-  const c = e.target.closest('[data-admin]'); if(!c) return;
-  guard(()=>db.ref('admins/'+c.dataset.admin).set(c.checked ? true : null));
 });
 $('profileModal').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('#pfName,#pfLadder')) saveProfile(); if(e.key==='Escape') openProfile(false); });
