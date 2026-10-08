@@ -161,6 +161,16 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.chip .x{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:0 0 0 4px}
+.chip .x:hover{color:var(--trap)}
+.banner .btn{margin-top:10px}
+.hd-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.hd-meta b{color:var(--fg);font-family:var(--f-mono)}
+.hd-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:760px){.hd-grid{grid-template-columns:minmax(0,1fr)}}
+.hd-grid h3{font-size:13px;color:var(--muted);margin:0 0 6px;letter-spacing:.04em}
+.log.compact{max-height:300px}
+.log.compact li{padding:6px 2px}
 .join{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
 .me-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .me-name{font-family:var(--f-display);font-size:24px;line-height:1.2}
@@ -248,8 +258,12 @@ tr.hdetail td{background:var(--bg);white-space:normal}
       <div class="field">
         <label class="label" for="raidName">보스 이름</label>
         <input type="text" id="raidName" placeholder="예: 1주차 보스 · 심연의 군주" maxlength="40">
-        <label class="label" for="memberList" style="margin-top:10px">미리 넣을 파티원 (선택 · 비워두면 각자 참가)</label>
-        <textarea id="memberList" placeholder="파티원A&#10;파티원B&#10;파티원C"></textarea>
+        <label class="label" for="memberAdd" style="margin-top:10px">미리 넣을 파티원 (선택 · 비워두면 각자 참가)</label>
+        <div class="add-row" style="margin:0">
+          <input type="text" id="memberAdd" placeholder="파티원 이름 입력 후 Enter" maxlength="20">
+          <button class="btn" id="memberAddBtn" type="button">추가</button>
+        </div>
+        <div class="chips" id="setupMembers" style="margin-top:8px"></div>
       </div>
       <div class="field">
         <span class="label">난이도</span>
@@ -469,6 +483,12 @@ const store = {
       return arr.includes(name) ? arr : arr.concat([name]);
     });
   },
+  async reset(sum){
+    if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); raid = null; events = []; commit(); return; }
+    await db.ref(base()+'/history/'+sum.raidId).set(sum);
+    await db.ref(base()+'/events/'+sum.raidId).remove();
+    await db.ref(base()+'/raid').remove();
+  },
   async archive(sum){
     if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); return; }
     await db.ref(base()+'/history/'+sum.raidId).set(sum);
@@ -612,9 +632,13 @@ function render(){
   if(hasRaid && s.status !== 'live'){
     bn.hidden = false; bn.className = 'banner ' + s.status;
     const mvp = topDealer(s);
-    bn.innerHTML = s.status==='clear'
+    const meNow = myName(s);
+    const act = OVERLAY ? '' : meNow
+      ? '<span>운영자가 초기화하면 새 레이드에 참가할 수 있습니다.</span>'
+      : '<button type="button" class="btn primary" data-act="reset">레이드 초기화</button><span>기록은 아래 레이드 기록에 보관됩니다.</span>';
+    bn.innerHTML = (s.status==='clear'
       ? `<strong>레이드 성공</strong><span>${wins}승 ${losses}패${mvp ? ' · MVP '+esc(mvp) : ''}</span>`
-      : `<strong>레이드 실패</strong><span>분노 게이지가 가득 찼습니다 · 남은 HP ${fmt(s.hp)}</span>`;
+      : `<strong>레이드 실패</strong><span>분노 게이지가 가득 찼습니다 · 남은 HP ${fmt(s.hp)}</span>`) + act;
   } else bn.hidden = true;
 
   // chips
@@ -717,10 +741,23 @@ function renderDiffs(){
   $('customBox').hidden = diff !== 'custom';
   updateSetupPreview();
 }
-function parseMembers(){
-  const seen = new Set();
-  return $('memberList').value.split(/[\n,]/).map(x=>x.trim()).filter(x=>x && x.length<=20 && !seen.has(x) && seen.add(x));
+let setupList = [];
+function parseMembers(){ return setupList.slice(); }
+function renderSetupMembers(){
+  $('setupMembers').innerHTML = setupList.length
+    ? setupList.map((m,i)=>`<span class="chip">${esc(m)}<button type="button" class="x" data-rm="${i}" aria-label="${esc(m)} 빼기">×</button></span>`).join('')
+    : '<span class="hint">아직 넣은 파티원이 없습니다.</span>';
+  updateSetupPreview();
 }
+function addSetupMember(){
+  const name = String($('memberAdd').value||'').replace(/\s+/g,' ').trim().slice(0,20);
+  if(!name){ $('memberAdd').focus(); return; }
+  if(setupList.includes(name)){ toast('이미 넣은 이름입니다.'); return; }
+  setupList.push(name); $('memberAdd').value = ''; $('memberAdd').focus(); renderSetupMembers();
+}
+$('memberAddBtn').onclick = addSetupMember;
+$('memberAdd').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); addSetupMember(); } });
+$('setupMembers').addEventListener('click', e=>{ const b = e.target.closest('[data-rm]'); if(b){ setupList.splice(+b.dataset.rm, 1); renderSetupMembers(); } });
 function setupCfg(){
   if(diff !== 'custom'){ const p = PRESETS[diff]; return {hp:p.hp, rage:p.rage, rec:p.rec}; }
   return {hp:Math.max(10, +$('cHp').value||240), rage:Math.max(10, +$('cRage').value||120), rec:Math.max(0, +$('cRec').value||0)};
@@ -734,14 +771,15 @@ function updateSetupPreview(){
 }
 function openSetup(open){
   $('setup').hidden = !open;
+  if(open && !raid) setupList = [];
   if(open){
     if(raid){
       $('raidName').value = raid.name || '';
-      $('memberList').value = (raid.members||[]).join('\n');
+      setupList = (raid.members||[]).slice();
       diff = raid.diff || 'normal';
       if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cRage').value = raid.cfg.rage; $('cRec').value = raid.cfg.rec; }
     }
-    renderDiffs();
+    renderDiffs(); renderSetupMembers();
     $('raidName').focus();
   }
 }
@@ -752,12 +790,18 @@ document.addEventListener('click', e=>{
   if(chip){ selected = chip.dataset.m; render(); return; }
   const d = e.target.closest('.diff[data-d]');
   if(d){ diff = d.dataset.d; renderDiffs(); return; }
+  const rs = e.target.closest('[data-act="reset"]');
+  if(rs && raid){
+    const sum = summarize(raid, compute(raid, events), true);
+    guard(async()=>{ await store.reset(sum); openHist = sum.raidId; setHistTab('hist'); toast('레이드를 초기화했습니다. 새 레이드를 열 수 있습니다.'); openSetup(true); });
+    return;
+  }
   const u = e.target.closest('[data-undo]');
   if(u){ guard(()=>store.setUndone(u.dataset.undo, u.dataset.state !== '1')); return; }
 });
 $('toggleSetup').onclick = ()=>openSetup($('setup').hidden);
 $('cancelSetup').onclick = ()=>openSetup(false);
-['memberList','cHp','cRage','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
+['cHp','cRage','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
 $('startRaid').onclick = ()=>{
   const ms = parseMembers();
   const live = raid && lastState && lastState.status==='live' && events.length>0;
@@ -944,14 +988,16 @@ function summarize(r, s, stopped){
   const lastT = events.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
   return {raidId:r.raidId, name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
-    maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members};
+    maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members,
+    evCount: events.length,
+    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else o.item = e.item; if(e.undone) o.undone = true; return o; })};
 }
 let archiveTimer = null;
 function autoArchive(s){
   if(!raid || s.status === 'live' || readOnly) return;
   const sum = summarize(raid, s, false);
   const prev = history.find(h=>h.raidId===sum.raidId);
-  const same = prev && prev.status===sum.status && prev.hpLeft===sum.hpLeft && prev.rage===sum.rage && prev.wins===sum.wins && prev.losses===sum.losses && Object.keys(prev.members||{}).length===Object.keys(sum.members).length;
+  const same = prev && prev.status===sum.status && prev.hpLeft===sum.hpLeft && prev.rage===sum.rage && prev.wins===sum.wins && prev.losses===sum.losses && prev.evCount===sum.evCount && Object.keys(prev.members||{}).length===Object.keys(sum.members).length;
   if(same) return;
   clearTimeout(archiveTimer);
   archiveTimer = setTimeout(()=>guard(()=>store.archive(sum)), 600);
@@ -991,10 +1037,7 @@ function renderHistory(){
     <tbody>${done.map(h=>{
       const open = openHist === h.raidId;
       const mem = Object.entries(h.members||{}).sort((a,b)=>b[1].dmg-a[1].dmg);
-      const detail = open ? `<tr class="hdetail"><td colspan="8"><div class="tbl-wrap"><table class="mini">
-        <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th></tr></thead>
-        <tbody>${mem.map(([m,x])=>`<tr><td>${esc(m)}${h.mvp===m?'<span class="mvp">MVP</span>':''}</td><td class="r num">${x.w}</td><td class="r num">${x.l}</td><td class="r num">${fmt(x.dmg)}</td><td class="r num">${fmt(x.best||0)}</td><td class="r num">${fmt(x.rage)}</td></tr>`).join('')}</tbody>
-      </table></div></td></tr>` : '';
+      const detail = open ? `<tr class="hdetail"><td colspan="8">${histDetail(h, mem)}</td></tr>` : '';
       return `<tr class="hrow" data-h="${esc(h.raidId)}" tabindex="0" aria-expanded="${open}"><td class="num">${fmtDate(h.endedAt||h.startedAt)}</td><td>${esc(h.name)}</td><td>${esc((PRESETS[h.diff]||PRESETS.custom).label)}</td>
         <td class="r num">${mem.length}</td><td><span class="res ${h.status}">${RES_LABEL[h.status]||h.status}</span></td>
         <td class="r num">${h.wins}승 ${h.losses}패</td><td class="r num">${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</td><td>${h.mvp ? esc(h.mvp) : '-'}</td></tr>${detail}`;
@@ -1007,6 +1050,35 @@ function renderHistory(){
   </table></div>` : `<p class="empty">끝난 레이드가 쌓이면 파티원별 누적 기록이 표시됩니다.</p>`;
   $('histView').hidden = histTab !== 'hist';
   $('fameView').hidden = histTab !== 'fame';
+}
+function histDetail(h, mem){
+  const cfg = h.cfg || {hp:0, rage:0, rec:0};
+  const dur = h.endedAt && h.startedAt ? Math.max(0, Math.round((h.endedAt - h.startedAt)/60000)) : null;
+  const meta = `<div class="hd-meta">
+    <span>시작 <b>${fmtDate(h.startedAt)}</b></span><span>종료 <b>${fmtDate(h.endedAt)}</b></span>${dur!==null ? `<span>진행 <b>${dur >= 60 ? Math.floor(dur/60)+'시간 '+(dur%60)+'분' : dur+'분'}</b></span>` : ''}
+    <span>1인당 HP <b>${fmt(cfg.hp)}</b> · 분노 <b>${fmt(cfg.rage)}</b> · 회복 <b>${cfg.rec}%</b></span>
+    <span>보스 HP <b>${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</b></span><span>분노 <b>${fmt(h.rage)} / ${fmt(h.maxRage)}</b></span></div>`;
+  const table = `<div class="tbl-wrap"><table class="mini">
+    <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th></tr></thead>
+    <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${h.mvp===m?'<span class="mvp">MVP</span>':''}</td><td class="r num">${x.w}</td><td class="r num">${x.l}</td><td class="r num">${fmt(x.dmg)}</td><td class="r num">${fmt(x.best||0)}</td><td class="r num">${fmt(x.rage)}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">참가한 파티원이 없었습니다.</td></tr>'}</tbody>
+  </table></div>`;
+  let logHtml = '<p class="empty">이 레이드는 전투 기록이 저장되지 않았습니다.</p>';
+  if(Array.isArray(h.events) && h.events.length){
+    const st = compute({members:Object.keys(h.members||{}), cfg:h.cfg}, h.events.map((e,i)=>({...e, _id:'h'+i})));
+    logHtml = '<ul class="log compact">' + st.log.slice().reverse().map(e=>{
+      const ev = e.ev, d = new Date(ev.t), tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+      let what;
+      if(ev.type==='game'){ const p = Number(ev.points)||0; what = `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점`; }
+      else { const it = ITEM[ev.item] || ITEM.none; what = `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`; }
+      const ds = [];
+      if(e.dHp < 0) ds.push(`<span class="d-hp">HP ${fmt(e.dHp)}</span>`);
+      if(e.dHp > 0) ds.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
+      if(e.dRage > 0) ds.push(`<span class="d-rage">분노 +${fmt(e.dRage)}</span>`);
+      if(e.dRage < 0) ds.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
+      return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
+    }).join('') + '</ul>';
+  }
+  return meta + `<div class="hd-grid"><div><h3>파티원 기록</h3>${table}</div><div><h3>전투 기록</h3>${logHtml}</div></div>`;
 }
 function setHistTab(t){ histTab = t; $('tabHist').setAttribute('aria-pressed', t==='hist'); $('tabFame').setAttribute('aria-pressed', t==='fame'); renderHistory(); }
 $('tabHist').onclick = ()=>setHistTab('hist');
