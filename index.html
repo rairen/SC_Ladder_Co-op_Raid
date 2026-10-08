@@ -285,7 +285,10 @@ tr.hdetail td{background:var(--bg);white-space:normal}
     <div class="setup-grid">
       <div class="field">
         <label class="label" for="raidName">보스 이름</label>
-        <input type="text" id="raidName" placeholder="예: 1주차 보스 · 심연의 군주" maxlength="40">
+        <div class="add-row" style="margin:0">
+          <input type="text" id="raidName" placeholder="보스 이름" maxlength="40">
+          <button class="btn" id="rollName" type="button" title="목록에서 다른 이름 뽑기">다른 이름</button>
+        </div>
         <label class="label" for="memberAdd" style="margin-top:10px">미리 넣을 파티원 (선택 · 비워두면 각자 참가)</label>
         <div class="add-row" style="margin:0">
           <input type="text" id="memberAdd" placeholder="파티원 이름 입력 후 Enter" maxlength="20">
@@ -931,10 +934,32 @@ function openSetup(open){
       diff = raid.diff || 'normal';
       if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cRage').value = raid.cfg.rage; $('cRec').value = raid.cfg.rec; }
     }
+    else $('raidName').value = randomBossName();
     renderDiffs(); renderSetupMembers();
     $('raidName').focus();
   }
 }
+
+/* ---------- Boss names ---------- */
+/* 새 레이드를 열면 이 목록에서 무작위로 하나가 기본값으로 들어갑니다. 자유롭게 고쳐 써도 됩니다. */
+const BOSS_NAMES = [
+  '군락의 심장 하이브', '광폭한 울트라리스크', '산성 둥지의 퀸', '독안개의 디파일러',
+  '망각의 오버로드', '무한 증식 저글링 군락', '그림자 속의 다크 아칸', '사이오닉 폭풍의 하이 템플러',
+  '영원의 아비터', '차원의 캐리어 함대', '섬광의 리버', '침묵의 다크 템플러',
+  '붕괴하는 배틀크루저', '핵을 품은 고스트', '철벽의 시즈탱크 포대', '불타는 벙커 요새'
+];
+function randomBossName(){
+  const recent = new Set(history.slice(-5).map(h=>h.name));
+  if(raid && raid.name) recent.add(raid.name);
+  const pool = BOSS_NAMES.filter(n=>!recent.has(n));
+  const list = pool.length ? pool : BOSS_NAMES;
+  return list[Math.floor(Math.random()*list.length)];
+}
+$('rollName').onclick = ()=>{
+  let n = randomBossName(), guard = 0;
+  while(n === $('raidName').value && guard++ < 5) n = randomBossName();
+  $('raidName').value = n;
+};
 
 /* ---------- Events ---------- */
 document.addEventListener('click', e=>{
@@ -961,7 +986,7 @@ $('startRaid').onclick = ()=>{
     confirmArm = true; $('startRaid').textContent = '진행 중 레이드를 끝내고 새로 시작';
     $('setupHint').textContent = '진행 중인 레이드 기록은 화면에서 사라집니다. 한 번 더 누르면 시작합니다.'; return;
   }
-  const data = {raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:$('raidName').value.trim().slice(0,40) || '이름 없는 보스', members:ms, diff, cfg:setupCfg(), startedAt:Date.now()};
+  const data = {raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:$('raidName').value.trim().slice(0,40) || randomBossName(), members:ms, diff, cfg:setupCfg(), startedAt:Date.now()};
   guard(async()=>{
     if(raid && events.some(e=>!e.undone)) await store.archive(summarize(raid, compute(raid, events), true));
     await store.setRaid(data); openSetup(false); toast('레이드를 시작했습니다.');
