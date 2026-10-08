@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>래더 보스 레이드</title>
+<title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
@@ -233,8 +233,6 @@ html.overlay .pm{font-size:14px;text-shadow:0 1px 3px #000}
 .skills-list li{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:10px;align-items:baseline;font-size:14px;padding:7px 0;border-bottom:1px solid var(--line)}
 .skills-list .sn{font-family:var(--f-display);color:#ffd0d1}
 .skills-list .sw{font-family:var(--f-mono);color:var(--muted);font-size:12px}
-.room-recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
-.room-recent .chip[aria-current="true"]{border-color:var(--accent);color:#e9fbff}
 .danger{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
 .danger-text{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--muted);min-width:0;flex:1 1 320px}
 .danger-text b{color:var(--fg)}
@@ -303,7 +301,6 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 .me{display:inline-flex;align-items:center;gap:8px}.me select{padding:7px 10px}
 .chip:disabled{opacity:.35;cursor:not-allowed}
 .beta{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--accent-ink);background:var(--accent);padding:2px 7px;border-radius:4px;align-self:center}
-.room{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 </style>
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); } })();
@@ -317,11 +314,10 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 <div class="wrap">
   <header class="top">
     <div class="brand">
-      <h1>래더 보스 레이드</h1><span class="beta">BETA</span>
+      <h1>래더 협동 보스 레이드</h1><span class="beta">BETA</span>
       <span class="sub" id="subline">래더 점수로 보스를 잡는 협동 레이드</span>
     </div>
     <div class="top-actions">
-      <button class="btn" id="roomBtn" type="button">방 · main</button>
       <label class="me"><span class="label">내 이름</span><select id="meSelect" aria-label="내 이름"></select></label>
       <span class="pill" id="connPill">연결 중</span>
       <button class="btn" id="exportBtn" type="button">백업 저장</button>
@@ -370,15 +366,6 @@ tr.hdetail td{background:var(--bg);white-space:normal}
     </div>
   </section>
 
-  <section class="panel" id="roomPanel" hidden>
-    <h2>방 선택</h2>
-    <p class="hint" style="margin:0 0 10px">같은 방 이름을 고른 사람끼리 같은 레이드를 함께 씁니다. 방마다 레이드와 기록이 따로 저장됩니다.</p>
-    <div class="add-row" style="margin:0">
-      <input type="text" id="roomInput" placeholder="방 이름 (영문, 숫자, - _ 만)" maxlength="32" aria-label="방 이름">
-      <button class="btn primary" id="roomGo" type="button">이 방으로 이동</button>
-    </div>
-    <div class="room-recent" id="roomRecent"></div>
-  </section>
 
   <section class="panel" id="ovlPanel" hidden>
     <h2>방송 오버레이</h2>
@@ -592,23 +579,18 @@ let history = [], histTab = 'hist', openHist = null;
 let raid = null, events = [], unsubEvents = null, subRaidId = null;
 // 방 코드: 주소 끝에 ?room=코드 를 붙이면 그룹별로 레이드가 분리됩니다.
 const OVERLAY = document.documentElement.classList.contains('overlay');
-const cleanRoom = v => String(v||'').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,32);
-const ROOM_KEY = 'sc-boss-raid:room', ROOMS_KEY = 'sc-boss-raid:rooms';
-const ROOM = (()=>{
-  const q = cleanRoom(new URLSearchParams(location.search).get('room'));
-  let last = ''; try{ last = cleanRoom(localStorage.getItem(ROOM_KEY)); }catch(_){}
-  return q || last || 'main';
-})();
-function recentRooms(){ try{ const a = JSON.parse(localStorage.getItem(ROOMS_KEY) || '[]'); return Array.isArray(a) ? a.filter(cleanRoom) : []; }catch(_){ return []; } }
-function rememberRoom(r){
+/* 게임 모드. 나중에 '래더 보스 레이드 대전' 버전을 추가하면 'versus'처럼 다른 값을 써서 데이터가 섞이지 않게 합니다. */
+const MODE = 'coop';
+const ROOM = MODE;
+const base = () => MODE;
+/* 예전 '방(main)' 데이터가 이 브라우저에 있으면 협동 모드로 한 번만 옮깁니다. */
+(function migrate(){
   try{
-    if(!document.documentElement.classList.contains('overlay')) localStorage.setItem(ROOM_KEY, r);
-    const list = [r].concat(recentRooms().filter(x=>x!==r)).slice(0,8);
-    localStorage.setItem(ROOMS_KEY, JSON.stringify(list));
+    const pairs = [['sc-boss-raid:main','sc-boss-raid:'+MODE],['sc-boss-raid:history:main','sc-boss-raid:history:'+MODE],['sc-boss-raid:me:main','sc-boss-raid:me:'+MODE]];
+    for(const [from,to] of pairs){ const v = localStorage.getItem(from); if(v !== null && localStorage.getItem(to) === null) localStorage.setItem(to, v); }
+    ['sc-boss-raid:room','sc-boss-raid:rooms'].forEach(k=>localStorage.removeItem(k));
   }catch(_){}
-}
-rememberRoom(ROOM);
-const base = () => 'rooms/' + ROOM;
+})();
 let selected = null, isWin = true, diff = 'normal', confirmArm = false, spinning = false;
 let lastState = null;
 
@@ -954,7 +936,6 @@ function render(){
   const cp = $('connPill');
   cp.className = 'pill ' + (local ? 'local' : (hasRaid ? s.status : ''));
   cp.textContent = local ? (hasRaid ? (s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 이 브라우저에 저장') : '레이드 없음') : !online ? '연결 끊김 · 재연결 중' : !hasRaid ? '레이드 없음' : s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 실시간 공유';
-  $('roomBtn').textContent = '방 · ' + ROOM;
   $('importBtn').hidden = !local;
 
   // HUD
@@ -1320,7 +1301,7 @@ $('joinExisting').addEventListener('click', e=>{ const b = e.target.closest('[da
 $('leaveMe').onclick = ()=>{ setMe(''); toast('운영자 모드로 바꿨습니다. 다른 이름으로 참가하려면 이름을 새로 입력하세요.'); };
 function myLink(){
   const u = new URL(location.href); u.search = ''; u.hash = '';
-  const q = new URLSearchParams(); q.set('room', ROOM); q.set('me', meName);
+  const q = new URLSearchParams(); q.set('me', meName);
   return u.toString() + '?' + q.toString();
 }
 $('myLinkBtn').onclick = async ()=>{
@@ -1386,28 +1367,11 @@ function renderTicker(s){
   }
   lastSeenEv = id; tickerReady = true;
 }
-/* 방 선택 */
-function renderRooms(){
-  const list = recentRooms();
-  $('roomRecent').innerHTML = '<span>최근 방</span>' + list.map(r=>`<button type="button" class="chip" data-room="${esc(r)}" aria-current="${r===ROOM}">${esc(r)}</button>`).join('');
-}
-function goRoom(r){
-  r = cleanRoom(r);
-  if(!r){ toast('방 이름은 영문, 숫자, -, _ 로만 지을 수 있습니다.'); $('roomInput').focus(); return; }
-  if(r === ROOM){ $('roomPanel').hidden = true; return; }
-  try{ localStorage.setItem(ROOM_KEY, r); }catch(_){}
-  rememberRoom(r);
-  location.href = location.pathname;   // 주소에 아무것도 붙이지 않고 새 방으로 다시 엽니다
-}
-$('roomBtn').onclick = ()=>{ const p = $('roomPanel'); p.hidden = !p.hidden; $('ovlPanel').hidden = true; if(!p.hidden){ renderRooms(); $('roomInput').value = ''; $('roomInput').focus(); } };
-$('roomGo').onclick = ()=>goRoom($('roomInput').value);
-$('roomInput').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); goRoom($('roomInput').value); } });
-$('roomRecent').addEventListener('click', e=>{ const b = e.target.closest('[data-room]'); if(b) goRoom(b.dataset.room); });
 
 /* 오버레이 주소 (OBS 브라우저 소스용) */
 function overlayUrl(){
   const u = new URL(location.href); u.search = ''; u.hash = '';
-  const q = new URLSearchParams(); q.set('room', ROOM); q.set('overlay', '1');
+  const q = new URLSearchParams(); q.set('overlay', '1');
   if(ovlView === 'skills') q.set('view', 'skills'); else if($('ovlNoRage').checked) q.set('rage', '0');
   return u.toString() + '?' + q.toString();
 }
@@ -1417,7 +1381,7 @@ function refreshOvl(){
     ? '지금은 Firebase가 연결되지 않아 기록이 이 브라우저에만 있습니다. OBS 브라우저 소스는 별도 브라우저라서, 공유 연결 전에는 오버레이에 기록이 보이지 않습니다. 미리보기는 같은 브라우저라 정상으로 보입니다.'
     : '모든 파티원의 입력이 오버레이에 실시간으로 반영됩니다.';
 }
-$('ovlBtn').onclick = ()=>{ const p = $('ovlPanel'); p.hidden = !p.hidden; $('roomPanel').hidden = true; refreshOvl(); };
+$('ovlBtn').onclick = ()=>{ const p = $('ovlPanel'); p.hidden = !p.hidden; refreshOvl(); };
 $('ovlNoRage').onchange = refreshOvl;
 let ovlView = 'hp';
 $('ovlPanel').addEventListener('click', e=>{
@@ -1680,7 +1644,7 @@ function wipeIdle(){
 $('dangerZone').addEventListener('click', e=>{
   const id = e.target.id;
   if(id === 'wipeBtn'){
-    $('wipeAct').innerHTML = `<span class="warn">${ROOM==='main' ? '' : 'ROOM '+esc(ROOM)+' · '}모든 기록을 지울까요?</span>
+    $('wipeAct').innerHTML = `<span class="warn">모든 기록을 지울까요?</span>
       <button type="button" class="btn danger solid" id="wipeYes">모두 지우기</button>
       <button type="button" class="btn" id="wipeNo">취소</button>`;
     $('wipeNo').focus();
@@ -1735,7 +1699,7 @@ function startLocal(){ local = true; loadLocal(); loadHistory(); render(); rende
 
 $('exportBtn').onclick = ()=>{
   if(!raid){ toast('저장할 레이드가 없습니다.'); return; }
-  const blob = new Blob([JSON.stringify({version:2, room:ROOM, raid, events, history}, null, 2)], {type:'application/json'});
+  const blob = new Blob([JSON.stringify({version:2, mode:MODE, raid, events, history}, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   const d = new Date(), pad = n=>String(n).padStart(2,'0');
   a.href = URL.createObjectURL(blob);
