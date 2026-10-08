@@ -413,7 +413,8 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <span class="label">난이도</span>
         <div class="diffs" id="diffs"></div>
         <div class="custom" id="customBox" hidden>
-          <div class="field"><label class="label" for="cHp">1인당 HP</label><input type="number" id="cHp" min="5" step="5" value="55"></div>
+          <div class="field"><label class="label" for="cHp">1인당 HP</label><input type="number" id="cHp" min="5" step="5" value="220"></div>
+          <div class="field"><label class="label" for="cBonus">인원당 추가 HP</label><input type="number" id="cBonus" min="0" step="5" value="20"></div>
           <div class="field"><label class="label" for="cRage">1인당 분노 한도</label><input type="number" id="cRage" min="5" step="5" value="20"></div>
           <div class="field"><label class="label" for="cRec">광폭화 회복률 %</label><input type="number" id="cRec" min="0" step="5" value="40"></div>
         </div>
@@ -563,7 +564,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           <select id="addMemberRole" aria-label="역할"></select>
           <button class="btn" id="addMemberBtn" type="button">추가</button>
         </div>
-        <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 늘면 1인당 HP와 분노 한도만큼 보스가 강해집니다.</p>
+        <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼, 분노 한도가 1인당 분노만큼 늘어납니다.</p>
       </section>
 
       <section class="panel logpanel">
@@ -615,9 +616,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 <script>
 (function(){
 const PRESETS = {
-  light:{label:'라이트', hp:30, rage:30, rec:25,  desc:'약 1시간'},
-  normal:{label:'노멀', hp:55, rage:20, rec:40, desc:'약 2시간'},
-  hard:{label:'하드',   hp:70, rage:15,  rec:60, desc:'약 3시간'},
+  light:{label:'라이트', hp:120, bonus:10, rage:30, rec:25,  desc:'가볍게'},
+  normal:{label:'노멀', hp:220, bonus:20, rage:20, rec:40, desc:'보통'},
+  hard:{label:'하드',   hp:280, bonus:30, rage:15,  rec:60, desc:'어렵게'},
   custom:{label:'커스텀', desc:'직접 입력'}
 };
 const ITEMS = [
@@ -718,7 +719,9 @@ async function guard(fn){
 }
 
 /* ---------- Game logic ---------- */
-function cfgOf(r){ return r && r.cfg ? r.cfg : {hp:55, rage:20, rec:40}; }
+function cfgOf(r){ return r && r.cfg ? {bonus:0, ...r.cfg} : {hp:220, bonus:20, rage:20, rec:40}; }
+/* 보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1) */
+function bossHpOf(cfg, n){ return n > 0 ? n*cfg.hp + (Number(cfg.bonus)||0)*(n-1) : 0; }
 
 /* 파티원 체력 */
 const PARTY_HP = 100, REVIVE_HP = 30;
@@ -834,7 +837,7 @@ function compute(r, evs){
   const members = (r && r.members) || [];
   const cfg = cfgOf(r), G = gaugeOf(r), BS = bossSkillsOf(r), RS = roleSkillsOf(r), S = settingsOf(r);
   const n = members.length;
-  const maxHp = n*cfg.hp, maxRage = n*cfg.rage, rec = cfg.rec/100;
+  const maxHp = bossHpOf(cfg, n), maxRage = n*cfg.rage, rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
   const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, gear = {}, role = {}, immUsed = {};
   const st = m => {
@@ -1033,7 +1036,7 @@ function render(){
   const meta = $('bossMeta');
   if(hasRaid){
     const p = PRESETS[raid.diff] || PRESETS.custom;
-    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">파티 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} · 분노 ${fmt(s.cfg.rage)} · 회복 ${s.cfg.rec}%</span>`;
+    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">파티 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 ${fmt(s.cfg.rage)} · 회복 ${s.cfg.rec}%</span>`;
   } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 파티원과 난이도를 정하면 시작됩니다</span>`;
   const ph = $('phase');
   ph.textContent = !hasRaid ? '-' : s.enraged ? '2페이즈 · 광폭화' : '1페이즈';
@@ -1188,7 +1191,7 @@ function updateGamePreview(){
 /* ---------- Setup ---------- */
 function renderDiffs(){
   $('diffs').innerHTML = Object.entries(PRESETS).map(([k,p])=>
-    `<button type="button" class="diff" data-d="${k}" aria-pressed="${k===diff}"><span class="dn">${p.label}</span><span class="dd">${k==='custom' ? p.desc : `${p.desc} · HP ${p.hp} · 분노 ${p.rage} · 회복 ${p.rec}%`}</span></button>`).join('');
+    `<button type="button" class="diff" data-d="${k}" aria-pressed="${k===diff}"><span class="dn">${p.label}</span><span class="dd">${k==='custom' ? p.desc : `HP ${p.hp} +인원당 ${p.bonus} · 분노 ${p.rage} · 회복 ${p.rec}%`}</span></button>`).join('');
   $('customBox').hidden = diff !== 'custom';
   updateSetupPreview();
 }
@@ -1214,14 +1217,14 @@ $('memberAddBtn').onclick = addSetupMember;
 $('memberAdd').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); addSetupMember(); } });
 $('setupMembers').addEventListener('click', e=>{ const b = e.target.closest('[data-rm]'); if(b){ setupList.splice(+b.dataset.rm, 1); renderSetupMembers(); } });
 function setupCfg(){
-  if(diff !== 'custom'){ const p = PRESETS[diff]; return {hp:p.hp, rage:p.rage, rec:p.rec}; }
-  return {hp:Math.max(5, +$('cHp').value||55), rage:Math.max(5, +$('cRage').value||20), rec:Math.max(0, +$('cRec').value||0)};
+  if(diff !== 'custom'){ const p = PRESETS[diff]; return {hp:p.hp, bonus:p.bonus, rage:p.rage, rec:p.rec}; }
+  return {hp:Math.max(5, +$('cHp').value||220), bonus:Math.max(0, +$('cBonus').value||0), rage:Math.max(5, +$('cRage').value||20), rec:Math.max(0, +$('cRec').value||0)};
 }
 function updateSetupPreview(){
   const ms = parseMembers(), c = setupCfg(), n = ms.length;
   $('setupPreview').innerHTML = n
-    ? `파티 <b>${n}명</b> → 보스 HP <b>${fmt(n*c.hp)}</b> · 분노 최대치 <b>${fmt(n*c.rage)}</b> · 광폭화 회복률 <b>${c.rec}%</b>`
-    : `파티원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 한 명 참가할 때마다 보스 HP <b>+${fmt(c.hp)}</b>, 분노 최대치 <b>+${fmt(c.rage)}</b>`;
+    ? `파티 <b>${n}명</b> → 보스 HP <b>${fmt(bossHpOf(c, n))}</b> (${fmt(c.hp)}×${n}${n>1?` + ${fmt(c.bonus)}×${n-1}`:''}) · 분노 최대치 <b>${fmt(n*c.rage)}</b> · 광폭화 회복률 <b>${c.rec}%</b>`
+    : `파티원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 첫 참가자는 보스 HP <b>${fmt(c.hp)}</b>, 이후 한 명마다 <b>+${fmt(c.hp + c.bonus)}</b>, 분노 최대치 <b>+${fmt(c.rage)}</b>`;
   confirmArm = false; $('startRaid').textContent = '레이드 시작'; $('setupHint').textContent = '';
 }
 function openSetup(open){
@@ -1232,7 +1235,7 @@ function openSetup(open){
       $('raidName').value = raid.name || '';
       setupList = (raid.members||[]).slice(); setupRoles = Object.fromEntries(setupList.map(m=>[m, rosterOf(raid, m).role]));
       diff = raid.diff || 'normal';
-      if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cRage').value = raid.cfg.rage; $('cRec').value = raid.cfg.rec; }
+      if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cBonus').value = raid.cfg.bonus || 0; $('cRage').value = raid.cfg.rage; $('cRec').value = raid.cfg.rec; }
     }
     else { $('raidName').value = randomBossName(); }
     $('bossRace').value = (raid && raid.race) || raceOfName($('raidName').value.trim()); renderRaceSkills();
@@ -1287,7 +1290,7 @@ document.addEventListener('click', e=>{
 });
 $('toggleSetup').onclick = ()=>openSetup($('setup').hidden);
 $('cancelSetup').onclick = ()=>openSetup(false);
-['cHp','cRage','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
+['cHp','cBonus','cRage','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
 $('startRaid').onclick = ()=>{
   const ms = parseMembers();
   const live = raid && lastState && lastState.status==='live' && events.length>0;
@@ -1429,7 +1432,7 @@ function renderJoin(s, me){
   $('joinExisting').innerHTML = others.length
     ? '이미 참가한 이름이면 눌러서 들어가세요: ' + others.map(m=>`<button type="button" class="linkbtn" data-claim="${esc(m)}">${esc(m)}</button>`).join(' · ')
     : '아직 참가한 파티원이 없습니다. 첫 번째로 참가해 보세요.';
-  $('addHint').textContent = me ? '파티원 추가는 운영자 모드에서만 할 수 있습니다.' : '파티원이 늘면 1인당 HP와 분노 한도만큼 보스가 강해집니다.';
+  $('addHint').textContent = me ? '파티원 추가는 운영자 모드에서만 할 수 있습니다.' : '파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼, 분노 한도가 1인당 분노만큼 늘어납니다.';
 }
 
 $('addMemberBtn').onclick = addMember;
