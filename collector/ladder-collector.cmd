@@ -23,7 +23,8 @@ $DatabaseUrl = ''        # 비워두면 사이트의 firebase-config.js 에서 �
 $Mode        = 'coop'    # 협동 레이드 데이터 위치
 $IntervalSec = 20        # 조회 간격(초)
 $LocalApi    = ''        # 비워두면 스타크래프트가 연 주소를 자동으로 찾음 (예: http://127.0.0.1:50250)
-$Version     = '1.0'
+$ApiKey      = ''        # 비워두면 사이트의 firebase-config.js 에서 읽음 (수집기 로그인용)
+$Version     = '1.1'
 # -------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
@@ -32,6 +33,7 @@ try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::
 try { [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true } } catch {}
 if ($env:RAID_SITE_URL)  { $SiteUrl = $env:RAID_SITE_URL }
 if ($env:RAID_DB_URL)    { $DatabaseUrl = $env:RAID_DB_URL }
+if ($env:RAID_API_KEY)   { $ApiKey = $env:RAID_API_KEY }
 if ($env:RAID_LOCAL_API) { $LocalApi = $env:RAID_LOCAL_API }
 if ($env:RAID_INTERVAL)  { $IntervalSec = [int]$env:RAID_INTERVAL }
 $Once = [bool]$env:RAID_ONCE
@@ -43,14 +45,14 @@ function Now-Ms { [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() }
 function Log($msg, $color = 'Gray') { Write-Host ("[{0}] {1}" -f (Get-Date -Format 'HH:mm:ss'), $msg) -ForegroundColor $color }
 
 # HTTP 요청 (UTF-8, 시간 제한)
-function Http($method, $url, $body = $null, $timeoutMs = 8000) {
+function Http($method, $url, $body = $null, $timeoutMs = 8000, $ctype = 'application/json; charset=utf-8') {
   $req = [Net.HttpWebRequest]::Create($url)
   $req.Method = $method
   $req.Timeout = $timeoutMs
   $req.ReadWriteTimeout = $timeoutMs
   if ($null -ne $body) {
     $bytes = [Text.Encoding]::UTF8.GetBytes($body)
-    $req.ContentType = 'application/json; charset=utf-8'
+    $req.ContentType = $ctype
     $req.ContentLength = $bytes.Length
     $s = $req.GetRequestStream(); $s.Write($bytes, 0, $bytes.Length); $s.Close()
   }
@@ -65,7 +67,32 @@ function ToJson($o) { ConvertTo-Json -InputObject $o -Depth 10 -Compress }
 function Enc($s) { [Uri]::EscapeDataString([string]$s) }
 
 # ---------- Firebase (REST) ----------
-function Db-Url($path) { $DatabaseUrl.TrimEnd('/') + '/' + $path + '.json' }
+# 수집기 로그인: Firebase 익명 로그인으로 토큰을 받아 쓰기 권한을 얻습니다 (1시간마다 갱신).
+$script:IdToken = ''; $script:RefreshToken = ''; $script:TokenUntil = [DateTime]::MinValue; $script:NextAuthTry = [DateTime]::MinValue; $script:AuthWarned = $false
+$IdpUrl = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp'; $StsUrl = 'https://securetoken.googleapis.com/v1/token'
+if ($env:RAID_IDP_URL) { $IdpUrl = $env:RAID_IDP_URL; $StsUrl = $env:RAID_STS_URL }
+function Get-Token {
+  if (-not $ApiKey) { return '' }
+  if ($script:IdToken -and [DateTime]::UtcNow -lt $script:TokenUntil) { return $script:IdToken }
+  if (-not $script:IdToken -and [DateTime]::UtcNow -lt $script:NextAuthTry) { return '' }
+  try {
+    if ($script:RefreshToken) {
+      $r = (Http 'POST' "$($StsUrl)?key=$ApiKey" ("grant_type=refresh_token&refresh_token=" + (Enc $script:RefreshToken)) 10000 'application/x-www-form-urlencoded') | ConvertFrom-Json
+      $script:IdToken = $r.id_token; $script:RefreshToken = $r.refresh_token; $sec = [int]$r.expires_in
+    } else {
+      $r = (Http 'POST' "$($IdpUrl)?key=$ApiKey" '{"returnSecureToken":true}' 10000) | ConvertFrom-Json
+      $script:IdToken = $r.idToken; $script:RefreshToken = $r.refreshToken; $sec = [int]$r.expiresIn
+      Log '수집기 로그인 완료 (익명)' 'Green'
+    }
+    $script:TokenUntil = [DateTime]::UtcNow.AddSeconds([Math]::Max(60, $sec - 300))
+    return $script:IdToken
+  } catch {
+    $script:IdToken = ''; $script:RefreshToken = ''; $script:NextAuthTry = [DateTime]::UtcNow.AddMinutes(5)
+    if (-not $script:AuthWarned) { Log 'Firebase 익명 로그인을 하지 못했습니다. 콘솔의 Authentication > 로그인 방법에서 "익명"을 사용 설정하세요.' 'Yellow'; $script:AuthWarned = $true }
+    return ''
+  }
+}
+function Db-Url($path) { $u = $DatabaseUrl.TrimEnd('/') + '/' + $path + '.json'; $t = Get-Token; if ($t) { $u += '?auth=' + $t }; return $u }
 function Db-Get($path) { $t = Http 'GET' (Db-Url $path); if ($t -eq 'null' -or -not $t) { return $null }; return ($t | ConvertFrom-Json) }
 function Db-Put($path, $obj) { [void](Http 'PUT' (Db-Url $path) (ToJson $obj)) }
 function Db-Patch($path, $obj) { [void](Http 'PATCH' (Db-Url $path) (ToJson $obj)) }
@@ -76,6 +103,8 @@ function Find-DatabaseUrl {
   $js = Http 'GET' ($SiteUrl.TrimEnd('/') + '/firebase-config.js?t=' + (Now-Ms))
   $m = [regex]::Match($js, 'databaseURL\s*:\s*["'']([^"'']+)["'']')
   if (-not $m.Success -or $m.Groups[1].Value -match '여기에') { throw '사이트에 Firebase 가 연결되어 있지 않습니다 (firebase-config.js).' }
+  $k = [regex]::Match($js, 'apiKey\s*:\s*["'']([^"'']+)["'']')
+  if ($k.Success) { $script:ApiKey = $k.Groups[1].Value }
   return $m.Groups[1].Value
 }
 

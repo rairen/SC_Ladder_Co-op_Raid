@@ -25,7 +25,7 @@ function summarize(r, s, stopped){
 }
 let archiveTimer = null;
 function autoArchive(s){
-  if(!raid || s.status === 'live' || readOnly) return;
+  if(!raid || s.status === 'live' || readOnly || !canOperate()) return;
   const sum = summarize(raid, s, false);
   const prev = history.find(h=>h.raidId===sum.raidId);
   const same = prev && prev.status===sum.status && prev.hpLeft===sum.hpLeft && prev.rage===sum.rage && prev.wins===sum.wins && prev.losses===sum.losses && prev.evCount===sum.evCount && Object.keys(prev.members||{}).length===Object.keys(sum.members).length;

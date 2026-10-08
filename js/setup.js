@@ -60,7 +60,7 @@ function openSetup(open){
 /* ---------- 레이드 종료 / 새 레이드 ---------- */
 function renderEndBtn(s, me){
   const b = $('endRaidBtn');
-  const can = !OVERLAY && !readOnly && !me;
+  const can = !OVERLAY && !readOnly && !me && canOperate();
   b.hidden = !can;
   if(!can){ $('endConfirm').hidden = true; return; }
   if(!raid){ b.textContent = '새 레이드'; b.classList.remove('danger'); }

@@ -10,7 +10,7 @@ let meName = ''; try{ meName = localStorage.getItem(ME_KEY) || ''; }catch(_){}
 { const qm = new URLSearchParams(location.search).get('me'); if(qm){ meName = String(qm).replace(/\s+/g,' ').trim().slice(0,20); try{ localStorage.setItem(ME_KEY, meName); }catch(_){} } }
 // 개인 링크로 들어왔으면 읽은 뒤 주소창은 깔끔하게 비웁니다 (오버레이 주소는 그대로 둡니다)
 if(!OVERLAY && location.search){ try{ window.history.replaceState(null, '', location.pathname + location.hash); }catch(_){} }
-function myName(s){ return meName && s.members.includes(meName) ? meName : ''; }
+function myName(s){ if(typeof useAuth === 'function' && useAuth()) return authMe(s); return meName && s.members.includes(meName) ? meName : ''; }
 $('meSelect').onchange = e=>{
   meName = e.target.value;
   try{ meName ? localStorage.setItem(ME_KEY, meName) : localStorage.removeItem(ME_KEY); }catch(_){}
@@ -65,6 +65,7 @@ render();
   try{
     const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
     db = app.database();
+    initAuth(app);
   }catch(e){ startLocal(); toast('Firebase 설정이 올바르지 않습니다. firebase-config.js 값을 확인하세요.'); return; }
 
   db.ref('.info/connected').on('value', snap=>{ online = snap.val() === true; render(); });
@@ -93,7 +94,7 @@ render();
         lref.on('value', lh); unsubLadder = ()=>lref.off('value', lh);
       }
     }
-    if(!raid && $('setup').hidden && !meName && !OVERLAY) openSetup(true);
+    if(!raid && $('setup').hidden && !meName && !OVERLAY && canOperate()) openSetup(true);
     render();
   }, ()=>{ toast('레이드 정보를 불러오지 못했습니다. Firebase 보안 규칙을 확인하세요.'); });
 })();

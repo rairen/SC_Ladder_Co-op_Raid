@@ -13,6 +13,7 @@
 <script src="firebase-config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -25,6 +26,7 @@
     <div class="top-actions">
       <label class="me"><span class="label">내 이름</span><select id="meSelect" aria-label="내 이름"></select></label>
       <span class="pill" id="connPill">연결 중</span>
+      <span id="authBox" hidden></span>
       <button class="btn" id="exportBtn" type="button">백업 저장</button>
       <button class="btn" id="importBtn" type="button">백업 불러오기</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -125,8 +127,9 @@
       <!-- Result input -->
       <section class="panel join" id="joinPanel" hidden>
         <h2>레이드 참가</h2>
-        <p class="hint" style="margin:0 0 10px">방송에서 쓰는 이름으로 참가하면, 이 브라우저에서는 내 결과와 룰렛만 입력하게 됩니다.</p>
-        <div class="row" style="margin:0">
+        <p class="hint" style="margin:0 0 10px" id="joinIntro">방송에서 쓰는 이름으로 참가하면, 이 브라우저에서는 내 결과와 룰렛만 입력하게 됩니다.</p>
+        <div class="join-login" id="joinLogin" hidden><button class="btn primary" type="button" id="loginBtn2">구글 로그인</button><span class="hint">로그인하면 내 프로필(방송 닉네임·게임 아이디)로 바로 참가합니다.</span></div>
+        <div class="row" style="margin:0" id="joinForm">
           <div class="field" style="flex:1 1 180px"><label class="label" for="joinName">내 이름</label><input type="text" id="joinName" placeholder="방송 닉네임" maxlength="20"></div>
           <div class="field"><label class="label" for="joinRole">역할</label><select id="joinRole"></select></div>
           <div class="field"><label class="label" for="joinFee">입장료 (별풍선)</label><input type="number" id="joinFee" min="0" step="10" value="0" style="width:120px;font-size:15px"></div>
@@ -294,6 +297,27 @@
     <div id="skTabRoulette" hidden></div>
   </div>
 </div>
+<div class="modal" id="profileModal" hidden role="dialog" aria-modal="true" aria-labelledby="pfTitle">
+  <div class="modal-box pf-box">
+    <div class="modal-head">
+      <h2 id="pfTitle">내 프로필</h2>
+      <button class="btn" id="pfClose" type="button">닫기</button>
+    </div>
+    <p class="hint" id="pfEmail" style="margin:0"></p>
+    <div class="field"><label class="label" for="pfName">방송 닉네임</label><input type="text" id="pfName" maxlength="20" placeholder="레이드에 표시될 이름"></div>
+    <div class="row" style="margin:0">
+      <div class="field" style="flex:1 1 160px"><label class="label" for="pfLadder">게임 아이디 (래더)</label><input type="text" id="pfLadder" maxlength="24" placeholder="스타크래프트 아이디" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label class="label" for="pfGw">서버</label><select id="pfGw"></select></div>
+    </div>
+    <p class="hint" style="margin:0">게임 아이디를 넣어 두면 참가할 때 자동으로 등록되고, 수집기가 래더 결과를 자동으로 넣습니다.</p>
+    <p class="hint" id="pfAdmin" style="margin:0"></p>
+    <div id="pfUsers" class="pf-users" hidden></div>
+    <div class="form-actions">
+      <button class="btn primary" id="pfSave" type="button">저장</button>
+      <button class="btn" id="pfLogout" type="button">로그아웃</button>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast" hidden></div>
 
 <!-- 게임 수치는 js/game-data.js 에서 바꿉니다. 아래 파일은 이 순서대로 읽혀야 합니다. -->
@@ -309,6 +333,7 @@
 <script src="js/role-skill.js"></script>
 <script src="js/info-window.js"></script>
 <script src="js/ladder.js"></script>
+<script src="js/auth.js"></script>
 <script src="js/history.js"></script>
 <script src="js/boot.js"></script>
 

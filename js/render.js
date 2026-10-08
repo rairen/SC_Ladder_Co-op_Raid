@@ -3,6 +3,7 @@
    ===================================================================== */
 /* ---------- Rendering ---------- */
 function render(){
+  if(typeof applyAccess === 'function') applyAccess();
   const s = compute(raid, events);
   lastState = s;
   const hasRaid = !!raid;
@@ -119,7 +120,7 @@ function render(){
   const canAct = hasRaid && s.status==='live' && !readOnly && s.members.length>0;
   ['submitGame','spin','applyManual','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && (id==='spin'||id==='applyManual')); });
   document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
-  $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || readOnly || s.status!=='live' || !!me;
+  $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || readOnly || s.status!=='live' || !!me || !canOperate();
   $('spinFor').textContent = selected ? `${selected} 룰렛으로 기록됩니다` : '';
   $('subline').textContent = hasRaid ? `시작 ${new Date(raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
   updateGamePreview();

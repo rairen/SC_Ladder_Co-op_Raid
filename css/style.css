@@ -395,3 +395,12 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 .auto-tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;font-size:11px;background:#1e3a5a;color:#9fd0ff;vertical-align:1px}
 .log select.wtsel{margin-left:6px;padding:1px 4px;font-size:12px}
 .wt-tag{margin-left:6px;font-size:12px;color:var(--muted)}
+
+/* 로그인·프로필 */
+.adm-tag{display:inline-block;margin-right:6px;padding:0 6px;border-radius:4px;font-size:11px;background:#3a2d0b;color:#ffd34d;vertical-align:1px}
+.pf-box{max-width:460px}
+.pf-box input[type=text]{width:100%}
+.pf-users{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto}
+.pf-user{display:flex;align-items:center;gap:6px;font-size:14px}
+.join-login{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#authBox .btn{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

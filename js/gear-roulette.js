@@ -62,16 +62,21 @@ $('joinFee').addEventListener('input', renderJoinGear); renderJoinGear();
 $('joinBtn').onclick = doJoin;
 $('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
 function doJoin(){
-  const name = cleanName($('joinName').value);
+  const authed = useAuth();
+  if(authed && !authUser){ login(); return; }
+  const name = authed ? profileName() : cleanName($('joinName').value);
+  if(authed && !name){ openProfile(true); return; }
   if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
   if(!raid){ toast('아직 열린 레이드가 없습니다. 운영자가 레이드를 열면 참가할 수 있습니다.'); return; }
   const already = raid.members.includes(name);
-  const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value);
+  const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(profile && profile.gw)||30) : 30;
   guard(async()=>{
     await store.join(name);
     if(!already || role !== rosterOf(raid, name).role || fee !== rosterOf(raid, name).fee) await store.setRoster(name, {role, fee});
-    if(ladder) await store.setRoster(name, {ladder});
-    $('joinName').value = ''; $('joinLadder').value = '';
+    if(authed) await store.setRoster(name, {uid: authUser.uid, ladder, gw});
+    else if(ladder) await store.setRoster(name, {ladder});
+    if(authed && profile && ladder !== (profile.ladder||'')) await db.ref('users/'+authUser.uid).update({ladder});
+    $('joinName').value = ''; $('joinLadder').value = ''; delete $('joinLadder').dataset.touched;
     setMe(name);
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
   });
@@ -93,8 +98,18 @@ function renderJoin(s, me){
   $('mePanel').hidden = !me;
   $('meNameView').textContent = me || '';
   if(!$('joinPanel').hidden) renderJoinGear();
-  $('meSelect').parentElement.hidden = !!me || OVERLAY;
-  $('dangerZone').hidden = !!me;
+  $('meSelect').parentElement.hidden = !!me || OVERLAY || !canOperate();
+  $('dangerZone').hidden = !!me || !canOperate();
+  // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
+  const authed = useAuth(), needLogin = authed && !authUser;
+  $('joinLogin').hidden = !needLogin; $('joinForm').hidden = needLogin; $('joinIntro').hidden = needLogin;
+  $('joinExisting').hidden = authed && !isAdmin();
+  $('leaveMe').hidden = authed && !isAdmin();
+  $('joinName').disabled = authed;
+  if(authed && authUser){
+    $('joinName').value = profileName();
+    if(document.activeElement !== $('joinLadder') && !$('joinLadder').dataset.touched) $('joinLadder').value = (profile && profile.ladder) || '';
+  }
   if(!me && meName && !$('joinName').value && document.activeElement !== $('joinName')) $('joinName').value = meName;
   const others = s.members;
   $('joinExisting').innerHTML = others.length
@@ -112,3 +127,6 @@ function addMember(){
   const role = $('addMemberRole').value;
   guard(async()=>{ await store.join(name); await store.setRoster(name, {role}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
 }
+
+$('joinLadder').addEventListener('input', ()=>{ $('joinLadder').dataset.touched = '1'; });
+document.addEventListener('click', e=>{ if(e.target.id === 'loginBtn2') login(); });
