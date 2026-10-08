@@ -161,6 +161,25 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.pstrip{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px}
+.pm{display:grid;grid-template-columns:auto 72px auto auto;align-items:center;gap:6px;font-size:13px;min-width:0}
+.pm .nm{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.pm .pb{height:8px;border-radius:4px;background:#ffffff1a;overflow:hidden;position:relative}
+.pm .pb i{position:absolute;inset:0 auto 0 0;background:var(--good);transition:width .5s}
+.pm.low .pb i{background:var(--rage)}
+.pm .hv{font-family:var(--f-mono);font-size:12px;color:var(--muted);min-width:3ch;text-align:right}
+.pm.down{opacity:.55}.pm.down .nm{text-decoration:line-through}
+.pm .cur{font-size:11px;color:var(--legend)}
+html.overlay .pm{font-size:14px;text-shadow:0 1px 3px #000}
+.skill{display:block;width:fit-content;max-width:100%;margin-top:4px;font-size:12px;color:#ffd0d1;background:color-mix(in srgb,var(--hp) 16%,transparent);border:1px solid color-mix(in srgb,var(--hp) 40%,transparent);border-radius:6px;padding:3px 8px;display:inline-block}
+.skill b{color:#fff}
+.d-party{color:#ff9aa0}
+.tk-tag.boss{background:var(--hp);color:#fff}
+.pop.sk{font-size:28px;text-shadow:0 0 8px var(--hp),0 2px 4px #000}
+.skills-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.skills-list li{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:10px;align-items:baseline;font-size:14px;padding:7px 0;border-bottom:1px solid var(--line)}
+.skills-list .sn{font-family:var(--f-display);color:#ffd0d1}
+.skills-list .sw{font-family:var(--f-mono);color:var(--muted);font-size:12px}
 .room-recent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--muted)}
 .room-recent .chip[aria-current="true"]{border-color:var(--accent);color:#e9fbff}
 .danger{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
@@ -331,6 +350,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
       <div class="bar rage" role="meter" aria-label="분노 게이지" id="rageMeter"><div class="fill" id="rageFill" style="width:0%"></div><div class="ticks"></div></div>
       <span class="g-val" id="rageVal">0 <small>/ 0</small></span>
     </div>
+    <div class="pstrip" id="partyStrip"></div>
     <div class="hud-foot" id="hudFoot"></div>
     <div class="ticker" id="ticker" aria-live="polite"></div>
     <div class="banner" id="banner" hidden></div>
@@ -407,6 +427,11 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           </div>
         </details>
       </section>
+      <section class="panel">
+        <h2>보스 스킬</h2>
+        <p class="hint" style="margin:0 0 10px">분노 게이지가 가득 차면 아래 중 하나가 무작위로 발동하고 게이지가 비워집니다. 체력이 0이 된 파티원은 전투불능이 되며, 승리하면 체력 30으로 부활합니다(그 판은 데미지 없음). 전원 전투불능이면 레이드 실패입니다.</p>
+        <ul class="skills-list" id="skillsList"></ul>
+      </section>
     </div>
 
     <div class="col">
@@ -414,7 +439,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <h2>파티 현황</h2>
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">분노 유발</th><th>대기 효과</th></tr></thead>
+            <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">분노 유발</th><th class="r">체력</th><th>상태</th></tr></thead>
             <tbody id="partyBody"></tbody>
           </table>
         </div>
@@ -561,30 +586,79 @@ async function guard(fn){
 /* ---------- Game logic ---------- */
 function cfgOf(r){ return r && r.cfg ? r.cfg : {hp:240, rage:120, rec:100}; }
 
+/* 파티원 체력 */
+const PARTY_HP = 100, REVIVE_HP = 30;
+/* 분노 게이지가 가득 차면 아래 목록에서 무작위로 하나가 발동합니다. w = 비중(%) */
+const BOSS_SKILLS = [
+  {id:'regen',  w:25, name:'재생',     desc:'보스 HP 8% 회복'},
+  {id:'smash',  w:25, name:'강타',     desc:'파티원 1명 체력 −50'},
+  {id:'flame',  w:20, name:'광역 화염', desc:'생존 파티원 전원 체력 −25'},
+  {id:'curse',  w:15, name:'저주',     desc:'파티원 1명 다음 승리 데미지 절반'},
+  {id:'barrier',w:15, name:'보호막',   desc:'파티의 다음 승리 2번 데미지 절반'}
+];
+/* 같은 기록이면 어느 화면에서 계산해도 같은 결과가 나오는 난수 */
+function seeded(str){
+  let h = 2166136261;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  h ^= h >>> 13; h = Math.imul(h, 2246822507); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
 function compute(r, evs){
   const members = (r && r.members) || [];
   const cfg = cfgOf(r);
   const n = members.length;
   const maxHp = n*cfg.hp, maxRage = n*cfg.rage, rec = cfg.rec/100;
-  let hp = maxHp, rage = 0, status = 'live', chain = [];
-  const stats = {}, pending = {}, log = [];
-  const st = m => stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0});
+  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, skillN = 0;
+  const stats = {}, pending = {}, curse = {}, log = [], mhp = {};
+  const st = m => { if(!(m in mhp)) mhp[m] = PARTY_HP; return stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0,skills:0}); };
   members.forEach(st);
+  const alive = () => Object.keys(mhp).filter(m=>mhp[m] > 0);
+  const hurt = (m, d, entry) => { const before = mhp[m]; mhp[m] = Math.max(0, mhp[m]-d); stats[m].skills += before - mhp[m]; entry.party.push({m, d: before - mhp[m], down: mhp[m] === 0}); };
+
+  function bossSkill(entry, seedBase){
+    const roll = seeded(seedBase + '|' + skillN) * 100, roll2 = seeded(seedBase + '|t|' + skillN);
+    skillN++;
+    let acc = 0, sk = BOSS_SKILLS[0];
+    for(const x of BOSS_SKILLS){ acc += x.w; if(roll < acc){ sk = x; break; } }
+    const live = alive(), target = live.length ? live[Math.floor(roll2 * live.length)] : null;
+    const rec = {id:sk.id, name:sk.name, target:null};
+    switch(sk.id){
+      case 'regen': { const h = Math.min(Math.round(maxHp*0.08), maxHp-hp); hp += h; entry.dHp += h; rec.text = h ? `보스 HP +${fmt(h)} 회복` : '보스 HP가 가득 차 있어 효과 없음'; break; }
+      case 'smash': { if(target){ hurt(target, 50, entry); rec.target = target; rec.text = `${target} 체력 −50`; } else rec.text = '대상 없음'; break; }
+      case 'flame': { live.forEach(m=>hurt(m, 25, entry)); rec.text = `생존자 ${live.length}명 체력 −25`; break; }
+      case 'curse': { if(target){ curse[target] = true; rec.target = target; rec.text = `${target} 다음 승리 데미지 절반`; } else rec.text = '대상 없음'; break; }
+      case 'barrier': { barrier = 2; rec.text = '파티의 다음 승리 2번 데미지 절반'; break; }
+    }
+    entry.skills.push(rec);
+  }
+  function checkRage(entry, seedBase){
+    while(maxRage > 0 && rage >= maxRage && alive().length && hp > 0){
+      rage -= maxRage;
+      bossSkill(entry, seedBase);
+    }
+  }
+
   const sorted = evs.slice().sort((a,b)=> (a.t-b.t) || String(a._id).localeCompare(String(b._id)));
   for(const ev of sorted){
-    const entry = {ev, notes:[], dHp:0, dRage:0};
+    const entry = {ev, notes:[], dHp:0, dRage:0, skills:[], party:[]};
     log.push(entry);
     if(ev.undone){ entry.undone = true; continue; }
     if(status !== 'live'){ entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
     const enraged = hp <= maxHp*0.5;
     const m = ev.member;
+    const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item}`;
     if(ev.type === 'game'){
       const s = st(m);
       const pend = pending[m]; delete pending[m];
       const p = Number(ev.points)||0;
       if(p > 0){
         s.w++;
-        if(ev.banned){ entry.notes.push('금지 빌드 · 데미지 0'); if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸'); chain = []; }
+        if(mhp[m] <= 0){
+          mhp[m] = REVIVE_HP; entry.revived = true; chain = [];
+          entry.notes.push(`전투불능에서 부활 · 체력 ${REVIVE_HP} · 데미지 없음`);
+          if(pend) pending[m] = pend;
+        } else if(ev.banned){ entry.notes.push('금지 빌드 · 데미지 0'); if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸'); chain = []; }
         else{
           let mult = 1;
           if(ev.multi){ mult *= 1.5; entry.notes.push('멀티 확보 ×1.5'); }
@@ -592,6 +666,8 @@ function compute(r, evs){
           if(pend === 'double'){ mult *= 2; entry.notes.push('룰렛 2배'); }
           if(pend === 'mission'){ mult *= 3; entry.notes.push('도전 미션 ×3'); }
           if(pend === 'shield') entry.notes.push('패배 보호 미사용 소멸');
+          if(curse[m]){ mult *= 0.5; delete curse[m]; entry.notes.push('저주 ×0.5'); }
+          if(barrier > 0){ mult *= 0.5; barrier--; entry.notes.push('보스 보호막 ×0.5'); }
           const d = Math.round(p*mult);
           hp -= d; s.dmg += d; entry.dHp -= d; if(d > s.best) s.best = d;
           if(chain.includes(m)) chain = [m]; else chain.push(m);
@@ -619,9 +695,10 @@ function compute(r, evs){
     } else if(ev.type === 'roulette'){
       const it = ITEM[ev.item] || ITEM.none;
       entry.item = it;
+      st(m);
       switch(it.id){
-        case 'hp2': { const d = Math.round(maxHp*0.02); hp -= d; entry.dHp -= d; st(m).dmg += d; break; }
-        case 'hp7': { const d = Math.round(maxHp*0.07); hp -= d; entry.dHp -= d; st(m).dmg += d; break; }
+        case 'hp2': { const d = Math.round(maxHp*0.02); hp -= d; entry.dHp -= d; stats[m].dmg += d; break; }
+        case 'hp7': { const d = Math.round(maxHp*0.07); hp -= d; entry.dHp -= d; stats[m].dmg += d; break; }
         case 'rage5': { const d = Math.min(Math.round(maxRage*0.05), rage); rage -= d; entry.dRage -= d; break; }
         case 'heal4': { const h = Math.min(Math.round(maxHp*0.04), maxHp-hp); hp += h; entry.dHp += h; break; }
         case 'rage7': { const d = Math.round(maxRage*0.07); rage += d; entry.dRage += d; break; }
@@ -630,9 +707,25 @@ function compute(r, evs){
       }
     }
     if(hp <= 0){ hp = 0; status = 'clear'; entry.notes.push('보스 처치!'); }
-    else if(rage >= maxRage){ status = 'fail'; entry.notes.push('분노 폭발 · 레이드 실패'); }
+    else {
+      checkRage(entry, seedBase);
+      if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('파티 전멸 · 레이드 실패'); }
+    }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, mhp, log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
+}
+
+function skillHtml(e){
+  if(!e.skills || !e.skills.length) return '';
+  const downs = (e.party||[]).filter(x=>x.down).map(x=>x.m);
+  return e.skills.map(k=>`<div class="skill">보스 스킬 <b>${esc(k.name)}</b> · ${esc(k.text)}</div>`).join('') + (downs.length ? `<div class="skill">전투불능: <b>${esc(downs.join(', '))}</b></div>` : '');
+}
+function statusTags(s, m){
+  const t = [];
+  if((s.mhp[m] ?? 1) <= 0) t.push('<span class="d-hp">전투불능</span>');
+  if(s.curse[m]) t.push('<span style="color:var(--legend)">저주</span>');
+  if(s.pending[m]) t.push(esc(PENDING_LABEL[s.pending[m]]));
+  return t.join(' · ');
 }
 
 /* ---------- Rendering ---------- */
@@ -673,7 +766,8 @@ function render(){
     <span>HP <b>${hpPct.toFixed(1)}%</b></span>
     <span>전적 <b>${wins}승 ${losses}패</b></span>
     <span>체인 <span class="chain" title="서로 다른 3명 연속 승리 시 보스 HP 2% 추가">${chainDots}</span> <b>${s.chain.length}/3</b></span>
-    <span>${s.enraged ? '광폭화: 패배 점수의 '+s.cfg.rec+'%만큼 보스 회복' : 'HP 50% 이하부터 광폭화'}</span>` : '';
+    <span>${s.enraged ? '광폭화: 패배 점수의 '+s.cfg.rec+'%만큼 보스 회복' : 'HP 50% 이하부터 광폭화'}</span>
+    <span>분노 가득 → 보스 스킬${s.barrier ? ' · <b>보호막 '+s.barrier+'회</b>' : ''}</span>` : '';
   const bn = $('banner');
   if(hasRaid && s.status !== 'live'){
     bn.hidden = false; bn.className = 'banner ' + s.status;
@@ -684,7 +778,7 @@ function render(){
       : '<button type="button" class="btn primary" data-act="reset">레이드 초기화</button><span>기록은 아래 레이드 기록에 보관됩니다.</span>';
     bn.innerHTML = (s.status==='clear'
       ? `<strong>레이드 성공</strong><span>${wins}승 ${losses}패${mvp ? ' · MVP '+esc(mvp) : ''}</span>`
-      : `<strong>레이드 실패</strong><span>분노 게이지가 가득 찼습니다 · 남은 HP ${fmt(s.hp)}</span>`) + act;
+      : `<strong>레이드 실패</strong><span>파티 전멸 · 남은 보스 HP ${fmt(s.hp)}</span>`) + act;
   } else bn.hidden = true;
 
   // chips
@@ -697,7 +791,7 @@ function render(){
   meSel.value = me || '';
   $('memberChips').innerHTML = s.members.length ? s.members.map(m=>{
     const pend = s.pending[m];
-    return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
+    return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${(s.mhp[m] ?? 1) <= 0 ? '<span class="tag">전투불능</span>' : ''}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
   }).join('') : `<span class="empty">참가한 파티원이 여기에 표시됩니다.</span>`;
 
   // party table
@@ -710,8 +804,15 @@ function render(){
       <td class="r num">${x.w}</td><td class="r num">${x.l}</td>
       <td class="r num">${fmt(x.dmg)}<span class="share" style="width:${Math.round(x.dmg/maxD*40)}px"></span></td>
       <td class="r num">${fmt(x.rage)}</td>
-      <td>${pend ? esc(PENDING_LABEL[pend]) : '<span style="color:var(--muted)">-</span>'}</td></tr>`;
-  }).join('') : `<tr><td colspan="6" class="empty">아직 파티원이 없습니다.</td></tr>`;
+      <td class="r num">${fmt(s.mhp[m] ?? PARTY_HP)}</td>
+      <td>${statusTags(s, m) || '<span style="color:var(--muted)">-</span>'}</td></tr>`;
+  }).join('') : `<tr><td colspan="7" class="empty">아직 파티원이 없습니다.</td></tr>`;
+
+  // party HP strip (HUD & overlay)
+  $('partyStrip').innerHTML = s.members.map(m=>{
+    const h = s.mhp[m] ?? PARTY_HP, pct = Math.max(0, h/PARTY_HP*100);
+    return `<span class="pm${h<=0?' down':h<=40?' low':''}" title="${esc(m)} 체력 ${h}/${PARTY_HP}"><span class="nm">${esc(m)}</span><span class="pb"><i style="width:${pct}%"></i></span><span class="hv">${h<=0?'KO':h}</span>${s.curse[m]?'<span class="cur">저주</span>':''}</span>`;
+  }).join('');
 
   // log
   const items = s.log.slice().reverse();
@@ -731,10 +832,11 @@ function render(){
     if(e.dHp > 0) deltas.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
     if(e.dRage > 0) deltas.push(`<span class="d-rage">분노 +${fmt(e.dRage)}</span>`);
     if(e.dRage < 0) deltas.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
+    const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">파티 −${fmt(pd)}</span>`);
     const id = esc(ev._id);
     const ctl = (readOnly || !ev._id || (me && ev.member !== me)) ? '' : `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>`;
     return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span>
-      <div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${ctl}</div>
+      <div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>
       <div class="delta">${deltas.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
   }).join('') : `<li style="display:block" class="empty">결과를 입력하거나 룰렛을 돌리면 기록이 쌓입니다. 잘못 넣은 기록은 여기서 취소할 수 있습니다.</li>`;
 
@@ -771,12 +873,16 @@ function updateGamePreview(){
     if($('cSame').checked) mult *= 0.5;
     if(pend==='double') mult *= 2;
     if(pend==='mission') mult *= 3;
+    if((s.mhp[selected] ?? 1) <= 0){ el.innerHTML = `<b>${esc(selected)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.`; return; }
+    if(s.curse[selected]) mult *= 0.5;
+    if(s.barrier) mult *= 0.5;
     const chainNext = !s.chain.includes(selected) && s.chain.length===2;
     el.innerHTML = `보스 HP <b class="d-hp">−${fmt(Math.round(p*mult))}</b>${mult!==1?` (×${mult})`:''}${chainNext?` + 체인 보너스 <b class="d-hp">−${fmt(Math.round(s.maxHp*0.02))}</b>`:''}`;
   } else {
     if(pend==='shield'){ el.innerHTML = '패배 보호가 발동해서 <b>분노가 오르지 않습니다</b>.'; return; }
     const h = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
-    el.innerHTML = `분노 <b class="d-rage">+${fmt(p)}</b>${h?` · 광폭화로 보스 HP <b class="d-heal">+${fmt(h)}</b> 회복`:''}`;
+    const boom = s.maxRage && s.rage + p >= s.maxRage;
+    el.innerHTML = `분노 <b class="d-rage">+${fmt(p)}</b>${h?` · 광폭화로 보스 HP <b class="d-heal">+${fmt(h)}</b> 회복`:''}${boom?' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>':''}`;
   }
 }
 
@@ -884,6 +990,9 @@ function submitGame(){
   });
 }
 function flash(id){ const el = $(id); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+
+/* Boss skill reference */
+$('skillsList').innerHTML = BOSS_SKILLS.map(k=>`<li><span class="sn">${esc(k.name)}</span><span>${esc(k.desc)}</span><span class="sw">${k.w}%</span></li>`).join('');
 
 /* Roulette */
 const TIERS = ['꽝','일반','희귀','전설','함정'];
@@ -1000,12 +1109,15 @@ function renderTicker(s){
   const live = s.log.filter(e=>!e.undone && !e.ignored);
   const last = live[live.length-1];
   const tk = $('ticker');
-  tk.innerHTML = last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
+  const sk = last && last.skills && last.skills.length ? last.skills[last.skills.length-1] : null;
+  tk.innerHTML = sk ? `<span class="tk-tag boss">BOSS SKILL</span><span class="tk-text">${esc(sk.name)}! ${esc(sk.text)}${last.party.some(x=>x.down) ? ' · 전투불능 '+esc(last.party.filter(x=>x.down).map(x=>x.m).join(', ')) : ''}</span>`
+    : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
   const id = last ? (last.ev._id || last.ev.t) : null;
   if(tickerReady && id && id !== lastSeenEv && OVERLAY){
     if(last.dHp < 0) popAt('#hpMeter', '−'+fmt(-last.dHp));
     else if(last.dHp > 0) popAt('#hpMeter', '+'+fmt(last.dHp), 'heal');
-    if(last.dRage > 0) popAt('#rageMeter', '+'+fmt(last.dRage), 'rage');
+    if(last.dRage > 0 && !sk) popAt('#rageMeter', '+'+fmt(last.dRage), 'rage');
+    if(sk) popAt('#rageMeter', sk.name+'!', 'sk');
   }
   lastSeenEv = id; tickerReady = true;
 }
@@ -1051,7 +1163,7 @@ $('ovlCopy').onclick = async ()=>{
 /* ---------- Raid history ---------- */
 function summarize(r, s, stopped){
   const members = {};
-  for(const m of s.members){ const x = s.stats[m] || {w:0,l:0,dmg:0,rage:0,best:0}; members[m] = {w:x.w, l:x.l, dmg:x.dmg, rage:x.rage, best:x.best||0}; }
+  for(const m of s.members){ const x = s.stats[m] || {w:0,l:0,dmg:0,rage:0,best:0}; members[m] = {w:x.w, l:x.l, dmg:x.dmg, rage:x.rage, best:x.best||0, taken:x.skills||0, hp:s.mhp[m] ?? PARTY_HP}; }
   const tot = Object.values(members).reduce((a,x)=>({w:a.w+x.w, l:a.l+x.l}), {w:0,l:0});
   const lastT = events.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
   return {raidId:r.raidId, name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
@@ -1143,7 +1255,8 @@ function histDetail(h, mem){
       if(e.dHp > 0) ds.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
       if(e.dRage > 0) ds.push(`<span class="d-rage">분노 +${fmt(e.dRage)}</span>`);
       if(e.dRage < 0) ds.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
-      return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
+      const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) ds.push(`<span class="d-party">파티 −${fmt(pd)}</span>`);
+      return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
     }).join('') + '</ul>';
   }
   return meta + `<div class="hd-grid"><div><h3>파티원 기록</h3>${table}</div><div><h3>전투 기록</h3>${logHtml}</div></div>`;
