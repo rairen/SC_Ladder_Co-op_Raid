@@ -161,6 +161,49 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.hud-right{display:flex;gap:8px;align-items:center}
+html.overlay .hud-right .btn{display:none}
+.modal{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,#000 60%,transparent);display:flex;align-items:flex-start;justify-content:center;padding:calc(24px + env(safe-area-inset-top,0px)) 16px 24px;overflow-y:auto}
+.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;width:100%;max-width:880px;display:flex;flex-direction:column;gap:12px}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.modal-head h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:22px}
+.sk-table input,.sk-table select{padding:6px 8px;font-size:13px;width:100%}
+.sk-table input[type=number]{font-size:13px;width:80px;font-family:var(--f-mono)}
+.sk-table td{vertical-align:middle;white-space:normal}
+.sk-table .desc{color:var(--muted);font-size:12px;min-width:160px}
+.sk-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sk-note{font-size:12px;color:var(--muted)}
+.role-tag{display:inline-block;font-family:var(--f-mono);font-size:11px;font-weight:700;padding:1px 5px;border-radius:4px;background:#ffffff1a;color:var(--fg);margin-right:4px}
+.role-tag.tank{background:color-mix(in srgb,var(--rare) 35%,transparent)}
+.role-tag.dealer{background:color-mix(in srgb,var(--hp) 35%,transparent)}
+.role-tag.healer{background:color-mix(in srgb,var(--good) 35%,transparent)}
+.role-tag.support{background:color-mix(in srgb,var(--legend) 35%,transparent)}
+.pm .gb{height:4px;border-radius:2px;background:#ffffff14;overflow:hidden;position:relative;grid-column:2}
+.pm .gb i{position:absolute;inset:0 auto 0 0;background:var(--accent)}
+.pm .gb.full i{background:#ffd34d}
+.ptable select,.ptable input{padding:4px 6px;font-size:13px}
+.ptable input[type=number]{width:84px;font-size:13px;font-family:var(--f-mono)}
+.gauge-mini{display:inline-block;width:56px;height:6px;border-radius:3px;background:#ffffff14;position:relative;overflow:hidden;vertical-align:middle;margin-right:6px}
+.gauge-mini i{position:absolute;inset:0 auto 0 0;background:var(--accent)}
+.gauge-mini.full i{background:#ffd34d}
+.rolebar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+.rolebar .rb-text{font-size:13px;min-width:0}
+.rolebar .rb-text b{font-size:14px}
+.rolebar .rb-text small{display:block;color:var(--muted);font-size:12px}
+.btn.skill{background:#ffd34d;color:#1d1600;border-color:#ffd34d;font-weight:700}
+.skillboard{display:none}
+html.overlay.ovl-skills #hud{display:none!important}
+html.overlay.ovl-skills .skillboard{display:block;background:color-mix(in srgb,#06090d 82%,transparent);border:1px solid #ffffff22;border-radius:12px;padding:14px 18px;box-shadow:0 6px 24px #0008}
+.sb-title{font-family:var(--f-display);font-size:22px;text-shadow:0 2px 6px #000;margin-bottom:8px}
+.sb-title small{font-family:var(--f-body);font-size:13px;color:var(--muted);margin-left:8px}
+.sb-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px}
+.sb-list li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid #ffffff1a;text-shadow:0 1px 3px #000}
+.sb-list .sn{font-family:var(--f-display);font-size:17px;color:#ffd0d1}
+.sb-list .sd{font-size:13px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-list .sw{font-family:var(--f-mono);font-size:13px;color:var(--muted)}
+.sb-list li.last .sn{color:#fff;text-shadow:0 0 8px var(--hp)}
+.sb-ready{margin-top:10px;font-size:14px;text-shadow:0 1px 3px #000}
+.sb-ready b{color:#ffd34d}
 .wtypes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 @media (max-width:560px){.wtypes{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .wt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:9px 10px;min-width:0}
@@ -181,7 +224,7 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 .pm.down{opacity:.55}.pm.down .nm{text-decoration:line-through}
 .pm .cur{font-size:11px;color:var(--legend)}
 html.overlay .pm{font-size:14px;text-shadow:0 1px 3px #000}
-.skill{display:block;width:fit-content;max-width:100%;margin-top:4px;font-size:12px;color:#ffd0d1;background:color-mix(in srgb,var(--hp) 16%,transparent);border:1px solid color-mix(in srgb,var(--hp) 40%,transparent);border-radius:6px;padding:3px 8px;display:inline-block}
+.skill{display:block;width:fit-content;max-width:100%;margin-top:4px;font-size:12px;color:#ffd0d1;background:color-mix(in srgb,var(--hp) 16%,transparent);border:1px solid color-mix(in srgb,var(--hp) 40%,transparent);border-radius:6px;padding:3px 8px}
 .skill b{color:#fff}
 .d-party{color:#ff9aa0}
 .tk-tag.boss{background:var(--hp);color:#fff}
@@ -263,7 +306,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 .room{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
 </style>
 <script>
-(function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); } })();
+(function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); } })();
 </script>
 <script src="config.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -299,6 +342,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           <input type="text" id="raidName" placeholder="보스 이름" maxlength="40">
           <button class="btn" id="rollName" type="button" title="목록에서 다른 이름 뽑기">다른 이름</button>
         </div>
+        <label class="label" for="bossRace" style="margin-top:10px">보스 종족 (스킬 세트)</label>
+        <select id="bossRace"></select>
+        <p class="hint" id="raceSkills" style="margin:4px 0 0"></p>
         <label class="label" for="memberAdd" style="margin-top:10px">미리 넣을 파티원 (선택 · 비워두면 각자 참가)</label>
         <div class="add-row" style="margin:0">
           <input type="text" id="memberAdd" placeholder="파티원 이름 입력 후 Enter" maxlength="20">
@@ -338,7 +384,11 @@ tr.hdetail td{background:var(--bg);white-space:normal}
     <h2>방송 오버레이</h2>
     <p class="hint" style="margin:0">OBS에서 <b>소스 추가 &gt; 브라우저</b>를 고르고 아래 주소를 넣으세요. 너비 1280, 높이 260 정도를 추천합니다. 배경은 투명합니다.</p>
     <div class="ovl-copy"><code id="ovlUrl"></code><button class="btn primary" id="ovlCopy" type="button">주소 복사</button></div>
-    <label class="check" style="margin-top:10px"><input type="checkbox" id="ovlNoRage"><span>분노 게이지 숨기기<small>HP 바만 보여줍니다</small></span></label>
+    <div class="seg small" role="radiogroup" aria-label="오버레이 화면" style="margin-top:10px">
+      <button type="button" data-ovlview="hp" aria-pressed="true">보스 체력바</button>
+      <button type="button" data-ovlview="skills" aria-pressed="false">보스 스킬 목록</button>
+    </div>
+    <label class="check" style="margin-top:10px" id="ovlRageWrap"><input type="checkbox" id="ovlNoRage"><span>분노 게이지 숨기기<small>HP 바만 보여줍니다</small></span></label>
     <div class="form-actions" style="margin-top:8px"><button class="btn" id="ovlPreview" type="button">새 탭에서 미리보기</button></div>
     <p class="hint" id="ovlNote" style="margin:8px 0 0"></p>
   </section>
@@ -351,7 +401,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <h2 class="boss-name" id="bossName">레이드 대기 중</h2>
         <div class="boss-meta" id="bossMeta"></div>
       </div>
-      <div class="phase" id="phase">1페이즈</div>
+      <div class="hud-right"><button class="btn" id="skillsBtn" type="button">스킬 목록</button><div class="phase" id="phase">1페이즈</div></div>
     </div>
     <div class="gauge">
       <span class="g-label" style="color:var(--hp)">HP</span>
@@ -368,6 +418,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
     <div class="ticker" id="ticker" aria-live="polite"></div>
     <div class="banner" id="banner" hidden></div>
   </section>
+  <section class="skillboard" id="skillBoard" aria-label="보스 스킬 목록"></section>
 
   <div class="grid">
     <div class="col">
@@ -375,10 +426,13 @@ tr.hdetail td{background:var(--bg);white-space:normal}
       <section class="panel join" id="joinPanel" hidden>
         <h2>레이드 참가</h2>
         <p class="hint" style="margin:0 0 10px">방송에서 쓰는 이름으로 참가하면, 이 브라우저에서는 내 결과와 룰렛만 입력하게 됩니다.</p>
-        <div class="add-row" style="margin:0">
-          <input type="text" id="joinName" placeholder="내 이름 (예: 방송 닉네임)" maxlength="20" aria-label="내 이름">
+        <div class="row" style="margin:0">
+          <div class="field" style="flex:1 1 180px"><label class="label" for="joinName">내 이름</label><input type="text" id="joinName" placeholder="방송 닉네임" maxlength="20"></div>
+          <div class="field"><label class="label" for="joinRole">역할</label><select id="joinRole"></select></div>
+          <div class="field"><label class="label" for="joinFee">입장료 (별풍선)</label><input type="number" id="joinFee" min="0" step="10" value="0" style="width:120px;font-size:15px"></div>
           <button class="btn primary" id="joinBtn" type="button">참가하기</button>
         </div>
+        <p class="hint" id="joinGear" style="margin:8px 0 0"></p>
         <p class="hint" id="joinExisting" style="margin:10px 0 0"></p>
       </section>
 
@@ -398,6 +452,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           <span class="label">파티원</span>
           <div class="chips" id="memberChips"></div>
         </div>
+        <div class="rolebar" id="roleBar" hidden></div>
         <div class="row" style="margin-top:14px">
           <div class="field">
             <span class="label">결과</span>
@@ -444,19 +499,14 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           </div>
         </details>
       </section>
-      <section class="panel">
-        <h2>보스 스킬</h2>
-        <p class="hint" style="margin:0 0 10px">분노 게이지가 가득 차면 아래 중 하나가 무작위로 발동하고 게이지가 비워집니다. 체력이 0이 된 파티원은 전투불능이 되며, 승리하면 체력 30으로 부활합니다(그 판은 데미지 없음). 전원 전투불능이면 레이드 실패입니다.</p>
-        <ul class="skills-list" id="skillsList"></ul>
-      </section>
     </div>
 
     <div class="col">
       <section class="panel">
         <h2>파티 현황</h2>
         <div class="tbl-wrap">
-          <table>
-            <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">분노 유발</th><th class="r">체력</th><th>상태</th></tr></thead>
+          <table class="ptable">
+            <thead><tr><th>파티원</th><th>역할</th><th class="r">입장료</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">체력</th><th>게이지</th><th>상태</th></tr></thead>
             <tbody id="partyBody"></tbody>
           </table>
         </div>
@@ -492,6 +542,22 @@ tr.hdetail td{background:var(--bg);white-space:normal}
       </div>
     </div>
   </section>
+</div>
+<div class="modal" id="skillModal" hidden role="dialog" aria-modal="true" aria-labelledby="skillModalTitle">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="skillModalTitle">스킬 목록</h2>
+      <button class="btn" id="skillClose" type="button">닫기</button>
+    </div>
+    <div class="seg small" role="tablist">
+      <button type="button" data-sktab="boss" aria-pressed="true">보스 스킬</button>
+      <button type="button" data-sktab="role" aria-pressed="false">역할 스킬</button>
+      <button type="button" data-sktab="gear" aria-pressed="false">입장료·장비</button>
+    </div>
+    <div id="skTabBoss"></div>
+    <div id="skTabRole" hidden></div>
+    <div id="skTabGear" hidden></div>
+  </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -560,6 +626,11 @@ const store = {
     if(local){ events.push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); return; }
     await db.ref(base()+'/events/'+ev.raidId).push(ev);
   },
+  async setRoster(name, patch){
+    const k = rosterKey(name);
+    if(local){ const ro = {...(raid.roster||{})}; ro[k] = {...(ro[k]||{}), ...patch}; raid = {...raid, roster:ro}; commit(); return; }
+    await db.ref(base()+'/raid/roster/'+k).update(patch);
+  },
   async join(name){
     if(local){ if(!raid.members.includes(name)){ raid = {...raid, members:[...raid.members, name]}; commit(); } return; }
     await db.ref(base()+'/raid/members').transaction(list=>{
@@ -605,14 +676,81 @@ function cfgOf(r){ return r && r.cfg ? r.cfg : {hp:240, rage:120, rec:100}; }
 
 /* 파티원 체력 */
 const PARTY_HP = 100, REVIVE_HP = 30;
-/* 분노 게이지가 가득 차면 아래 목록에서 무작위로 하나가 발동합니다. w = 비중(%) */
-const BOSS_SKILLS = [
-  {id:'regen',  w:25, name:'재생',     desc:'보스 HP 8% 회복'},
-  {id:'smash',  w:25, name:'강타',     desc:'파티원 1명 체력 −50'},
-  {id:'flame',  w:20, name:'광역 화염', desc:'생존 파티원 전원 체력 −25'},
-  {id:'curse',  w:15, name:'저주',     desc:'파티원 1명 다음 승리 데미지 절반'},
-  {id:'barrier',w:15, name:'보호막',   desc:'파티의 다음 승리 2번 데미지 절반'}
-];
+
+/* 보스 스킬 종류. v = 수치 (종류마다 의미가 다름) */
+const SKILL_TYPES = {
+  regen:  {label:'보스 회복',  unit:'%',  desc:v=>`보스 HP ${v}% 회복`},
+  smash:  {label:'단일 공격',  unit:'',   desc:v=>`파티원 1명 체력 −${v}`},
+  flame:  {label:'광역 공격',  unit:'',   desc:v=>`생존 파티원 전원 체력 −${v}`},
+  curse:  {label:'저주',       unit:'배', desc:v=>`파티원 1명 다음 승리 데미지 ×${v}`},
+  barrier:{label:'보호막',     unit:'회', desc:v=>`파티의 다음 승리 ${v}번 데미지 절반`}
+};
+/* 종족별 기본 보스 스킬. 보스 이름에 따라 이 세트가 레이드에 복사되고, 레이드마다 고칠 수 있습니다. */
+const RACES = {zerg:'저그', protoss:'프로토스', terran:'테란', mixed:'혼합'};
+const BOSS_SETS = {
+  zerg: [
+    {name:'급속 재생',  type:'regen',  w:30, v:10},
+    {name:'산성 침',    type:'smash',  w:30, v:50},
+    {name:'감염 확산',  type:'flame',  w:25, v:25},
+    {name:'기생',       type:'curse',  w:15, v:0.5}
+  ],
+  protoss: [
+    {name:'보호막 충전',   type:'barrier', w:30, v:2},
+    {name:'사이오닉 스톰', type:'flame',   w:25, v:30},
+    {name:'정신 지배',     type:'curse',   w:20, v:0.5},
+    {name:'차원 재생',     type:'regen',   w:25, v:6}
+  ],
+  terran: [
+    {name:'긴급 수리',     type:'regen',   w:25, v:8},
+    {name:'야마토 포',     type:'smash',   w:30, v:60},
+    {name:'핵 공격',       type:'flame',   w:20, v:35},
+    {name:'방어 매트릭스', type:'barrier', w:25, v:2}
+  ],
+  mixed: [
+    {name:'재생',      type:'regen',   w:25, v:8},
+    {name:'강타',      type:'smash',   w:25, v:50},
+    {name:'광역 화염', type:'flame',   w:20, v:25},
+    {name:'저주',      type:'curse',   w:15, v:0.5},
+    {name:'보호막',    type:'barrier', w:15, v:2}
+  ]
+};
+function bossSkillsOf(r){ return (r && Array.isArray(r.bossSkills) && r.bossSkills.length) ? r.bossSkills : BOSS_SETS.mixed; }
+
+/* 파티 역할과 기본 역할 스킬 */
+const ROLES = {
+  tank:  {label:'탱커',   short:'T', type:'taunt', desc:v=>`다음 보스 공격(단일·광역)을 혼자 받고 피해 ${v}% 감소`},
+  dealer:{label:'딜러',   short:'D', type:'nuke',  desc:v=>`보스 HP ${v}% 즉시 감소`},
+  healer:{label:'힐러',   short:'H', type:'heal',  desc:v=>`파티원 전원 체력 +${v} (전투불능도 부활)`},
+  support:{label:'서포터', short:'S', type:'rally', desc:v=>`파티의 다음 승리 ${v}번 데미지 ×1.5, 저주 해제`}
+};
+const DEFAULT_ROLE_SKILLS = {
+  tank:   {name:'도발',      v:50},
+  dealer: {name:'집중 포화', v:5},
+  healer: {name:'치유의 빛', v:30},
+  support:{name:'전투 자극', v:2}
+};
+function roleSkillsOf(r){ const o = {}; for(const k in DEFAULT_ROLE_SKILLS) o[k] = {...DEFAULT_ROLE_SKILLS[k], ...((r && r.roleSkills && r.roleSkills[k]) || {})}; return o; }
+
+/* 스킬 게이지 기본값 */
+const DEFAULT_GAUGE = {max:100, start:20, win:25, loss:15};
+function gaugeOf(r){ return {...DEFAULT_GAUGE, ...((r && r.gauge) || {})}; }
+
+/* 입장료(그 파티원 방송에서 받은 레이드 입장 별풍선)에 따른 장비와 게이지 보정 */
+const GEAR = {
+  weapon:   [{min:0,name:'낡은 검',v:0},{min:300,name:'강철 검',v:0.10},{min:1000,name:'마력 검',v:0.25}],
+  armor:    [{min:0,name:'천 옷',v:0},{min:100,name:'사슬 갑옷',v:20},{min:500,name:'판금 갑옷',v:50}],
+  accessory:[{min:0,name:'없음',v:0},{min:300,name:'평온의 부적',v:0.10},{min:1000,name:'불사의 목걸이',v:1}],
+  gauge:    [{min:0,v:0},{min:100,v:20},{min:300,v:40},{min:500,v:60},{min:1000,v:100}]
+};
+function pickTier(list, fee){ let t = list[0]; for(const x of list) if(fee >= x.min) t = x; return t; }
+function gearOf(fee){
+  fee = Math.max(0, Number(fee)||0);
+  const w = pickTier(GEAR.weapon, fee), a = pickTier(GEAR.armor, fee), c = pickTier(GEAR.accessory, fee), g = pickTier(GEAR.gauge, fee);
+  return {fee, weapon:w, armor:a, accessory:c, dmg:w.v, hp:a.v, rageCut: c.name==='평온의 부적' ? c.v : 0, immortal: c.name==='불사의 목걸이', gauge:g.v};
+}
+const rosterKey = name => String(name).replace(/[.#$\[\]\/]/g, '_');
+function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0)}; }
+
 /* 같은 기록이면 어느 화면에서 계산해도 같은 결과가 나오는 난수 */
 function seeded(str){
   let h = 2166136261;
@@ -623,31 +761,60 @@ function seeded(str){
 
 function compute(r, evs){
   const members = (r && r.members) || [];
-  const cfg = cfgOf(r);
+  const cfg = cfgOf(r), G = gaugeOf(r), BS = bossSkillsOf(r), RS = roleSkillsOf(r);
   const n = members.length;
   const maxHp = n*cfg.hp, maxRage = n*cfg.rage, rec = cfg.rec/100;
-  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, skillN = 0;
-  const stats = {}, pending = {}, curse = {}, log = [], mhp = {};
-  const st = m => { if(!(m in mhp)) mhp[m] = PARTY_HP; return stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0,skills:0}); };
+  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
+  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, gear = {}, role = {}, immUsed = {};
+  const st = m => {
+    if(!(m in mhp)){
+      const ro = rosterOf(r, m), g = gearOf(ro.fee);
+      gear[m] = g; role[m] = ro.role;
+      maxH[m] = PARTY_HP + g.hp; mhp[m] = maxH[m];
+      gauge[m] = Math.min(G.max, G.start + g.gauge);
+    }
+    return stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0,skills:0,used:0});
+  };
   members.forEach(st);
   const alive = () => Object.keys(mhp).filter(m=>mhp[m] > 0);
-  const hurt = (m, d, entry) => { const before = mhp[m]; mhp[m] = Math.max(0, mhp[m]-d); stats[m].skills += before - mhp[m]; entry.party.push({m, d: before - mhp[m], down: mhp[m] === 0}); };
+  const addGauge = (m, v) => { if(mhp[m] > 0) gauge[m] = Math.min(G.max, gauge[m] + v); };
+  const hurt = (m, d, entry) => {
+    const before = mhp[m];
+    let after = Math.max(0, before - d);
+    if(after === 0 && gear[m].immortal && !immUsed[m]){ immUsed[m] = true; after = REVIVE_HP; entry.notes.push(`${m} 불사의 목걸이 발동 · 체력 ${REVIVE_HP}`); }
+    mhp[m] = after;
+    stats[m].skills += Math.max(0, before - after);
+    entry.party.push({m, d: Math.max(0, before - after), down: after === 0});
+  };
 
   function bossSkill(entry, seedBase){
-    const roll = seeded(seedBase + '|' + skillN) * 100, roll2 = seeded(seedBase + '|t|' + skillN);
+    const roll = seeded(seedBase + '|' + skillN), roll2 = seeded(seedBase + '|t|' + skillN);
     skillN++;
-    let acc = 0, sk = BOSS_SKILLS[0];
-    for(const x of BOSS_SKILLS){ acc += x.w; if(roll < acc){ sk = x; break; } }
+    const total = BS.reduce((a,x)=>a + Math.max(0, Number(x.w)||0), 0) || 1;
+    let acc = 0, sk = BS[BS.length-1];
+    for(const x of BS){ acc += Math.max(0, Number(x.w)||0); if(roll*total < acc){ sk = x; break; } }
+    const v = Number(sk.v)||0;
     const live = alive(), target = live.length ? live[Math.floor(roll2 * live.length)] : null;
-    const rec = {id:sk.id, name:sk.name, target:null};
-    switch(sk.id){
-      case 'regen': { const h = Math.min(Math.round(maxHp*0.08), maxHp-hp); hp += h; entry.dHp += h; rec.text = h ? `보스 HP +${fmt(h)} 회복` : '보스 HP가 가득 차 있어 효과 없음'; break; }
-      case 'smash': { if(target){ hurt(target, 50, entry); rec.target = target; rec.text = `${target} 체력 −50`; } else rec.text = '대상 없음'; break; }
-      case 'flame': { live.forEach(m=>hurt(m, 25, entry)); rec.text = `생존자 ${live.length}명 체력 −25`; break; }
-      case 'curse': { if(target){ curse[target] = true; rec.target = target; rec.text = `${target} 다음 승리 데미지 절반`; } else rec.text = '대상 없음'; break; }
-      case 'barrier': { barrier = 2; rec.text = '파티의 다음 승리 2번 데미지 절반'; break; }
+    const out = {name:sk.name, type:sk.type, target:null};
+    const tauntOn = taunt && mhp[taunt.m] > 0 && (sk.type === 'smash' || sk.type === 'flame');
+    switch(sk.type){
+      case 'regen': { const h = Math.min(Math.round(maxHp*v/100), maxHp-hp); hp += h; entry.dHp += h; out.text = h ? `보스 HP +${fmt(h)} 회복` : '보스 HP가 가득 차 있어 효과 없음'; break; }
+      case 'smash':
+      case 'flame': {
+        if(tauntOn){
+          const d = Math.round(v * (1 - taunt.v/100));
+          hurt(taunt.m, d, entry); out.target = taunt.m; out.text = `${taunt.m}가 도발로 대신 받음 · 체력 −${d}`; taunt = null;
+        } else if(sk.type === 'smash'){
+          if(target){ hurt(target, v, entry); out.target = target; out.text = `${target} 체력 −${v}`; } else out.text = '대상 없음';
+        } else { live.forEach(m=>hurt(m, v, entry)); out.text = `생존자 ${live.length}명 체력 −${v}`; }
+        break;
+      }
+      case 'curse': { if(target){ curse[target] = v; out.target = target; out.text = `${target} 다음 승리 데미지 ×${v}`; } else out.text = '대상 없음'; break; }
+      case 'barrier': { barrier = Math.max(barrier, Math.round(v)); out.text = `파티의 다음 승리 ${Math.round(v)}번 데미지 절반`; break; }
+      default: out.text = '알 수 없는 스킬';
     }
-    entry.skills.push(rec);
+    lastSkill = sk.name;
+    entry.skills.push(out);
   }
   function checkRage(entry, seedBase){
     while(maxRage > 0 && rage >= maxRage && alive().length && hp > 0){
@@ -664,7 +831,7 @@ function compute(r, evs){
     if(status !== 'live'){ entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
     const enraged = hp <= maxHp*0.5;
     const m = ev.member;
-    const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item}`;
+    const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item ?? ''}`;
     if(ev.type === 'game'){
       const s = st(m);
       const pend = pending[m]; delete pending[m];
@@ -678,13 +845,15 @@ function compute(r, evs){
         } else if(ev.banned){ entry.notes.push('금지 빌드 · 데미지 0'); if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸'); chain = []; }
         else{
           let mult = 1;
+          if(gear[m].dmg){ mult *= 1 + gear[m].dmg; entry.notes.push(`${gear[m].weapon.name} ×${(1+gear[m].dmg).toFixed(2).replace(/0$/,'')}`); }
           if(ev.multi){ mult *= 1.5; entry.notes.push('멀티 확보 ×1.5'); }
           if(ev.same){ mult *= 0.5; entry.notes.push('같은 빌드 연속 ×0.5'); }
           if(pend === 'double'){ mult *= 2; entry.notes.push('룰렛 2배'); }
           if(pend === 'mission'){ mult *= 3; entry.notes.push('도전 미션 ×3'); }
           if(pend === 'shield') entry.notes.push('패배 보호 미사용 소멸');
-          if(curse[m]){ mult *= 0.5; delete curse[m]; entry.notes.push('저주 ×0.5'); }
+          if(curse[m]){ mult *= curse[m]; entry.notes.push(`저주 ×${curse[m]}`); delete curse[m]; }
           if(barrier > 0){ mult *= 0.5; barrier--; entry.notes.push('보스 보호막 ×0.5'); }
+          if(rally > 0){ mult *= 1.5; rally--; entry.notes.push('전투 자극 ×1.5'); }
           const d = Math.round(p*mult);
           hp -= d; s.dmg += d; entry.dHp -= d; if(d > s.best) s.best = d;
           if(chain.includes(m)) chain = [m]; else chain.push(m);
@@ -693,18 +862,22 @@ function compute(r, evs){
             hp -= b; s.dmg += b; entry.dHp -= b; entry.notes.push('체인 보너스 '+fmt(b)); chain = [];
           }
         }
+        addGauge(m, G.win);
       } else if(p < 0){
         s.l++; chain = [];
-        const a = Math.abs(p);
+        const a0 = Math.abs(p);
         if(pend === 'shield'){ entry.notes.push('패배 보호 발동 · 분노·회복 없음'); }
         else{
           if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸');
+          const a = gear[m].rageCut ? Math.round(a0 * (1 - gear[m].rageCut)) : a0;
+          if(a !== a0) entry.notes.push(`평온의 부적 분노 ${fmt(a0)}→${fmt(a)}`);
           rage += a; s.rage += a; entry.dRage += a;
           if(enraged && rec > 0){
-            const h = Math.min(Math.round(a*rec), maxHp-hp);
+            const h = Math.min(Math.round(a0*rec), maxHp-hp);
             if(h > 0){ hp += h; entry.dHp += h; entry.notes.push('광폭화 회복 '+fmt(h)); }
           }
         }
+        addGauge(m, G.loss);
       } else {
         entry.notes.push('점수 변동 없음');
         if(pend) pending[m] = pend;
@@ -722,6 +895,24 @@ function compute(r, evs){
         default:
           if(it.next){ if(pending[m] && pending[m] !== it.id) entry.notes.push(PENDING_LABEL[pending[m]]+' → 교체'); pending[m] = it.id; }
       }
+    } else if(ev.type === 'role'){
+      st(m);
+      const rk = role[m], sk = RS[rk], v = Number(sk.v)||0;
+      entry.role = {key:rk, name:sk.name};
+      if(mhp[m] <= 0){ entry.ignored = true; entry.notes.push('전투불능이라 스킬을 쓸 수 없음 · 반영 안 됨'); continue; }
+      if(gauge[m] < G.max){ entry.ignored = true; entry.notes.push(`게이지 부족 (${gauge[m]}/${G.max}) · 반영 안 됨`); continue; }
+      gauge[m] = 0; stats[m].used++;
+      switch(ROLES[rk].type){
+        case 'nuke': { const d = Math.round(maxHp*v/100); hp -= d; entry.dHp -= d; stats[m].dmg += d; entry.notes.push(`보스 HP ${v}% 감소`); break; }
+        case 'heal': {
+          let healed = 0, revived = [];
+          for(const x of Object.keys(mhp)){ const before = mhp[x]; mhp[x] = Math.min(maxH[x], mhp[x] + v); healed += mhp[x]-before; if(before <= 0 && mhp[x] > 0) revived.push(x); }
+          entry.healed = healed;
+          entry.notes.push(`파티 체력 +${fmt(healed)}${revived.length ? ' · 부활: '+revived.join(', ') : ''}`); break;
+        }
+        case 'taunt': { taunt = {m, v}; entry.notes.push(`다음 보스 공격을 ${m}가 대신 받음 (피해 ${v}% 감소)`); break; }
+        case 'rally': { rally = Math.max(rally, Math.round(v)); const cleared = Object.keys(curse).length; for(const k in curse) delete curse[k]; entry.notes.push(`다음 승리 ${Math.round(v)}번 데미지 ×1.5${cleared ? ' · 저주 해제' : ''}`); break; }
+      }
     }
     if(hp <= 0){ hp = 0; status = 'clear'; entry.notes.push('보스 처치!'); }
     else {
@@ -729,9 +920,17 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('파티 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, mhp, log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, gear, role, G, BS, RS, lastSkill,
+          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
+function whatHtml(e){
+  const ev = e.ev;
+  if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점`; }
+  if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
+  const it = ITEM[ev.item] || ITEM.none;
+  return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`;
+}
 function skillHtml(e){
   if(!e.skills || !e.skills.length) return '';
   const downs = (e.party||[]).filter(x=>x.down).map(x=>x.m);
@@ -815,20 +1014,28 @@ function render(){
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
   const top = rows.length ? s.stats[rows[0]].dmg : 0;
   const maxD = Math.max(1, top);
+  const editAll = hasRaid && !readOnly && !OVERLAY && s.status === 'live';
   $('partyBody').innerHTML = rows.length ? rows.map(m=>{
-    const x = s.stats[m], pend = s.pending[m];
+    const x = s.stats[m], ro = rosterOf(raid, m), canEdit = editAll && (!me || me === m);
+    const roleCell = canEdit
+      ? `<select data-rrole="${esc(m)}" aria-label="${esc(m)} 역할">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===ro.role?' selected':''}>${v.label}</option>`).join('')}</select>`
+      : `<span class="role-tag ${ro.role}">${ROLES[ro.role].short}</span>${ROLES[ro.role].label}`;
+    const feeCell = canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 입장료">` : `<span class="num">${fmt(ro.fee)}</span>`;
+    const g = s.gauge[m] ?? 0, full = g >= s.G.max;
     return `<tr><td>${esc(m)}${x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>':''}</td>
+      <td>${roleCell}</td><td class="r">${feeCell}</td>
       <td class="r num">${x.w}</td><td class="r num">${x.l}</td>
       <td class="r num">${fmt(x.dmg)}<span class="share" style="width:${Math.round(x.dmg/maxD*40)}px"></span></td>
-      <td class="r num">${fmt(x.rage)}</td>
-      <td class="r num">${fmt(s.mhp[m] ?? PARTY_HP)}</td>
+      <td class="r num">${fmt(s.mhp[m] ?? PARTY_HP)}/${fmt(s.maxH[m] ?? PARTY_HP)}</td>
+      <td class="num"><span class="gauge-mini${full?' full':''}"><i style="width:${Math.min(100, g/s.G.max*100)}%"></i></span>${g}</td>
       <td>${statusTags(s, m) || '<span style="color:var(--muted)">-</span>'}</td></tr>`;
-  }).join('') : `<tr><td colspan="7" class="empty">아직 파티원이 없습니다.</td></tr>`;
+  }).join('') : `<tr><td colspan="9" class="empty">아직 파티원이 없습니다.</td></tr>`;
 
   // party HP strip (HUD & overlay)
   $('partyStrip').innerHTML = s.members.map(m=>{
-    const h = s.mhp[m] ?? PARTY_HP, pct = Math.max(0, h/PARTY_HP*100);
-    return `<span class="pm${h<=0?' down':h<=40?' low':''}" title="${esc(m)} 체력 ${h}/${PARTY_HP}"><span class="nm">${esc(m)}</span><span class="pb"><i style="width:${pct}%"></i></span><span class="hv">${h<=0?'KO':h}</span>${s.curse[m]?'<span class="cur">저주</span>':''}</span>`;
+    const h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, pct = Math.max(0, h/mx*100), rk = s.role[m] || 'dealer';
+    const g = s.gauge[m] ?? 0, full = g >= s.G.max;
+    return `<span class="pm${h<=0?' down':h<=mx*0.4?' low':''}" title="${esc(m)} ${ROLES[rk].label} · 체력 ${h}/${mx} · 게이지 ${g}/${s.G.max}"><span class="nm"><span class="role-tag ${rk}">${ROLES[rk].short}</span>${esc(m)}</span><span class="pb"><i style="width:${pct}%"></i></span><span class="hv">${h<=0?'KO':h}</span>${s.curse[m]?'<span class="cur">저주</span>':''}<span class="gb${full?' full':''}"><i style="width:${Math.min(100,g/s.G.max*100)}%"></i></span></span>`;
   }).join('');
 
   // log
@@ -836,20 +1043,14 @@ function render(){
   $('log').innerHTML = items.length ? items.map(e=>{
     const ev = e.ev, d = new Date(ev.t);
     const tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-    let what;
-    if(ev.type==='game'){
-      const p = Number(ev.points)||0;
-      what = `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점`;
-    } else {
-      const it = ITEM[ev.item] || ITEM.none;
-      what = `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`;
-    }
+    const what = whatHtml(e);
     const deltas = [];
     if(e.dHp < 0) deltas.push(`<span class="d-hp">HP ${fmt(e.dHp)}</span>`);
     if(e.dHp > 0) deltas.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
     if(e.dRage > 0) deltas.push(`<span class="d-rage">분노 +${fmt(e.dRage)}</span>`);
     if(e.dRage < 0) deltas.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
     const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">파티 −${fmt(pd)}</span>`);
+    if(e.healed) deltas.push(`<span class="d-heal">파티 +${fmt(e.healed)}</span>`);
     const id = esc(ev._id);
     const ctl = (readOnly || !ev._id || (me && ev.member !== me)) ? '' : `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>`;
     return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span>
@@ -869,6 +1070,9 @@ function render(){
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
   renderTicker(s);
   renderJoin(s, myName(s));
+  renderRoleBar(s, me, canAct);
+  renderSkillBoard(s);
+  if(!$('skillModal').hidden && !skDirty) renderSkillModal();
 }
 
 function topDealer(s){
@@ -949,7 +1153,8 @@ function openSetup(open){
       diff = raid.diff || 'normal';
       if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cRage').value = raid.cfg.rage; $('cRec').value = raid.cfg.rec; }
     }
-    else $('raidName').value = randomBossName();
+    else { $('raidName').value = randomBossName(); }
+    $('bossRace').value = (raid && raid.race) || raceOfName($('raidName').value.trim()); renderRaceSkills();
     renderDiffs(); renderSetupMembers();
     $('raidName').focus();
   }
@@ -957,12 +1162,20 @@ function openSetup(open){
 
 /* ---------- Boss names ---------- */
 /* 새 레이드를 열면 이 목록에서 무작위로 하나가 기본값으로 들어갑니다. 자유롭게 고쳐 써도 됩니다. */
-const BOSS_NAMES = [
-  '군락의 심장 하이브', '광폭한 울트라리스크', '산성 둥지의 퀸', '독안개의 디파일러',
-  '망각의 오버로드', '무한 증식 저글링 군락', '그림자 속의 다크 아칸', '사이오닉 폭풍의 하이 템플러',
-  '영원의 아비터', '차원의 캐리어 함대', '섬광의 리버', '침묵의 다크 템플러',
-  '붕괴하는 배틀크루저', '핵을 품은 고스트', '철벽의 시즈탱크 포대', '불타는 벙커 요새'
-];
+const BOSS_BY_RACE = {
+  zerg:    ['군락의 심장 하이브', '광폭한 울트라리스크', '산성 둥지의 퀸', '독안개의 디파일러', '망각의 오버로드', '무한 증식 저글링 군락'],
+  protoss: ['그림자 속의 다크 아칸', '사이오닉 폭풍의 하이 템플러', '영원의 아비터', '차원의 캐리어 함대', '섬광의 리버', '침묵의 다크 템플러'],
+  terran:  ['붕괴하는 배틀크루저', '핵을 품은 고스트', '철벽의 시즈탱크 포대', '불타는 벙커 요새']
+};
+const BOSS_NAMES = [].concat(...Object.values(BOSS_BY_RACE));
+function raceOfName(n){ for(const k in BOSS_BY_RACE) if(BOSS_BY_RACE[k].includes(n)) return k; return 'mixed'; }
+$('bossRace').innerHTML = Object.entries(RACES).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+function renderRaceSkills(){
+  const set = BOSS_SETS[$('bossRace').value] || BOSS_SETS.mixed;
+  $('raceSkills').textContent = '스킬: ' + set.map(x=>x.name).join(', ') + ' (레이드 시작 후 스킬 목록에서 고칠 수 있습니다)';
+}
+$('bossRace').onchange = renderRaceSkills;
+$('raidName').addEventListener('input', ()=>{ const r = raceOfName($('raidName').value.trim()); if(r !== 'mixed'){ $('bossRace').value = r; renderRaceSkills(); } });
 function randomBossName(){
   const recent = new Set(history.slice(-5).map(h=>h.name));
   if(raid && raid.name) recent.add(raid.name);
@@ -973,7 +1186,7 @@ function randomBossName(){
 $('rollName').onclick = ()=>{
   let n = randomBossName(), guard = 0;
   while(n === $('raidName').value && guard++ < 5) n = randomBossName();
-  $('raidName').value = n;
+  $('raidName').value = n; $('bossRace').value = raceOfName(n); renderRaceSkills();
 };
 
 /* ---------- Events ---------- */
@@ -1001,7 +1214,9 @@ $('startRaid').onclick = ()=>{
     confirmArm = true; $('startRaid').textContent = '진행 중 레이드를 끝내고 새로 시작';
     $('setupHint').textContent = '진행 중인 레이드 기록은 화면에서 사라집니다. 한 번 더 누르면 시작합니다.'; return;
   }
-  const data = {raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:$('raidName').value.trim().slice(0,40) || randomBossName(), members:ms, diff, cfg:setupCfg(), startedAt:Date.now()};
+  const nm = $('raidName').value.trim().slice(0,40) || randomBossName();
+  const race = $('bossRace').value || raceOfName(nm);
+  const data = {raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: BOSS_SETS[race].map(x=>({...x})), members:ms, diff, cfg:setupCfg(), startedAt:Date.now()};
   guard(async()=>{
     if(raid && events.some(e=>!e.undone)) await store.archive(summarize(raid, compute(raid, events), true));
     await store.setRaid(data); openSetup(false); toast('레이드를 시작했습니다.');
@@ -1037,9 +1252,6 @@ function submitGame(){
   });
 }
 function flash(id){ const el = $(id); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
-
-/* Boss skill reference */
-$('skillsList').innerHTML = BOSS_SKILLS.map(k=>`<li><span class="sn">${esc(k.name)}</span><span>${esc(k.desc)}</span><span class="sw">${k.w}%</span></li>`).join('');
 
 /* Roulette */
 const TIERS = ['꽝','일반','희귀','전설','함정'];
@@ -1085,6 +1297,9 @@ function setMe(name){
   if(name) openSetup(false);
   render();
 }
+$('joinRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k==='dealer'?' selected':''}>${v.label}</option>`).join('');
+function renderJoinGear(){ const g = gearOf($('joinFee').value); $('joinGear').textContent = `장비: ${g.weapon.name}, ${g.armor.name}, ${g.accessory.name} · 시작 게이지 +${g.gauge}`; }
+$('joinFee').addEventListener('input', renderJoinGear); renderJoinGear();
 $('joinBtn').onclick = doJoin;
 $('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
 function doJoin(){
@@ -1092,8 +1307,10 @@ function doJoin(){
   if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
   if(!raid){ toast('아직 열린 레이드가 없습니다. 운영자가 레이드를 열면 참가할 수 있습니다.'); return; }
   const already = raid.members.includes(name);
+  const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0));
   guard(async()=>{
     await store.join(name);
+    if(!already || role !== rosterOf(raid, name).role || fee !== rosterOf(raid, name).fee) await store.setRoster(name, {role, fee});
     $('joinName').value = '';
     setMe(name);
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
@@ -1144,6 +1361,7 @@ function evText(e){
     if(p < 0) return `${ev.member} 패배… 분노 +${fmt(e.dRage)}${e.dHp > 0 ? ' · 보스 HP +'+fmt(e.dHp)+' 회복' : ''}`;
     return `${ev.member} 무승부`;
   }
+  if(ev.type === 'role'){ const r0 = e.role || {name:'역할 스킬'}; return `${ev.member} 역할 스킬 ${r0.name}! ${e.notes.join(' · ')}`; }
   const it = ITEM[ev.item] || ITEM.none;
   return `${ev.member} 룰렛 [${it.tier}] ${it.name}`;
 }
@@ -1158,7 +1376,7 @@ function renderTicker(s){
   const tk = $('ticker');
   const sk = last && last.skills && last.skills.length ? last.skills[last.skills.length-1] : null;
   tk.innerHTML = sk ? `<span class="tk-tag boss">BOSS SKILL</span><span class="tk-text">${esc(sk.name)}! ${esc(sk.text)}${last.party.some(x=>x.down) ? ' · 전투불능 '+esc(last.party.filter(x=>x.down).map(x=>x.m).join(', ')) : ''}</span>`
-    : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
+    : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : last.ev.type==='role' ? 'PARTY SKILL' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
   const id = last ? (last.ev._id || last.ev.t) : null;
   if(tickerReady && id && id !== lastSeenEv && OVERLAY){
     if(last.dHp < 0) popAt('#hpMeter', '−'+fmt(-last.dHp));
@@ -1189,7 +1407,8 @@ $('roomRecent').addEventListener('click', e=>{ const b = e.target.closest('[data
 /* 오버레이 주소 (OBS 브라우저 소스용) */
 function overlayUrl(){
   const u = new URL(location.href); u.search = ''; u.hash = '';
-  const q = new URLSearchParams(); q.set('room', ROOM); q.set('overlay', '1'); if($('ovlNoRage').checked) q.set('rage', '0');
+  const q = new URLSearchParams(); q.set('room', ROOM); q.set('overlay', '1');
+  if(ovlView === 'skills') q.set('view', 'skills'); else if($('ovlNoRage').checked) q.set('rage', '0');
   return u.toString() + '?' + q.toString();
 }
 function refreshOvl(){
@@ -1200,12 +1419,160 @@ function refreshOvl(){
 }
 $('ovlBtn').onclick = ()=>{ const p = $('ovlPanel'); p.hidden = !p.hidden; $('roomPanel').hidden = true; refreshOvl(); };
 $('ovlNoRage').onchange = refreshOvl;
+let ovlView = 'hp';
+$('ovlPanel').addEventListener('click', e=>{
+  const b = e.target.closest('[data-ovlview]'); if(!b) return;
+  ovlView = b.dataset.ovlview;
+  document.querySelectorAll('[data-ovlview]').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  $('ovlRageWrap').hidden = ovlView === 'skills';
+  refreshOvl();
+});
 $('ovlPreview').onclick = ()=>{ const w = window.open(overlayUrl(), '_blank', 'noopener'); if(!w) toast('팝업이 막혔습니다. 주소를 복사해서 새 탭에 붙여넣으세요.'); };
 $('ovlCopy').onclick = async ()=>{
   const t = $('ovlUrl').textContent;
   try{ await navigator.clipboard.writeText(t); toast('오버레이 주소를 복사했습니다.'); }
   catch(_){ const r = document.createRange(); r.selectNodeContents($('ovlUrl')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('주소를 선택해 두었습니다. Ctrl+C로 복사하세요.'); }
 };
+
+/* ---------- Role skill bar ---------- */
+function renderRoleBar(s, me, canAct){
+  const bar = $('roleBar');
+  if(!raid || !selected || !s.members.includes(selected)){ bar.hidden = true; return; }
+  const rk = s.role[selected] || 'dealer', sk = s.RS[rk], g = s.gauge[selected] ?? 0, full = g >= s.G.max, alive = (s.mhp[selected] ?? 1) > 0;
+  const mine = !me || me === selected;
+  bar.hidden = false;
+  bar.innerHTML = `<div class="rb-text"><span class="role-tag ${rk}">${ROLES[rk].short}</span><b>${esc(ROLES[rk].label)} · ${esc(sk.name)}</b>
+      <small>${esc(ROLES[rk].desc(sk.v))}</small></div>
+    <div class="sk-actions"><span class="gauge-mini${full?' full':''}" style="width:90px"><i style="width:${Math.min(100,g/s.G.max*100)}%"></i></span><span class="num">${g}/${s.G.max}</span>
+    <button type="button" class="btn skill" id="useRole"${(canAct && mine && full && alive) ? '' : ' disabled'}>스킬 사용</button></div>`;
+}
+document.addEventListener('click', e=>{
+  if(e.target.id !== 'useRole' || e.target.disabled || !raid || !selected) return;
+  const who = selected;
+  guard(async()=>{ await store.addEvent({raidId:raid.raidId, t:Date.now(), type:'role', member:who, undone:false}); toast(`${who} 역할 스킬 사용`); });
+});
+/* 파티 현황에서 역할·입장료 고치기 */
+$('partyBody').addEventListener('change', e=>{
+  const r = e.target.closest('[data-rrole]'), f = e.target.closest('[data-rfee]');
+  if(r) guard(()=>store.setRoster(r.dataset.rrole, {role:r.value}));
+  if(f) guard(()=>store.setRoster(f.dataset.rfee, {fee: Math.max(0, Math.round(Number(f.value)||0))}));
+});
+
+/* ---------- Skill list window ---------- */
+let skTab = 'boss', skDirty = false, bsDraft = null, rsDraft = null, gDraft = null;
+function canEditSkills(){ return !!raid && !readOnly && !OVERLAY && !myName(lastState || {members:[]}); }
+function pct(w, list){ const t = list.reduce((a,x)=>a+Math.max(0,Number(x.w)||0),0); return t ? Math.round(Math.max(0,Number(w)||0)/t*1000)/10 : 0; }
+function openSkillModal(){ skDirty = false; bsDraft = rsDraft = gDraft = null; $('skillModal').hidden = false; renderSkillModal(); $('skillClose').focus(); }
+function closeSkillModal(){ $('skillModal').hidden = true; skDirty = false; }
+$('skillsBtn').onclick = openSkillModal;
+$('skillClose').onclick = closeSkillModal;
+$('skillModal').addEventListener('click', e=>{ if(e.target.id === 'skillModal') closeSkillModal(); });
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape' && !$('skillModal').hidden) closeSkillModal(); });
+$('skillModal').querySelector('[role=tablist]').addEventListener('click', e=>{
+  const b = e.target.closest('[data-sktab]'); if(!b) return;
+  skTab = b.dataset.sktab;
+  $('skillModal').querySelectorAll('[data-sktab]').forEach(x=>x.setAttribute('aria-pressed', x===b));
+  renderSkillModal();
+});
+function renderSkillModal(){
+  const edit = canEditSkills();
+  $('skTabBoss').hidden = skTab !== 'boss'; $('skTabRole').hidden = skTab !== 'role'; $('skTabGear').hidden = skTab !== 'gear';
+  const race = (raid && raid.race) || 'mixed';
+  // 보스 스킬
+  const list = bsDraft || bossSkillsOf(raid).map(x=>({...x}));
+  const typeOpts = v => Object.entries(SKILL_TYPES).map(([k,t])=>`<option value="${k}"${k===v?' selected':''}>${t.label}</option>`).join('');
+  $('skTabBoss').innerHTML = `<p class="sk-note">${raid ? `<b>${esc(raid.name)}</b> (${RACES[race]})의 스킬입니다. ` : '레이드를 시작하면 보스 종족에 맞는 스킬 세트가 들어갑니다. 아래는 혼합 세트입니다. '}분노 게이지가 가득 차면 비중에 따라 하나가 무작위로 발동합니다.</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>스킬 이름</th><th>종류</th><th class="r">비중</th><th class="r">확률</th><th class="r">수치</th><th>효과</th>${edit?'<th></th>':''}</tr></thead><tbody>
+    ${list.map((x,i)=> edit
+      ? `<tr><td><input type="text" maxlength="16" value="${esc(x.name)}" data-bs="${i}" data-k="name" aria-label="스킬 이름"></td>
+          <td><select data-bs="${i}" data-k="type" aria-label="종류">${typeOpts(x.type)}</select></td>
+          <td class="r"><input type="number" min="0" step="1" value="${x.w}" data-bs="${i}" data-k="w" aria-label="비중"></td>
+          <td class="r num">${pct(x.w, list)}%</td>
+          <td class="r"><input type="number" min="0" step="${x.type==='curse'?'0.1':'1'}" value="${x.v}" data-bs="${i}" data-k="v" aria-label="수치"></td>
+          <td class="desc">${esc((SKILL_TYPES[x.type]||SKILL_TYPES.smash).desc(x.v))}</td>
+          <td><button type="button" class="btn danger" data-bsdel="${i}" aria-label="${esc(x.name)} 삭제">삭제</button></td></tr>`
+      : `<tr><td><b>${esc(x.name)}</b></td><td>${esc((SKILL_TYPES[x.type]||{label:'-'}).label)}</td><td class="r num">${x.w}</td><td class="r num">${pct(x.w, list)}%</td><td class="r num">${x.v}</td><td class="desc">${esc((SKILL_TYPES[x.type]||SKILL_TYPES.smash).desc(x.v))}</td></tr>`
+    ).join('')}</tbody></table></div>
+    ${edit ? `<div class="sk-actions"><button type="button" class="btn" id="bsAdd">스킬 추가</button>
+      <select id="bsPreset" aria-label="기본 세트">${Object.entries(RACES).map(([k,v])=>`<option value="${k}"${k===race?' selected':''}>${v} 기본 세트</option>`).join('')}</select>
+      <button type="button" class="btn" id="bsReset">이 세트로 되돌리기</button>
+      <span style="flex:1"></span><button type="button" class="btn primary" id="bsSave"${skDirty?'':' disabled'}>저장</button></div>
+      <p class="sk-note">저장하면 이 레이드에 바로 적용됩니다. 이미 발동한 스킬도 새 목록 기준으로 다시 계산됩니다.</p>`
+      : (raid ? '<p class="sk-note">스킬 수정은 운영자 모드에서 할 수 있습니다.</p>' : '')}`;
+  // 역할 스킬
+  const rs = rsDraft || roleSkillsOf(raid), G = gDraft || gaugeOf(raid);
+  $('skTabRole').innerHTML = `<p class="sk-note">파티원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 차고, 입장료에 따라 시작 게이지가 늘어납니다.</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>역할</th><th>스킬 이름</th><th class="r">수치</th><th>효과</th></tr></thead><tbody>
+    ${Object.entries(ROLES).map(([k,R])=> edit
+      ? `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><input type="text" maxlength="16" value="${esc(rs[k].name)}" data-rs="${k}" data-k="name" aria-label="${R.label} 스킬 이름"></td>
+          <td class="r"><input type="number" min="0" step="1" value="${rs[k].v}" data-rs="${k}" data-k="v" aria-label="${R.label} 수치"></td><td class="desc">${esc(R.desc(rs[k].v))}</td></tr>`
+      : `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><b>${esc(rs[k].name)}</b></td><td class="r num">${rs[k].v}</td><td class="desc">${esc(R.desc(rs[k].v))}</td></tr>`).join('')}
+    </tbody></table></div>
+    <h3 class="label" style="margin:6px 0 0">스킬 게이지</h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>최대</th><th>기본 시작값</th><th>승리 시 충전</th><th>패배 시 충전</th></tr></thead><tbody><tr>
+    ${['max','start','win','loss'].map(k=> edit ? `<td><input type="number" min="0" step="5" value="${G[k]}" data-g="${k}" aria-label="게이지 ${k}"></td>` : `<td class="num">${G[k]}</td>`).join('')}
+    </tr></tbody></table></div>
+    ${edit ? `<div class="sk-actions"><button type="button" class="btn" id="rsReset">기본값으로 되돌리기</button><span style="flex:1"></span><button type="button" class="btn primary" id="rsSave"${skDirty?'':' disabled'}>저장</button></div>` : ''}`;
+  // 입장료·장비
+  const tier = (list, f) => list.map(x=>`<tr><td class="num">${fmt(x.min)}개 이상</td><td><b>${esc(x.name||'')}</b></td><td>${f(x)}</td></tr>`).join('');
+  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 슬롯마다 조건을 만족하는 가장 좋은 장비를 자동으로 착용합니다.</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>입장료</th><th>무기</th><th>효과</th></tr></thead><tbody>${tier(GEAR.weapon, x=> x.v ? `승리 데미지 +${Math.round(x.v*100)}%` : '기본')}</tbody></table></div>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>입장료</th><th>갑옷</th><th>효과</th></tr></thead><tbody>${tier(GEAR.armor, x=> x.v ? `최대 체력 +${x.v}` : '기본')}</tbody></table></div>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>입장료</th><th>장신구</th><th>효과</th></tr></thead><tbody>${tier(GEAR.accessory, x=> x.name==='평온의 부적' ? '내 패배로 오르는 분노 −10%' : x.name==='불사의 목걸이' ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-')}</tbody></table></div>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>입장료</th><th></th><th>시작 게이지 보너스</th></tr></thead><tbody>${GEAR.gauge.map(x=>`<tr><td class="num">${fmt(x.min)}개 이상</td><td></td><td>+${x.v}</td></tr>`).join('')}</tbody></table></div>`;
+}
+$('skillModal').addEventListener('input', e=>{
+  const t = e.target;
+  if(t.dataset.bs !== undefined){
+    bsDraft = bsDraft || bossSkillsOf(raid).map(x=>({...x}));
+    const row = bsDraft[+t.dataset.bs], k = t.dataset.k;
+    row[k] = (k==='w' || k==='v') ? Math.max(0, Number(t.value)||0) : t.value;
+    skDirty = true;
+    const tr = t.closest('tr');
+    tr.querySelector('.desc').textContent = (SKILL_TYPES[row.type]||SKILL_TYPES.smash).desc(row.v);
+    $('skTabBoss').querySelectorAll('tbody tr').forEach((r,i)=>{ const c = r.children[3]; if(c) c.textContent = pct(bsDraft[i].w, bsDraft)+'%'; });
+    $('bsSave').disabled = false;
+  } else if(t.dataset.rs !== undefined){
+    rsDraft = rsDraft || roleSkillsOf(raid);
+    const k = t.dataset.k; rsDraft[t.dataset.rs][k] = k==='v' ? Math.max(0, Number(t.value)||0) : t.value;
+    t.closest('tr').querySelector('.desc').textContent = ROLES[t.dataset.rs].desc(rsDraft[t.dataset.rs].v);
+    skDirty = true; $('rsSave').disabled = false;
+  } else if(t.dataset.g !== undefined){
+    gDraft = gDraft || gaugeOf(raid); gDraft[t.dataset.g] = Math.max(0, Math.round(Number(t.value)||0));
+    skDirty = true; $('rsSave').disabled = false;
+  }
+});
+$('skillModal').addEventListener('change', e=>{ if(e.target.dataset.k === 'type'){ renderSkillModal(); } });
+$('skillModal').addEventListener('click', e=>{
+  const id = e.target.id;
+  const del = e.target.closest('[data-bsdel]');
+  if(del){ bsDraft = bsDraft || bossSkillsOf(raid).map(x=>({...x})); if(bsDraft.length <= 1){ toast('보스 스킬은 하나 이상 있어야 합니다.'); return; } bsDraft.splice(+del.dataset.bsdel, 1); skDirty = true; renderSkillModal(); return; }
+  if(id === 'bsAdd'){ bsDraft = bsDraft || bossSkillsOf(raid).map(x=>({...x})); if(bsDraft.length >= 10){ toast('보스 스킬은 10개까지 넣을 수 있습니다.'); return; } bsDraft.push({name:'새 스킬', type:'smash', w:10, v:30}); skDirty = true; renderSkillModal(); return; }
+  if(id === 'bsReset'){ bsDraft = BOSS_SETS[$('bsPreset').value].map(x=>({...x})); skDirty = true; renderSkillModal(); return; }
+  if(id === 'bsSave' && bsDraft){
+    const clean = bsDraft.map(x=>({name: String(x.name||'스킬').trim().slice(0,16) || '스킬', type: SKILL_TYPES[x.type] ? x.type : 'smash', w: Math.max(0, Number(x.w)||0), v: Math.max(0, Number(x.v)||0)}));
+    if(!clean.some(x=>x.w > 0)){ toast('비중이 0보다 큰 스킬이 하나 이상 있어야 합니다.'); return; }
+    guard(async()=>{ await store.updateRaid({bossSkills: clean}); bsDraft = null; skDirty = false; renderSkillModal(); toast('보스 스킬을 저장했습니다.'); });
+    return;
+  }
+  if(id === 'rsReset'){ rsDraft = JSON.parse(JSON.stringify(DEFAULT_ROLE_SKILLS)); gDraft = {...DEFAULT_GAUGE}; skDirty = true; renderSkillModal(); return; }
+  if(id === 'rsSave'){
+    const rs = rsDraft || roleSkillsOf(raid), G = gDraft || gaugeOf(raid);
+    if(!(G.max > 0)){ toast('게이지 최대값은 0보다 커야 합니다.'); return; }
+    const roleSkills = {}; for(const k in ROLES) roleSkills[k] = {name: String(rs[k].name||'스킬').trim().slice(0,16) || '스킬', v: Math.max(0, Number(rs[k].v)||0)};
+    guard(async()=>{ await store.updateRaid({roleSkills, gauge: G}); rsDraft = gDraft = null; skDirty = false; renderSkillModal(); toast('역할 스킬을 저장했습니다.'); });
+  }
+});
+
+/* ---------- Skill board (overlay) ---------- */
+function renderSkillBoard(s){
+  if(!OVERLAY || !document.documentElement.classList.contains('ovl-skills')) return;
+  const list = s.BS;
+  const ready = s.members.filter(m=>(s.gauge[m]??0) >= s.G.max && (s.mhp[m]??1) > 0);
+  $('skillBoard').innerHTML = `<div class="sb-title">${raid ? esc(raid.name) : '보스 대기 중'}<small>보스 스킬 · 분노 ${fmt(s.rage)}/${fmt(s.maxRage)}</small></div>
+    <ul class="sb-list">${list.map(x=>`<li class="${x.name===s.lastSkill?'last':''}"><span class="sn">${esc(x.name)}</span><span class="sd">${esc((SKILL_TYPES[x.type]||SKILL_TYPES.smash).desc(x.v))}</span><span class="sw">${pct(x.w, list)}%</span></li>`).join('')}</ul>
+    ${ready.length ? `<div class="sb-ready">파티 스킬 준비: ${ready.map(m=>`<b>${esc(m)}</b> (${esc(s.RS[s.role[m]].name)})`).join(', ')}</div>` : ''}`;
+}
 
 /* ---------- Raid history ---------- */
 function summarize(r, s, stopped){
@@ -1216,8 +1583,8 @@ function summarize(r, s, stopped){
   return {raidId:r.raidId, name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members,
-    evCount: events.length,
-    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else o.item = e.item; if(e.undone) o.undone = true; return o; })};
+    evCount: events.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null,
+    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; if(e.undone) o.undone = true; return o; })};
 }
 let archiveTimer = null;
 function autoArchive(s){
@@ -1291,18 +1658,17 @@ function histDetail(h, mem){
   </table></div>`;
   let logHtml = '<p class="empty">이 레이드는 전투 기록이 저장되지 않았습니다.</p>';
   if(Array.isArray(h.events) && h.events.length){
-    const st = compute({members:Object.keys(h.members||{}), cfg:h.cfg}, h.events.map((e,i)=>({...e, _id:'h'+i})));
+    const st = compute({members:Object.keys(h.members||{}), cfg:h.cfg, bossSkills:h.bossSkills, roleSkills:h.roleSkills, gauge:h.gauge, roster:h.roster}, h.events.map((e,i)=>({...e, _id:'h'+i})));
     logHtml = '<ul class="log compact">' + st.log.slice().reverse().map(e=>{
       const ev = e.ev, d = new Date(ev.t), tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-      let what;
-      if(ev.type==='game'){ const p = Number(ev.points)||0; what = `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점`; }
-      else { const it = ITEM[ev.item] || ITEM.none; what = `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`; }
+      const what = whatHtml(e);
       const ds = [];
       if(e.dHp < 0) ds.push(`<span class="d-hp">HP ${fmt(e.dHp)}</span>`);
       if(e.dHp > 0) ds.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
       if(e.dRage > 0) ds.push(`<span class="d-rage">분노 +${fmt(e.dRage)}</span>`);
       if(e.dRage < 0) ds.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
       const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) ds.push(`<span class="d-party">파티 −${fmt(pd)}</span>`);
+      if(e.healed) ds.push(`<span class="d-heal">파티 +${fmt(e.healed)}</span>`);
       return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
     }).join('') + '</ul>';
   }
