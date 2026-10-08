@@ -161,6 +161,16 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.wtypes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.wtypes{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.wt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:9px 10px;min-width:0}
+.wt b{font-size:14px}
+.wt span{font-size:11px;color:var(--muted)}
+.wt[aria-checked="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--panel2))}
+.wt.good[aria-checked="true"]{border-color:var(--good);background:color-mix(in srgb,var(--good) 16%,var(--panel2))}
+.wt.warn[aria-checked="true"]{border-color:var(--rage);background:color-mix(in srgb,var(--rage) 16%,var(--panel2))}
+.wt.bad[aria-checked="true"]{border-color:var(--trap);background:color-mix(in srgb,var(--trap) 16%,var(--panel2))}
+.wt:disabled{opacity:.45;cursor:not-allowed}
 .pstrip{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:12px}
 .pm{display:grid;grid-template-columns:auto 72px auto auto;align-items:center;gap:6px;font-size:13px;min-width:0}
 .pm .nm{max-width:9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
@@ -401,10 +411,14 @@ tr.hdetail td{background:var(--bg);white-space:normal}
             <input type="number" id="points" min="0" step="1" placeholder="20" inputmode="numeric">
           </div>
         </div>
-        <div class="checks" id="winChecks">
-          <label class="check"><input type="checkbox" id="cMulti"><span>앞마당 멀티 확보 후 승리<small>데미지 1.5배</small></span></label>
-          <label class="check"><input type="checkbox" id="cSame"><span>같은 빌드 2연속 승리<small>데미지 절반</small></span></label>
-          <label class="check"><input type="checkbox" id="cBanned"><span>금지 빌드(극초반 올인)로 승리<small>데미지 0</small></span></label>
+        <div class="field" id="winChecks" style="margin-top:12px">
+          <span class="label">승리 유형</span>
+          <div class="wtypes" role="radiogroup" aria-label="승리 유형">
+            <button type="button" class="wt" data-wt="normal" role="radio" aria-checked="true"><b>일반 승리</b><span>×1</span></button>
+            <button type="button" class="wt good" data-wt="multi" role="radio" aria-checked="false"><b>운영 승리</b><span>멀티 확보 ×1.5</span></button>
+            <button type="button" class="wt warn" data-wt="same" role="radio" aria-checked="false"><b>빌드 반복</b><span>같은 빌드 2연속 ×0.5</span></button>
+            <button type="button" class="wt bad" data-wt="banned" role="radio" aria-checked="false"><b>초반 올인</b><span>금지 빌드 ×0</span></button>
+          </div>
         </div>
         <div class="preview" id="gamePreview">파티원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.</div>
         <div class="form-actions">
@@ -845,7 +859,8 @@ function render(){
 
   // input availability
   const canAct = hasRaid && s.status==='live' && !readOnly && s.members.length>0;
-  ['submitGame','spin','applyManual','points','cMulti','cSame','cBanned','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && (id==='spin'||id==='applyManual')); });
+  ['submitGame','spin','applyManual','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && (id==='spin'||id==='applyManual')); });
+  document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
   $('addMember').disabled = $('addMemberBtn').disabled = !hasRaid || readOnly || s.status!=='live' || !!me;
   $('spinFor').textContent = selected ? `${selected} 방송 룰렛으로 기록됩니다` : '';
   $('subline').textContent = hasRaid ? `시작 ${new Date(raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
@@ -870,10 +885,10 @@ function updateGamePreview(){
   const pend = s.pending[selected];
   if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}`; return; }
   if(isWin){
-    if($('cBanned').checked){ el.innerHTML = '금지 빌드 승리는 <b>데미지 0</b>입니다.'; return; }
+    if(winType==='banned'){ el.innerHTML = '초반 올인(금지 빌드) 승리는 <b>데미지 0</b>입니다.'; return; }
     let mult = 1;
-    if($('cMulti').checked) mult *= 1.5;
-    if($('cSame').checked) mult *= 0.5;
+    if(winType==='multi') mult *= 1.5;
+    if(winType==='same') mult *= 0.5;
     if(pend==='double') mult *= 2;
     if(pend==='mission') mult *= 3;
     if((s.mhp[selected] ?? 1) <= 0){ el.innerHTML = `<b>${esc(selected)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.`; return; }
@@ -996,7 +1011,14 @@ $('startRaid').onclick = ()=>{
 function setResult(win){ isWin = win; $('btnWin').setAttribute('aria-pressed', win); $('btnLoss').setAttribute('aria-pressed', !win); updateGamePreview(); }
 $('btnWin').onclick = ()=>setResult(true);
 $('btnLoss').onclick = ()=>setResult(false);
-['points','cMulti','cSame','cBanned'].forEach(id=>$(id).addEventListener('input', updateGamePreview));
+$('points').addEventListener('input', updateGamePreview);
+let winType = 'normal';
+function setWinType(t){
+  winType = t;
+  document.querySelectorAll('.wt').forEach(b=>b.setAttribute('aria-checked', b.dataset.wt===t));
+  updateGamePreview();
+}
+$('winChecks').addEventListener('click', e=>{ const b = e.target.closest('.wt'); if(b && !b.disabled) setWinType(b.dataset.wt); });
 $('points').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitGame(); } });
 $('submitGame').onclick = submitGame;
 function submitGame(){
@@ -1005,10 +1027,10 @@ function submitGame(){
   if(!selected){ toast('파티원을 먼저 고르세요.'); return; }
   if(!p){ toast('래더 결과 화면의 점수 변동값을 입력하세요.'); $('points').focus(); return; }
   const ev = {raidId:raid.raidId, t:Date.now(), type:'game', member:selected, points: isWin ? p : -p,
-    multi: isWin && $('cMulti').checked, same: isWin && $('cSame').checked, banned: isWin && $('cBanned').checked, undone:false};
+    multi: isWin && winType==='multi', same: isWin && winType==='same', banned: isWin && winType==='banned', undone:false};
   guard(async()=>{
     await store.addEvent(ev);
-    $('points').value = ''; $('cMulti').checked = $('cSame').checked = $('cBanned').checked = false;
+    $('points').value = ''; setWinType('normal');
     flash(isWin ? 'hpFill' : 'rageFill');
     toast(`${selected} ${isWin?'승리':'패배'} ${isWin?'+':'−'}${p}점 반영`);
     updateGamePreview();
