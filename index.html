@@ -53,8 +53,6 @@ header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-
 .hud-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .boss-name{font-family:var(--f-display);font-size:34px;line-height:1.1;margin:0;text-wrap:balance}
 .boss-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
-.phase{font-family:var(--f-display);font-size:16px;padding:4px 12px;border-radius:6px;background:var(--panel2);border:1px solid var(--line)}
-.phase.enrage{background:var(--hp-dim);border-color:var(--hp);color:#ffd6d7;animation:pulse 1.6s ease-in-out infinite}
 @keyframes pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--hp) 25%,transparent)}}
 .gauge{display:grid;grid-template-columns:72px 1fr auto;align-items:center;gap:12px;margin-top:10px}
 .gauge .g-label{font-family:var(--f-display);font-size:18px}
@@ -62,7 +60,6 @@ header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-
 .bar.rage{height:18px;background:var(--rage-dim)}
 .bar .fill{position:absolute;inset:0 auto 0 0;background:var(--hp);transition:width .6s cubic-bezier(.2,.8,.2,1)}
 .bar.rage .fill{background:var(--rage)}
-.bar .mark{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#ffffff55}
 .bar .ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),#00000040 calc(10% - 1px) 10%)}
 .g-val{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:18px;font-weight:700;white-space:nowrap;text-align:right;min-width:9ch}
 .g-val small{color:var(--muted);font-size:13px;font-weight:500}
@@ -221,6 +218,14 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.gear{display:flex;flex-wrap:wrap;gap:4px}
+.gear span{font-size:11px;line-height:1.4;padding:1px 6px;border-radius:4px;border:1px solid var(--line);background:var(--panel2);white-space:nowrap}
+.gear span.base{color:var(--muted);border-style:dashed}
+.gear span.w{border-color:color-mix(in srgb,var(--hp) 50%,var(--line))}
+.gear span.a{border-color:color-mix(in srgb,var(--rare) 50%,var(--line))}
+.gear span.c{border-color:color-mix(in srgb,var(--legend) 55%,var(--line))}
+.gear span.used{text-decoration:line-through;opacity:.6}
+.rolebar .gear{margin-top:6px}
 .hud-right{display:flex;gap:8px;align-items:center}
 html.overlay .hud-right .btn{display:none}
 .modal{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,#000 60%,transparent);display:flex;align-items:flex-start;justify-content:center;padding:calc(24px + env(safe-area-inset-top,0px)) 16px 24px;overflow-y:auto}
@@ -450,11 +455,11 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <h2 class="boss-name" id="bossName">레이드 대기 중</h2>
         <div class="boss-meta" id="bossMeta"></div>
       </div>
-      <div class="hud-right"><button class="btn" id="skillsBtn" type="button">스킬·설정</button><div class="phase" id="phase">1페이즈</div></div>
+      <div class="hud-right"><button class="btn" id="skillsBtn" type="button">스킬·설정</button></div>
     </div>
     <div class="gauge">
       <span class="g-label" style="color:var(--hp)">HP</span>
-      <div class="bar" role="meter" aria-label="보스 HP" id="hpMeter"><div class="fill" id="hpFill" style="width:100%"></div><div class="ticks"></div><div class="mark" title="광폭화 50%"></div></div>
+      <div class="bar" role="meter" aria-label="보스 HP" id="hpMeter"><div class="fill" id="hpFill" style="width:100%"></div><div class="ticks"></div></div>
       <span class="g-val" id="hpVal">0 <small>/ 0</small></span>
     </div>
     <div class="gauge rage-row">
@@ -555,7 +560,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <h2>파티 현황</h2>
         <div class="tbl-wrap">
           <table class="ptable">
-            <thead><tr><th>파티원</th><th>역할</th><th class="r">입장료</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">체력</th><th>게이지</th><th>상태</th></tr></thead>
+            <thead><tr><th>파티원</th><th>역할</th><th class="r">입장료</th><th>장비</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">체력</th><th>게이지</th><th>상태</th></tr></thead>
             <tbody id="partyBody"></tbody>
           </table>
         </div>
@@ -788,8 +793,7 @@ function gaugeOf(r){ return {...DEFAULT_GAUGE, ...((r && r.gauge) || {})}; }
 const GEAR = {
   weapon:   [{min:0,name:'낡은 검',v:0},{min:300,name:'강철 검',v:0.10},{min:1000,name:'마력 검',v:0.25}],
   armor:    [{min:0,name:'천 옷',v:0},{min:100,name:'사슬 갑옷',v:20},{min:500,name:'판금 갑옷',v:50}],
-  accessory:[{min:0,name:'없음',v:0},{min:300,name:'평온의 부적',v:0.10},{min:1000,name:'불사의 목걸이',v:1}],
-  gauge:    [{min:0,v:0},{min:100,v:20},{min:300,v:40},{min:500,v:60},{min:1000,v:100}]
+  accessory:[{min:0,name:'없음',v:0},{min:300,name:'평온의 부적',v:0.10},{min:1000,name:'불사의 목걸이',v:1}]
 };
 function pickTier(list, fee){ let t = list[0]; for(const x of list) if(fee >= x.min) t = x; return t; }
 
@@ -797,6 +801,7 @@ function pickTier(list, fee){ let t = list[0]; for(const x of list) if(fee >= x.
 const DEFAULT_SETTINGS = {
   win: {multi:1.5, same:0.5, banned:0},
   chain: 2,
+  feeGauge: 0.001,
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({min:x.min, v:x.v}))]))
 };
@@ -805,6 +810,7 @@ function settingsOf(r){
   const out = {
     win: {...DEFAULT_SETTINGS.win, ...(x.win || {})},
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
+    feeGauge: x.feeGauge ?? DEFAULT_SETTINGS.feeGauge,
     roulette: {...DEFAULT_SETTINGS.roulette, ...(x.roulette || {})},
     gear: {}
   };
@@ -818,9 +824,9 @@ function gearOf(fee, S){
   S = S || settingsOf(null);
   fee = Math.max(0, Number(fee)||0);
   const G2 = S.gear;
-  const w = pickTier(G2.weapon, fee), a = pickTier(G2.armor, fee), c = pickTier(G2.accessory, fee), g = pickTier(G2.gauge, fee);
+  const w = pickTier(G2.weapon, fee), a = pickTier(G2.armor, fee), c = pickTier(G2.accessory, fee);
   const ci = G2.accessory.indexOf(c);
-  return {fee, weapon:w, armor:a, accessory:c, dmg:w.v, hp:a.v, rageCut: ci === 1 ? c.v : 0, immortal: ci === 2, gauge:g.v};
+  return {fee, weapon:w, armor:a, accessory:c, dmg:w.v, hp:a.v, rageCut: ci === 1 ? c.v : 0, immortal: ci === 2};
 }
 const rosterKey = name => String(name).replace(/[.#$\[\]\/]/g, '_');
 function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0)}; }
@@ -839,19 +845,21 @@ function compute(r, evs){
   const n = members.length;
   const maxHp = bossHpOf(cfg, n), maxRage = n*cfg.rage, rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
-  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, gear = {}, role = {}, immUsed = {};
+  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {};
   const st = m => {
     if(!(m in mhp)){
       const ro = rosterOf(r, m), g = gearOf(ro.fee, S);
       gear[m] = g; role[m] = ro.role;
       maxH[m] = PARTY_HP + g.hp; mhp[m] = maxH[m];
-      gauge[m] = Math.min(G.max, G.start + g.gauge);
+      /* 필요 게이지 = 최대 게이지 − 입장료 × 계수 (예: 100 − 1000 × 0.001 = 99) */
+      needG[m] = Math.max(1, Math.round((G.max - ro.fee * (Number(S.feeGauge)||0)) * 10) / 10);
+      gauge[m] = Math.min(needG[m], G.start);
     }
     return stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0,skills:0,used:0});
   };
   members.forEach(st);
   const alive = () => Object.keys(mhp).filter(m=>mhp[m] > 0);
-  const addGauge = (m, v) => { if(mhp[m] > 0) gauge[m] = Math.min(G.max, gauge[m] + v); };
+  const addGauge = (m, v) => { if(mhp[m] > 0) gauge[m] = Math.min(needG[m], gauge[m] + v); };
   const hurt = (m, d, entry) => {
     const before = mhp[m];
     let after = Math.max(0, before - d);
@@ -975,7 +983,7 @@ function compute(r, evs){
       const rk = role[m], sk = RS[rk], v = Number(sk.v)||0;
       entry.role = {key:rk, name:sk.name};
       if(mhp[m] <= 0){ entry.ignored = true; entry.notes.push('전투불능이라 스킬을 쓸 수 없음 · 반영 안 됨'); continue; }
-      if(gauge[m] < G.max){ entry.ignored = true; entry.notes.push(`게이지 부족 (${gauge[m]}/${G.max}) · 반영 안 됨`); continue; }
+      if(gauge[m] < needG[m]){ entry.ignored = true; entry.notes.push(`게이지 부족 (${gauge[m]}/${needG[m]}) · 반영 안 됨`); continue; }
       gauge[m] = 0; stats[m].used++;
       switch(ROLES[rk].type){
         case 'nuke': { const d = Math.round(maxHp*v/100); hp -= d; entry.dHp -= d; stats[m].dmg += d; entry.notes.push(`보스 HP ${v}% 감소`); break; }
@@ -995,7 +1003,7 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('파티 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, gear, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, immUsed, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
@@ -1010,6 +1018,16 @@ function skillHtml(e){
   if(!e.skills || !e.skills.length) return '';
   const downs = (e.party||[]).filter(x=>x.down).map(x=>x.m);
   return e.skills.map(k=>`<div class="skill">보스 스킬 <b>${esc(k.name)}</b> · ${esc(k.text)}</div>`).join('') + (downs.length ? `<div class="skill">전투불능: <b>${esc(downs.join(', '))}</b></div>` : '');
+}
+function gearHtml(s, m){
+  const g = s.gear[m]; if(!g) return '';
+  const S = s.S, wv = g.weapon.v, av = g.armor.v, ci = S.gear.accessory.findIndex(x=>x.name===g.accessory.name);
+  const w = `<span class="w${wv?'':' base'}" title="무기 · ${wv ? '승리 데미지 +'+Math.round(wv*100)+'%' : '기본'}">${esc(g.weapon.name)}${wv ? ' +'+Math.round(wv*100)+'%' : ''}</span>`;
+  const a = `<span class="a${av?'':' base'}" title="갑옷 · ${av ? '최대 체력 +'+av : '기본'}">${esc(g.armor.name)}${av ? ' +'+av : ''}</span>`;
+  const cTitle = ci===1 ? `내 패배 분노 −${Math.round(g.accessory.v*100)}%` : ci===2 ? `레이드당 1회 쓰러질 때 체력 ${REVIVE_HP}` : '장신구 없음';
+  const used = ci===2 && s.immUsed && s.immUsed[m];
+  const c = `<span class="c${ci>0?'':' base'}${used?' used':''}" title="장신구 · ${cTitle}${used?' (사용함)':''}">${esc(g.accessory.name)}</span>`;
+  return `<span class="gear">${w}${a}${c}</span>`;
 }
 function statusTags(s, m){
   const t = [];
@@ -1038,9 +1056,6 @@ function render(){
     const p = PRESETS[raid.diff] || PRESETS.custom;
     meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">파티 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 ${fmt(s.cfg.rage)} · 회복 ${s.cfg.rec}%</span>`;
   } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 파티원과 난이도를 정하면 시작됩니다</span>`;
-  const ph = $('phase');
-  ph.textContent = !hasRaid ? '-' : s.enraged ? '2페이즈 · 광폭화' : '1페이즈';
-  ph.classList.toggle('enrage', hasRaid && s.enraged && s.status==='live');
   const hpPct = hasRaid && s.maxHp ? s.hp/s.maxHp*100 : 100;
   const ragePct = hasRaid && s.maxRage ? Math.min(100, s.rage/s.maxRage*100) : 0;
   $('hpFill').style.width = hpPct+'%';
@@ -1056,7 +1071,6 @@ function render(){
     <span>HP <b>${hpPct.toFixed(1)}%</b></span>
     <span>전적 <b>${wins}승 ${losses}패</b></span>
     <span>체인 <span class="chain" title="서로 다른 3명 연속 승리 시 보스 HP 2% 추가">${chainDots}</span> <b>${s.chain.length}/3</b></span>
-    <span>${s.enraged ? '광폭화: 패배 점수의 '+s.cfg.rec+'%만큼 보스 회복' : 'HP 50% 이하부터 광폭화'}</span>
     <span>분노 가득 → 보스 스킬${s.barrier ? ' · <b>보호막 '+s.barrier+'회</b>' : ''}</span>` : '';
   const bn = $('banner');
   if(hasRaid && s.status !== 'live'){
@@ -1095,21 +1109,21 @@ function render(){
       ? `<select data-rrole="${esc(m)}" aria-label="${esc(m)} 역할">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===ro.role?' selected':''}>${v.label}</option>`).join('')}</select>`
       : `<span class="role-tag ${ro.role}">${ROLES[ro.role].short}</span>${ROLES[ro.role].label}`;
     const feeCell = canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 입장료">` : `<span class="num">${fmt(ro.fee)}</span>`;
-    const g = s.gauge[m] ?? 0, full = g >= s.G.max;
+    const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
     return `<tr><td>${esc(m)}${x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>':''}</td>
-      <td>${roleCell}</td><td class="r">${feeCell}</td>
+      <td>${roleCell}</td><td class="r">${feeCell}</td><td>${gearHtml(s, m)}</td>
       <td class="r num">${x.w}</td><td class="r num">${x.l}</td>
       <td class="r num">${fmt(x.dmg)}<span class="share" style="width:${Math.round(x.dmg/maxD*40)}px"></span></td>
       <td class="r num">${fmt(s.mhp[m] ?? PARTY_HP)}/${fmt(s.maxH[m] ?? PARTY_HP)}</td>
-      <td class="num"><span class="gauge-mini${full?' full':''}"><i style="width:${Math.min(100, g/s.G.max*100)}%"></i></span>${g}</td>
+      <td class="num"><span class="gauge-mini${full?' full':''}"><i style="width:${Math.min(100, g/need*100)}%"></i></span>${g}/${need}</td>
       <td>${statusTags(s, m) || '<span style="color:var(--muted)">-</span>'}</td></tr>`;
-  }).join('') : `<tr><td colspan="9" class="empty">아직 파티원이 없습니다.</td></tr>`;
+  }).join('') : `<tr><td colspan="10" class="empty">아직 파티원이 없습니다.</td></tr>`;
 
   // party HP strip (HUD & overlay)
   $('partyStrip').innerHTML = s.members.map(m=>{
     const h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, pct = Math.max(0, h/mx*100), rk = s.role[m] || 'dealer';
-    const g = s.gauge[m] ?? 0, full = g >= s.G.max;
-    return `<span class="pm${h<=0?' down':h<=mx*0.4?' low':''}" title="${esc(m)} ${ROLES[rk].label} · 체력 ${h}/${mx} · 게이지 ${g}/${s.G.max}"><span class="nm"><span class="role-tag ${rk}">${ROLES[rk].short}</span>${esc(m)}</span><span class="pb"><i style="width:${pct}%"></i></span><span class="hv">${h<=0?'KO':h}</span>${s.curse[m]?'<span class="cur">저주</span>':''}<span class="gb${full?' full':''}"><i style="width:${Math.min(100,g/s.G.max*100)}%"></i></span></span>`;
+    const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
+    return `<span class="pm${h<=0?' down':h<=mx*0.4?' low':''}" title="${esc(m)} ${ROLES[rk].label} · 체력 ${h}/${mx} · 게이지 ${g}/${need}"><span class="nm"><span class="role-tag ${rk}">${ROLES[rk].short}</span>${esc(m)}</span><span class="pb"><i style="width:${pct}%"></i></span><span class="hv">${h<=0?'KO':h}</span>${s.curse[m]?'<span class="cur">저주</span>':''}<span class="gb${full?' full':''}"><i style="width:${Math.min(100,g/need*100)}%"></i></span></span>`;
   }).join('');
 
   // log
@@ -1390,7 +1404,7 @@ function setMe(name){
   render();
 }
 $('joinRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k==='dealer'?' selected':''}>${v.label}</option>`).join('');
-function renderJoinGear(){ const g = gearOf($('joinFee').value, settingsOf(raid)); $('joinGear').textContent = `장비: ${g.weapon.name}, ${g.armor.name}, ${g.accessory.name} · 시작 게이지 +${g.gauge}`; }
+function renderJoinGear(){ const g = gearOf($('joinFee').value, settingsOf(raid)); $('joinGear').textContent = `장비: ${g.weapon.name}, ${g.armor.name}, ${g.accessory.name} · 스킬 필요 게이지 ${Math.max(1, Math.round((gaugeOf(raid).max - g.fee*(Number(settingsOf(raid).feeGauge)||0))*10)/10)}`; }
 $('joinFee').addEventListener('input', renderJoinGear); renderJoinGear();
 $('joinBtn').onclick = doJoin;
 $('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
@@ -1515,12 +1529,12 @@ $('ovlCopy').onclick = async ()=>{
 function renderRoleBar(s, me, canAct){
   const bar = $('roleBar');
   if(!raid || !selected || !s.members.includes(selected)){ bar.hidden = true; return; }
-  const rk = s.role[selected] || 'dealer', sk = s.RS[rk], g = s.gauge[selected] ?? 0, full = g >= s.G.max, alive = (s.mhp[selected] ?? 1) > 0;
+  const rk = s.role[selected] || 'dealer', sk = s.RS[rk], g = s.gauge[selected] ?? 0, need = s.needG[selected] ?? s.G.max, full = g >= need, alive = (s.mhp[selected] ?? 1) > 0;
   const mine = !me || me === selected;
   bar.hidden = false;
   bar.innerHTML = `<div class="rb-text"><span class="role-tag ${rk}">${ROLES[rk].short}</span><b>${esc(ROLES[rk].label)} · ${esc(sk.name)}</b>
-      <small>${esc(ROLES[rk].desc(sk.v))}</small></div>
-    <div class="sk-actions"><span class="gauge-mini${full?' full':''}" style="width:90px"><i style="width:${Math.min(100,g/s.G.max*100)}%"></i></span><span class="num">${g}/${s.G.max}</span>
+      <small>${esc(ROLES[rk].desc(sk.v))}</small>${gearHtml(s, selected)}</div>
+    <div class="sk-actions"><span class="gauge-mini${full?' full':''}" style="width:90px"><i style="width:${Math.min(100,g/need*100)}%"></i></span><span class="num">${g}/${need}</span>
     <button type="button" class="btn skill" id="useRole"${(canAct && mine && full && alive) ? '' : ' disabled'}>스킬 사용</button></div>`;
 }
 document.addEventListener('click', e=>{
@@ -1578,7 +1592,7 @@ function renderSkillModal(){
       : (raid ? '<p class="sk-note">스킬 수정은 운영자 모드에서 할 수 있습니다.</p>' : '')}`;
   // 역할 스킬
   const rs = rsDraft || roleSkillsOf(raid), G = gDraft || gaugeOf(raid);
-  $('skTabRole').innerHTML = `<p class="sk-note">파티원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 차고, 입장료에 따라 시작 게이지가 늘어납니다.</p>
+  $('skTabRole').innerHTML = `<p class="sk-note">파티원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 찹니다. 입장료를 많이 받을수록 필요 게이지가 줄어듭니다 (필요 게이지 = 최대 − 입장료 × 계수, 계수는 레이드 설정 탭).</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>역할</th><th>스킬 이름</th><th class="r">수치</th><th>효과</th></tr></thead><tbody>
     ${Object.entries(ROLES).map(([k,R])=> edit
       ? `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><input type="text" maxlength="16" value="${esc(rs[k].name)}" data-rs="${k}" data-k="name" aria-label="${R.label} 스킬 이름"></td>
@@ -1596,8 +1610,7 @@ function renderSkillModal(){
   const gearInfo = {
     weapon:   {title:'무기',   unit:'%', show:v=> v ? `승리 데미지 +${Math.round(v*100)}%` : '기본', pctv:true},
     armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
-    accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 패배로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-', pctv:true},
-    gauge:    {title:'시작 게이지 보너스', unit:'', show:v=> `+${v}`}
+    accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 패배로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-', pctv:true}
   };
   $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 슬롯마다 조건을 만족하는 가장 좋은 장비를 자동으로 착용합니다.${edit ? ' 필요 입장료와 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
     ${Object.entries(gearInfo).map(([k,info])=>`<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>${info.title}</th><th class="r">필요 입장료</th><th class="r">수치${info.unit?' ('+info.unit+')':''}</th><th>효과</th></tr></thead><tbody>
@@ -1623,6 +1636,8 @@ function renderSkillModal(){
     </tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">체인 보너스</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>서로 다른 3명 연속 승리</b></td><td class="r">${num('chain', SD.chain, 0.5, '체인 보너스')}</td><td class="desc">보스 최대 HP의 % 만큼 추가 데미지</td></tr></tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">입장료 → 역할 스킬 필요 게이지</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>입장료 1개당 줄어드는 게이지</b></td><td class="r">${num('feeGauge', SD.feeGauge, 0.001, '입장료 게이지 계수')}</td><td class="desc">필요 게이지 = 최대 게이지 − 입장료 × 이 값. 예: ${fmt(1000)}개 × ${SD.feeGauge} = ${Math.round(1000*SD.feeGauge*10)/10} 감소</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">별풍선 룰렛 확률</h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
@@ -1673,7 +1688,7 @@ $('skillModal').addEventListener('click', e=>{
   if(sr){
     setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(raid)));
     const D = JSON.parse(JSON.stringify(settingsOf(null)));
-    if(sr.dataset.setreset === 'gear') setDraft.gear = D.gear; else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.roulette = D.roulette; }
+    if(sr.dataset.setreset === 'gear') setDraft.gear = D.gear; else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.roulette = D.roulette; }
     setDirty = true; renderSkillModal(); return;
   }
   if(e.target.closest('[data-setsave]') && setDraft){
@@ -1681,7 +1696,7 @@ $('skillModal').addEventListener('click', e=>{
     for(const k in g){ for(let i=1;i<g[k].length;i++) if(g[k][i].min < g[k][i-1].min){ toast('장비 단계의 필요 입장료는 위에서 아래로 커져야 합니다.'); return; } }
     const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(setDraft.roulette[it.id])||0);
     if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
-    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, roulette, gear:g};
+    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), roulette, gear:g};
     guard(async()=>{ await store.updateRaid({settings}); setDraft = null; setDirty = false; renderSkillModal(); toast('레이드 설정을 저장했습니다.'); });
     return;
   }
@@ -1708,7 +1723,7 @@ $('skillModal').addEventListener('click', e=>{
 function renderSkillBoard(s){
   if(!OVERLAY || !document.documentElement.classList.contains('ovl-skills')) return;
   const list = s.BS;
-  const ready = s.members.filter(m=>(s.gauge[m]??0) >= s.G.max && (s.mhp[m]??1) > 0);
+  const ready = s.members.filter(m=>(s.gauge[m]??0) >= (s.needG[m] ?? s.G.max) && (s.mhp[m]??1) > 0);
   $('skillBoard').innerHTML = `<div class="sb-title">${raid ? esc(raid.name) : '보스 대기 중'}<small>보스 스킬 · 분노 ${fmt(s.rage)}/${fmt(s.maxRage)}</small></div>
     <ul class="sb-list">${list.map(x=>`<li class="${x.name===s.lastSkill?'last':''}"><span class="sn">${esc(x.name)}</span><span class="sd">${esc((SKILL_TYPES[x.type]||SKILL_TYPES.smash).desc(x.v))}</span><span class="sw">${pct(x.w, list)}%</span></li>`).join('')}</ul>
     ${ready.length ? `<div class="sb-ready">파티 스킬 준비: ${ready.map(m=>`<b>${esc(m)}</b> (${esc(s.RS[s.role[m]].name)})`).join(', ')}</div>` : ''}`;
