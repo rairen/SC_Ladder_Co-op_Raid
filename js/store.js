@@ -60,7 +60,12 @@ async function guard(fn){
   try{ await fn(); }
   catch(e){
     const msg = String((e && (e.code || e.message)) || '');
-    if(/permission/i.test(msg)){ toast('Firebase 규칙이 쓰기를 막고 있습니다. README의 "보안 규칙" 단계를 확인하세요.'); }
+    if(/permission/i.test(msg)){
+      const ua = typeof useAuth === 'function' && useAuth();
+      toast(ua && !authUser ? '로그인해야 입력할 수 있습니다. 오른쪽 위 구글 로그인을 누르세요.'
+        : ua && !isAdmin() && !(typeof adminsLoaded !== 'undefined' && adminsLoaded && !Object.keys(admins).length) ? '운영자만 할 수 있는 작업이거나, Firebase 규칙이 최신이 아닙니다.'
+        : 'Firebase 규칙이 쓰기를 막고 있습니다. 레포의 database.rules.json 을 Firebase 규칙 탭에 다시 게시하세요.');
+    }
     else { toast('저장하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요.'); }
   }
 }
