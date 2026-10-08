@@ -21,7 +21,7 @@
 *{box-sizing:border-box}
 html,body{background:var(--bg);color:var(--fg)}
 body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 40px}
-.wrap{max-width:none;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.wrap{width:100%;max-width:none;margin:0;display:flex;flex-direction:column;gap:16px}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -79,12 +79,51 @@ header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-
 
 .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;align-items:start}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
+/* 반응형: 넓은 화면 3단 · 보통 2단 · 좁은 화면 1단 */
 @media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:640px){
+  body{padding-inline:12px;padding-block:12px 28px;font-size:14px}
+  .wrap,.col,.grid{gap:12px}
+  .panel{padding:14px;border-radius:10px}
+  header.top{align-items:flex-start}
+  .brand h1{font-size:22px}
+  .brand .sub{width:100%}
+  .top-actions{width:100%}
+  .top-actions .btn{flex:1 1 auto;padding:8px 10px;font-size:13px}
+  .me{width:100%}.me select{flex:1}
+  .boss-name{font-size:24px}
+  .hud-head{align-items:flex-start}
+  .hud-right{width:100%;justify-content:space-between}
+  .gauge{grid-template-columns:40px minmax(0,1fr);gap:8px}
+  .gauge .g-label{font-size:15px}
+  .gauge .g-val{grid-column:1 / -1;text-align:right;font-size:16px;margin-top:-4px}
+  .bar{height:24px}
+  .pop{right:8px}
+  .hud-foot{gap:8px 14px}
+  .seg button{padding:9px 14px;font-size:15px}
+  input[type=number]{width:100px;font-size:18px}
+  .banner strong{font-size:36px}
+  .modal{padding:8px}
+  .modal-box{padding:14px;border-radius:10px}
+  .records{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rec .v{font-size:18px}
+  .log li{grid-template-columns:38px minmax(0,1fr) auto;gap:8px}
+}
 @media (min-width:1400px){
+  body{padding-inline:24px}
   .grid{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr)}
-  .grid > .col:last-child{display:contents}
-  .grid > .col:last-child > .panel{align-self:start}
+  .grid{grid-template-areas:"input mid log"}
+  .grid > .col:first-child{grid-area:input}
+  .grid > .col:last-child{display:grid;grid-template-columns:subgrid;grid-column:2 / 4;grid-template-areas:"mid log";align-items:start}
+  .grid > .col:last-child > .panel:not(.logpanel){grid-column:1}
+  .grid > .col:last-child > .logpanel{grid-column:2;grid-row:1 / span 3}
   .log{max-height:calc(100vh - 140px)}
+}
+@media (min-width:1900px){
+  body{padding-inline:32px}
+  .grid{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1.1fr)}
+  .boss-name{font-size:40px}
+  .bar{height:36px}
 }
 
 /* Member chips */
@@ -170,7 +209,7 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 .hud-right{display:flex;gap:8px;align-items:center}
 html.overlay .hud-right .btn{display:none}
 .modal{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,#000 60%,transparent);display:flex;align-items:flex-start;justify-content:center;padding:calc(24px + env(safe-area-inset-top,0px)) 16px 24px;overflow-y:auto}
-.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;width:100%;max-width:880px;display:flex;flex-direction:column;gap:12px}
+.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;width:100%;max-width:min(1200px,100%);display:flex;flex-direction:column;gap:12px}
 .modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .modal-head h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:22px}
 .sk-table input,.sk-table select{padding:6px 8px;font-size:13px;width:100%}
@@ -476,6 +515,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         </div>
       </section>
 
+    </div>
+
+    <div class="col">
       <!-- Roulette -->
       <section class="panel" id="roulettePanel">
         <h2>별풍선 룰렛</h2>
@@ -493,9 +535,6 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           </div>
         </details>
       </section>
-    </div>
-
-    <div class="col">
       <section class="panel">
         <h2>파티 현황</h2>
         <div class="tbl-wrap">
@@ -512,7 +551,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 늘면 1인당 HP와 분노 한도만큼 보스가 강해집니다.</p>
       </section>
 
-      <section class="panel">
+      <section class="panel logpanel">
         <h2>전투 기록</h2>
         <ul class="log" id="log"></ul>
       </section>
