@@ -218,6 +218,9 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.end-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin:-4px 0 10px;padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--trap) 45%,var(--line));background:color-mix(in srgb,var(--trap) 10%,var(--panel2));font-size:14px}
+.end-confirm span{flex:1 1 240px;min-width:0}
+html.overlay .end-confirm{display:none!important}
 .seg.small{flex-wrap:wrap}
 .calc-in{display:flex;flex-wrap:wrap;gap:10px}
 .calc-in .field input{width:96px;font-size:14px;padding:6px 8px}
@@ -231,7 +234,8 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 .gear span.c{border-color:color-mix(in srgb,var(--legend) 55%,var(--line))}
 .gear span.used{text-decoration:line-through;opacity:.6}
 .rolebar .gear{margin-top:6px}
-.hud-right{display:flex;gap:8px;align-items:center}
+.hud-right{display:flex;gap:8px;align-items:center;position:relative;z-index:3}
+.end-confirm{position:relative;z-index:3}
 html.overlay .hud-right .btn{display:none}
 .modal{position:fixed;inset:0;z-index:30;background:color-mix(in srgb,#000 60%,transparent);display:flex;align-items:flex-start;justify-content:center;padding:calc(24px + env(safe-area-inset-top,0px)) 16px 24px;overflow-y:auto}
 .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;width:100%;max-width:min(1200px,100%);display:flex;flex-direction:column;gap:12px}
@@ -461,7 +465,12 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <h2 class="boss-name" id="bossName">레이드 대기 중</h2>
         <div class="boss-meta" id="bossMeta"></div>
       </div>
-      <div class="hud-right"><button class="btn" id="skillsBtn" type="button">정보·설정</button></div>
+      <div class="hud-right"><button class="btn" id="skillsBtn" type="button">정보·설정</button><button class="btn" id="endRaidBtn" type="button" hidden>레이드 종료</button></div>
+    </div>
+    <div class="end-confirm" id="endConfirm" hidden>
+      <span id="endConfirmText"></span>
+      <button type="button" class="btn danger solid" id="endYes">종료하고 새 레이드</button>
+      <button type="button" class="btn" id="endNo">취소</button>
     </div>
     <div class="gauge">
       <span class="g-label" style="color:var(--hp)">HP</span>
@@ -1099,7 +1108,7 @@ function render(){
     const meNow = myName(s);
     const act = OVERLAY ? '' : meNow
       ? '<span>운영자가 초기화하면 새 레이드에 참가할 수 있습니다.</span>'
-      : '<button type="button" class="btn primary" data-act="reset">레이드 초기화</button><span>기록은 아래 레이드 기록에 보관됩니다.</span>';
+      : '<button type="button" class="btn primary" data-act="reset">새 레이드 시작</button><span>이번 레이드는 아래 레이드 기록에 보관됩니다.</span>';
     bn.innerHTML = (s.status==='clear'
       ? `<strong>레이드 성공</strong><span>${wins}승 ${losses}패${mvp ? ' · MVP '+esc(mvp) : ''}</span>`
       : `<strong>레이드 실패</strong><span>파티 전멸 · 남은 보스 HP ${fmt(s.hp)}</span>`) + act;
@@ -1178,6 +1187,7 @@ function render(){
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
   renderTicker(s);
   renderJoin(s, myName(s));
+  renderEndBtn(s, me);
   renderRoleBar(s, me, canAct);
   $('wtMulti').textContent = `멀티 확보 ×${s.S.win.multi}`; $('wtSame').textContent = `같은 빌드 2연속 ×${s.S.win.same}`; $('wtBanned').textContent = `금지 빌드 ×${s.S.win.banned}`;
   renderOdds(s.S);
@@ -1277,6 +1287,39 @@ function openSetup(open){
     $('raidName').focus();
   }
 }
+
+/* ---------- 레이드 종료 / 새 레이드 ---------- */
+function renderEndBtn(s, me){
+  const b = $('endRaidBtn');
+  const can = !OVERLAY && !readOnly && !me;
+  b.hidden = !can;
+  if(!can){ $('endConfirm').hidden = true; return; }
+  if(!raid){ b.textContent = '새 레이드'; b.classList.remove('danger'); }
+  else if(s.status === 'live'){ b.textContent = '레이드 종료'; b.classList.add('danger'); }
+  else { b.textContent = '새 레이드 시작'; b.classList.remove('danger'); }
+}
+function finishAndReset(){
+  if(!raid){ openSetup(true); return; }
+  const sum = summarize(raid, compute(raid, events), true);
+  guard(async()=>{
+    await store.reset(sum);
+    $('endConfirm').hidden = true;
+    openHist = sum.raidId; setHistTab('hist');
+    toast(sum.status === 'stopped' ? '레이드를 중단하고 기록에 보관했습니다. 새 레이드를 열 수 있습니다.' : '레이드를 초기화했습니다. 새 레이드를 열 수 있습니다.');
+    openSetup(true);
+  });
+}
+$('endRaidBtn').onclick = ()=>{
+  if(!raid){ openSetup(true); return; }
+  const s = lastState;
+  if(s && s.status === 'live' && events.some(e=>!e.undone)){
+    $('endConfirmText').textContent = `진행 중인 "${raid.name}" 레이드를 중단할까요? 지금까지의 기록은 레이드 기록에 "중단"으로 보관됩니다.`;
+    $('endConfirm').hidden = false; $('endNo').focus(); return;
+  }
+  finishAndReset();
+};
+$('endYes').onclick = finishAndReset;
+$('endNo').onclick = ()=>{ $('endConfirm').hidden = true; };
 
 /* ---------- Boss names ---------- */
 /* 새 레이드를 열면 이 목록에서 무작위로 하나가 기본값으로 들어갑니다. 자유롭게 고쳐 써도 됩니다. */
