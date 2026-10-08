@@ -218,6 +218,13 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.panel-head h2{margin:0}
+.btn.sm{padding:5px 10px;font-size:13px}
+.manual-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.manual-row select{flex:1 1 200px;min-width:0}
+.fee-line{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;margin-top:10px}
+.fee-line b{font-family:var(--f-mono)}
 .end-confirm{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin:-4px 0 10px;padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--trap) 45%,var(--line));background:color-mix(in srgb,var(--trap) 10%,var(--panel2));font-size:14px}
 .end-confirm span{flex:1 1 240px;min-width:0}
 html.overlay .end-confirm{display:none!important}
@@ -556,20 +563,27 @@ tr.hdetail td{background:var(--bg);white-space:normal}
     <div class="col">
       <!-- Roulette -->
       <section class="panel" id="roulettePanel">
-        <h2>별풍선 룰렛</h2>
-        <div class="reel" id="reel"><span class="t">READY</span><span class="n">파티원을 고르고 룰렛을 돌리세요</span></div>
+        <div class="panel-head"><h2>룰렛</h2><button class="btn sm" type="button" data-openlist="roulette">목록</button></div>
+        <div class="reel" id="reel"><span class="t">READY</span><span class="n">파티원을 고르고 룰렛 결과를 반영하세요</span></div>
         <div class="odds" id="odds"></div>
+        <div class="manual-row">
+          <select id="manualItem" aria-label="룰렛 결과"></select>
+          <button class="btn primary" id="applyManual" type="button">결과 반영</button>
+        </div>
         <div class="form-actions">
-          <button class="btn primary" id="spin" type="button">룰렛 돌리기</button>
+          <button class="btn" id="spin" type="button">여기서 룰렛 돌리기</button>
           <span class="hint" id="spinFor"></span>
         </div>
-        <details class="manual">
-          <summary>다른 룰렛 툴을 썼다면 결과 직접 입력</summary>
-          <div class="row">
-            <select id="manualItem" aria-label="룰렛 결과"></select>
-            <button class="btn" id="applyManual" type="button">반영</button>
-          </div>
-        </details>
+      </section>
+
+      <section class="panel" id="gearPanel">
+        <div class="panel-head"><h2>장비 룰렛</h2><button class="btn sm" type="button" data-openlist="gear">목록</button></div>
+        <div class="reel" id="gearReel"><span class="t">GEAR</span><span class="n">입장료를 써서 장비를 뽑습니다</span></div>
+        <div class="fee-line" id="gearFeeLine"></div>
+        <div class="form-actions">
+          <button class="btn primary" id="gearSpin" type="button">장비 뽑기</button>
+          <span class="hint" id="gearFor"></span>
+        </div>
       </section>
       <section class="panel">
         <h2>파티 현황</h2>
@@ -815,12 +829,19 @@ const GEAR = {
   accessory:[{min:0,name:'없음',v:0},{min:300,name:'평온의 부적',v:0.10},{min:1000,name:'불사의 목걸이',v:1}]
 };
 function pickTier(list, fee){ let t = list[0]; for(const x of list) if(fee >= x.min) t = x; return t; }
+/* 장비 룰렛: 입장료에서 비용을 내고, 비중에 따라 장비 하나를 얻습니다. 기존 장비보다 좋으면 장착 */
+const GEAR_SLOT = {weapon:'무기', armor:'갑옷', accessory:'장신구'};
+const DEFAULT_GEAR_ROLL = {'none':30, 'weapon:1':15, 'weapon:2':5, 'armor:1':20, 'armor:2':8, 'accessory:1':15, 'accessory:2':7};
+function gearRollList(S){ return Object.keys(DEFAULT_GEAR_ROLL).map(k=>({key:k, w: Math.max(0, Number(S.gearRoll[k])||0)})); }
+function gearItemName(S, key){ if(key === 'none') return '꽝'; const [sl,i] = key.split(':'); return S.gear[sl][+i].name; }
 
 /* 레이드 설정 기본값. 운영자가 설정 탭에서 레이드마다 바꿀 수 있고, raid.settings 에 저장됩니다. */
 const DEFAULT_SETTINGS = {
   win: {multi:1.5, same:0.5, banned:0},
   chain: 2,
   feeGauge: 0.001,
+  gearCost: 100,
+  gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({min:x.min, v:x.v}))]))
 };
@@ -830,6 +851,8 @@ function settingsOf(r){
     win: {...DEFAULT_SETTINGS.win, ...(x.win || {})},
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
     feeGauge: x.feeGauge ?? DEFAULT_SETTINGS.feeGauge,
+    gearCost: x.gearCost ?? DEFAULT_SETTINGS.gearCost,
+    gearRoll: {...DEFAULT_SETTINGS.gearRoll, ...(x.gearRoll || {})},
     roulette: {...DEFAULT_SETTINGS.roulette, ...(x.roulette || {})},
     gear: {}
   };
@@ -839,13 +862,11 @@ function settingsOf(r){
   }
   return out;
 }
-function gearOf(fee, S){
+/* 슬롯별 장비 번호(0 = 기본)로 장비 정보를 만듭니다 */
+function gearFromIdx(idx, S){
   S = S || settingsOf(null);
-  fee = Math.max(0, Number(fee)||0);
-  const G2 = S.gear;
-  const w = pickTier(G2.weapon, fee), a = pickTier(G2.armor, fee), c = pickTier(G2.accessory, fee);
-  const ci = G2.accessory.indexOf(c);
-  return {fee, weapon:w, armor:a, accessory:c, dmg:w.v, hp:a.v, rageCut: ci === 1 ? c.v : 0, immortal: ci === 2};
+  const G2 = S.gear, w = G2.weapon[idx.weapon||0], a = G2.armor[idx.armor||0], c = G2.accessory[idx.accessory||0], ci = idx.accessory||0;
+  return {idx:{...idx}, weapon:w, armor:a, accessory:c, dmg:w.v, hp:a.v, rageCut: ci === 1 ? c.v : 0, immortal: ci === 2};
 }
 const rosterKey = name => String(name).replace(/[.#$\[\]\/]/g, '_');
 function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0)}; }
@@ -865,11 +886,11 @@ function compute(r, evs){
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
   const maxHp = bossHpOf(cfg, n), maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
-  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {};
+  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, spent = {};
   const st = m => {
     if(!(m in mhp)){
-      const ro = rosterOf(r, m), g = gearOf(ro.fee, S);
-      gear[m] = g; role[m] = ro.role;
+      const ro = rosterOf(r, m), g = gearFromIdx({weapon:0, armor:0, accessory:0}, S);
+      gear[m] = g; role[m] = ro.role; fee[m] = ro.fee; spent[m] = 0;
       maxH[m] = PARTY_HP + g.hp; mhp[m] = maxH[m];
       /* 필요 게이지 = 최대 게이지 − 입장료 × 계수 (예: 100 − 1000 × 0.001 = 99) */
       needG[m] = Math.max(1, Math.round((G.max - ro.fee * (Number(S.feeGauge)||0)) * 10) / 10);
@@ -1006,6 +1027,22 @@ function compute(r, evs){
         default:
           if(it.next){ if(pending[m] && pending[m] !== it.id) entry.notes.push(PENDING_LABEL[pending[m]]+' → 교체'); pending[m] = it.id; }
       }
+    } else if(ev.type === 'gear'){
+      st(m);
+      const cost = Math.max(0, Number(ev.cost ?? S.gearCost) || 0);
+      if(fee[m] - spent[m] < cost){ entry.ignored = true; entry.notes.push(`입장료 부족 (남은 ${fmt(fee[m]-spent[m])} / 필요 ${fmt(cost)}) · 반영 안 됨`); continue; }
+      spent[m] += cost;
+      entry.gear = {key: ev.item, name: gearItemName(S, ev.item || 'none'), cost};
+      if(!ev.item || ev.item === 'none'){ entry.notes.push(`입장료 −${fmt(cost)} · 꽝`); }
+      else {
+        const [sl, iStr] = ev.item.split(':'), ni = +iStr, cur = gear[m].idx[sl] || 0;
+        if(ni > cur){
+          const before = gear[m];
+          gear[m] = gearFromIdx({...before.idx, [sl]: ni}, S);
+          if(sl === 'armor'){ const d = gear[m].hp - before.hp; maxH[m] += d; if(mhp[m] > 0) mhp[m] += d; }
+          entry.notes.push(`입장료 −${fmt(cost)} · ${GEAR_SLOT[sl]} ${entry.gear.name} 장착`);
+        } else entry.notes.push(`입장료 −${fmt(cost)} · ${entry.gear.name} (이미 같거나 더 좋은 ${GEAR_SLOT[sl]} 착용 중)`);
+      }
     } else if(ev.type === 'role'){
       st(m);
       const rk = role[m], sk = RS[rk], v = Number(sk.v)||0;
@@ -1032,13 +1069,14 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('파티 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, immUsed, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, immUsed, fee, spent, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
 function whatHtml(e){
   const ev = e.ev;
   if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점`; }
+  if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b>${esc(g0.name)}</b>`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
   const it = ITEM[ev.item] || ITEM.none;
   return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`;
@@ -1137,7 +1175,8 @@ function render(){
     const roleCell = canEdit
       ? `<select data-rrole="${esc(m)}" aria-label="${esc(m)} 역할">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===ro.role?' selected':''}>${v.label}</option>`).join('')}</select>`
       : `<span class="role-tag ${ro.role}">${ROLES[ro.role].short}</span>${ROLES[ro.role].label}`;
-    const feeCell = canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 입장료">` : `<span class="num">${fmt(ro.fee)}</span>`;
+    const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0);
+    const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 받은 입장료">` : `<span class="num">${fmt(ro.fee)}</span>`) + `<div class="hint num" title="장비 룰렛에 쓰고 남은 입장료">남음 ${fmt(left)}</div>`;
     const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
     return `<tr><td>${esc(m)}${x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>':''}</td>
       <td>${roleCell}</td><td class="r">${feeCell}</td><td>${gearHtml(s, m)}</td>
@@ -1180,7 +1219,7 @@ function render(){
   ['submitGame','spin','applyManual','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && (id==='spin'||id==='applyManual')); });
   document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
   $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || readOnly || s.status!=='live' || !!me;
-  $('spinFor').textContent = selected ? `${selected} 방송 룰렛으로 기록됩니다` : '';
+  $('spinFor').textContent = selected ? `${selected} 룰렛으로 기록됩니다` : '';
   $('subline').textContent = hasRaid ? `시작 ${new Date(raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
   $('toggleSetup').disabled = readOnly || !!me;
   updateGamePreview();
@@ -1188,6 +1227,7 @@ function render(){
   renderTicker(s);
   renderJoin(s, myName(s));
   renderEndBtn(s, me);
+  renderGearPanel(s, canAct, me);
   renderRoleBar(s, me, canAct);
   $('wtMulti').textContent = `멀티 확보 ×${s.S.win.multi}`; $('wtSame').textContent = `같은 빌드 2연속 ×${s.S.win.same}`; $('wtBanned').textContent = `금지 빌드 ×${s.S.win.banned}`;
   renderOdds(s.S);
@@ -1452,6 +1492,49 @@ $('spin').onclick = ()=>{
   };
   tick();
 };
+/* ---------- 장비 룰렛 ---------- */
+function renderGearPanel(s, canAct, me){
+  const S = s.S, m = selected;
+  if(!raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">파티원을 고르면 남은 입장료와 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; return; }
+  const left = (s.fee[m]||0) - (s.spent[m]||0), cost = S.gearCost, times = cost > 0 ? Math.floor(left / cost) : 0;
+  $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 입장료 <b>${fmt(left)}</b> / 받은 ${fmt(s.fee[m]||0)}</span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
+  const mine = !me || me === m;
+  $('gearSpin').disabled = !(canAct && mine && left >= cost);
+  $('gearSpin').textContent = `장비 뽑기 (−${fmt(cost)})`;
+  $('gearFor').textContent = left < cost ? '입장료가 부족합니다. 파티 현황에서 받은 입장료를 늘려 주세요.' : '';
+}
+function pickGear(){
+  const S = settingsOf(raid), list = gearRollList(S), tot = list.reduce((a,x)=>a+x.w,0);
+  if(!tot) return 'none';
+  const arr = new Uint32Array(1); crypto.getRandomValues(arr);
+  let r = arr[0]/4294967296*tot;
+  for(const x of list){ if((r -= x.w) < 0) return x.key; }
+  return 'none';
+}
+let gearSpinning = false;
+$('gearSpin').onclick = ()=>{
+  if(gearSpinning || !selected || !raid) return;
+  const who = selected, S = settingsOf(raid), key = pickGear(), cost = S.gearCost;
+  gearSpinning = true; $('gearSpin').disabled = true;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, keys = Object.keys(DEFAULT_GEAR_ROLL);
+  let i = 0; const steps = reduce ? 0 : 12;
+  const show = (k, label)=>{ $('gearReel').innerHTML = `<span class="t">${label || (k==='none' ? '꽝' : GEAR_SLOT[k.split(':')[0]])}</span><span class="n">${esc(gearItemName(S, k))}</span>`; };
+  const tick = ()=>{
+    if(i < steps){ show(keys[Math.floor(Math.random()*keys.length)]); i++; setTimeout(tick, 50 + i*i*2); return; }
+    show(key, key==='none' ? '꽝' : GEAR_SLOT[key.split(':')[0]] + ' 획득');
+    gearSpinning = false;
+    guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'gear', member:who, item:key, cost, undone:false}));
+    render();
+  };
+  tick();
+};
+document.addEventListener('click', e=>{
+  const b = e.target.closest('[data-openlist]'); if(!b) return;
+  openSkillModal();
+  const tab = b.dataset.openlist === 'gear' ? 'gear' : 'roulette';
+  const tb = $('skillModal').querySelector(`[data-sktab="${tab}"]`); if(tb) tb.click();
+});
+
 $('applyManual').onclick = ()=>{
   if(!selected) return;
   const it = ITEM[$('manualItem').value];
@@ -1467,7 +1550,7 @@ function setMe(name){
   render();
 }
 $('joinRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k==='dealer'?' selected':''}>${v.label}</option>`).join('');
-function renderJoinGear(){ const g = gearOf($('joinFee').value, settingsOf(raid)); $('joinGear').textContent = `장비: ${g.weapon.name}, ${g.armor.name}, ${g.accessory.name} · 스킬 필요 게이지 ${Math.max(1, Math.round((gaugeOf(raid).max - g.fee*(Number(settingsOf(raid).feeGauge)||0))*10)/10)}`; }
+function renderJoinGear(){ const S = settingsOf(raid), f = Math.max(0, Number($('joinFee').value)||0); $('joinGear').textContent = `장비 룰렛 ${S.gearCost > 0 ? Math.floor(f / S.gearCost) + '회' : '무제한'} 가능 (1회 ${fmt(S.gearCost)}) · 역할 스킬 필요 게이지 ${Math.max(1, Math.round((gaugeOf(raid).max - f*(Number(S.feeGauge)||0))*10)/10)}`; }
 $('joinFee').addEventListener('input', renderJoinGear); renderJoinGear();
 $('joinBtn').onclick = doJoin;
 $('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
@@ -1532,6 +1615,7 @@ function evText(e){
     if(p < 0) return `${ev.member} 패배…${e.dHp > 0 ? ' 보스 HP +'+fmt(e.dHp)+' 회복' : ''}`;
     return `${ev.member} 무승부`;
   }
+  if(ev.type === 'gear'){ return `${ev.member} 장비 룰렛 ${(e.gear||{}).name||''} · ${e.notes.join(' · ')}`; }
   if(ev.type === 'role'){ const r0 = e.role || {name:'역할 스킬'}; return `${ev.member} 역할 스킬 ${r0.name}! ${e.notes.join(' · ')}`; }
   const it = ITEM[ev.item] || ITEM.none;
   return `${ev.member} 룰렛 [${it.tier}] ${it.name}`;
@@ -1547,7 +1631,7 @@ function renderTicker(s){
   const tk = $('ticker');
   const sk = last && last.skills && last.skills.length ? last.skills[last.skills.length-1] : null;
   tk.innerHTML = sk ? `<span class="tk-tag boss">BOSS SKILL</span><span class="tk-text">${esc(sk.name)}! ${esc(sk.text)}${last.party.some(x=>x.down) ? ' · 전투불능 '+esc(last.party.filter(x=>x.down).map(x=>x.m).join(', ')) : ''}</span>`
-    : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : last.ev.type==='role' ? 'PARTY SKILL' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
+    : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : last.ev.type==='role' ? 'PARTY SKILL' : last.ev.type==='gear' ? 'GEAR' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
   const id = last ? (last.ev._id || last.ev.t) : null;
   if(tickerReady && id && id !== lastSeenEv && OVERLAY){
     if(last.dHp < 0) popAt('#hpMeter', '−'+fmt(-last.dHp));
@@ -1693,7 +1777,7 @@ const PARTY_SKILL_PLAN = [
 function renderRouletteTab(){
   const box = $('skTabRoulette'); if(box.hidden) return;
   const ws = rouletteWeights(settingsOf(raid)), tot = ws.reduce((a,x)=>a+x.w,0) || 1;
-  box.innerHTML = `<p class="sk-note">별풍선 룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 파티원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
+  box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 파티원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>
@@ -1755,13 +1839,14 @@ function renderSkillModal(){
     armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
     accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-', pctv:true}
   };
-  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 슬롯마다 조건을 만족하는 가장 좋은 장비를 자동으로 착용합니다.${edit ? ' 필요 입장료와 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
-    ${Object.entries(gearInfo).map(([k,info])=>`<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>${info.title}</th><th class="r">필요 입장료</th><th class="r">수치${info.unit?' ('+info.unit+')':''}</th><th>효과</th></tr></thead><tbody>
+  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 입장료에서 비용을 내고, 아래 확률로 장비 하나가 나옵니다. 지금 것보다 좋은 장비면 바로 장착합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
+    ${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,x)=>a+x.w,0) || 1; return `<div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>장비 룰렛 1회 비용</b></td><td class="r">${edit ? `<input type="number" min="0" step="10" value="${SD.gearCost}" data-sp="gearCost" aria-label="장비 룰렛 비용">` : `<span class="num">${fmt(SD.gearCost)}개</span>`}</td><td class="desc">남은 입장료에서 빠집니다</td></tr><tr><td><b>꽝</b></td><td class="r">${edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll.none}" data-gr="none" aria-label="꽝 비중">` : `<span class="num">${SD.gearRoll.none}</span>`}</td><td class="desc" data-grp="none">${Math.round((gl.find(x=>x.key==='none').w)/gt*1000)/10}%</td></tr></tbody></table></div>`; })()}
+    ${Object.entries(gearInfo).map(([k,info])=>`<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>${info.title}</th><th class="r">확률 비중</th><th class="r">수치${info.unit?' ('+info.unit+')':''}</th><th>효과</th></tr></thead><tbody>
       ${SD.gear[k].map((x,i)=>{
         const fixedV = (k==='accessory' && i!==1) || (i===0 && k!=='gauge');
         const vShown = info.pctv ? Math.round(x.v*100) : x.v;
         return `<tr><td><b>${esc(x.name || (k==='gauge' ? (i===0?'기본':'단계 '+i) : ''))}</b></td>
-          <td class="r">${edit && i>0 ? `<input type="number" min="0" step="10" value="${x.min}" data-gs="${k}" data-gi="${i}" data-gk="min" aria-label="${info.title} 필요 입장료">` : `<span class="num">${fmt(x.min)}개</span>`}</td>
+          <td class="r">${i===0 ? '<span class="hint">기본 장비</span>' : (edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll[k+':'+i]}" data-gr="${k}:${i}" aria-label="${info.title} 확률 비중">` : `<span class="num">${SD.gearRoll[k+':'+i]}</span>`) + ` <span class="hint" data-grp="${k}:${i}">${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,y)=>a+y.w,0) || 1; return Math.round((Number(SD.gearRoll[k+':'+i])||0)/gt*1000)/10; })()}%</span>`}</td>
           <td class="r">${edit && !fixedV ? `<input type="number" min="0" step="1" value="${vShown}" data-gs="${k}" data-gi="${i}" data-gk="v" aria-label="${info.title} 수치">` : `<span class="num">${fixedV && k==='accessory' ? '-' : vShown}</span>`}</td>
           <td class="desc">${esc(info.show(x.v, i))}</td></tr>`; }).join('')}
     </tbody></table></div>`).join('')}
@@ -1781,7 +1866,7 @@ function renderSkillModal(){
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>서로 다른 3명 연속 승리</b></td><td class="r">${num('chain', SD.chain, 0.5, '체인 보너스')}</td><td class="desc">보스 최대 HP의 % 만큼 추가 데미지</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">입장료 → 역할 스킬 필요 게이지</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>입장료 1개당 줄어드는 게이지</b></td><td class="r">${num('feeGauge', SD.feeGauge, 0.001, '입장료 게이지 계수')}</td><td class="desc">필요 게이지 = 최대 게이지 − 입장료 × 이 값. 예: ${fmt(1000)}개 × ${SD.feeGauge} = ${Math.round(1000*SD.feeGauge*10)/10} 감소</td></tr></tbody></table></div>
-    <h3 class="label" style="margin:4px 0 0">별풍선 룰렛 확률</h3>
+    <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>
@@ -1789,6 +1874,14 @@ function renderSkillModal(){
 }
 $('skillModal').addEventListener('input', e=>{
   const t = e.target;
+  if(t.dataset.gr !== undefined){
+    setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(raid)));
+    setDraft.gearRoll[t.dataset.gr] = Math.max(0, Number(t.value)||0);
+    const tot = Object.values(setDraft.gearRoll).reduce((a,b)=>a+(Number(b)||0),0) || 1;
+    $('skTabGear').querySelectorAll('[data-grp]').forEach(c=>{ c.textContent = Math.round((Number(setDraft.gearRoll[c.dataset.grp])||0)/tot*1000)/10 + '%'; });
+    setDirty = true; $('skillModal').querySelectorAll('[data-setsave]').forEach(b=>b.disabled = false);
+    return;
+  }
   if(t.dataset.sp !== undefined || t.dataset.gs !== undefined){
     setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(raid)));
     const val = Math.max(0, Number(t.value)||0);
@@ -1831,15 +1924,14 @@ $('skillModal').addEventListener('click', e=>{
   if(sr){
     setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(raid)));
     const D = JSON.parse(JSON.stringify(settingsOf(null)));
-    if(sr.dataset.setreset === 'gear') setDraft.gear = D.gear; else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.roulette = D.roulette; }
+    if(sr.dataset.setreset === 'gear'){ setDraft.gear = D.gear; setDraft.gearRoll = D.gearRoll; setDraft.gearCost = D.gearCost; } else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.roulette = D.roulette; }
     setDirty = true; renderSkillModal(); return;
   }
   if(e.target.closest('[data-setsave]') && setDraft){
     const g = {}; for(const k in setDraft.gear) g[k] = setDraft.gear[k].map(x=>({min: Math.max(0, Math.round(Number(x.min)||0)), v: Math.max(0, Number(x.v)||0)}));
-    for(const k in g){ for(let i=1;i<g[k].length;i++) if(g[k][i].min < g[k][i-1].min){ toast('장비 단계의 필요 입장료는 위에서 아래로 커져야 합니다.'); return; } }
     const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(setDraft.roulette[it.id])||0);
     if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
-    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), roulette, gear:g};
+    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), gearCost: Math.max(0, Math.round(+setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +setDraft.gearRoll[k]||0)])), roulette, gear:g};
     guard(async()=>{ await store.updateRaid({settings}); setDraft = null; setDirty = false; renderSkillModal(); toast('레이드 설정을 저장했습니다.'); });
     return;
   }
@@ -1882,7 +1974,7 @@ function summarize(r, s, stopped){
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members,
     evCount: events.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
-    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; if(e.undone) o.undone = true; return o; })};
+    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; } if(e.undone) o.undone = true; return o; })};
 }
 let archiveTimer = null;
 function autoArchive(s){
