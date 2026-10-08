@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>래더 보스 레이드</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: command-console HUD — boss gauges across the top, input on the left, party & log on the right. Single dark look on purpose (broadcast screen). */
+:root{
+  --bg:#0a0e13; --panel:#111821; --panel2:#17212c; --line:#24313f;
+  --fg:#dbe6f0; --muted:#7f90a3; --accent:#3cc4dc; --accent-ink:#04222a;
+  --hp:#e5484d; --hp-dim:#4a1a1d; --rage:#f2a93b; --rage-dim:#4a3413;
+  --good:#46c97a; --legend:#c58cff; --trap:#ff6b6b; --rare:#4ea3ff;
+  --f-display:"Black Han Sans","IBM Plex Sans KR",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 40px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+
+header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}
+.brand h1{font-family:var(--f-display);font-weight:400;font-size:28px;letter-spacing:.02em;margin:0}
+.brand .sub{color:var(--muted);font-size:13px}
+.top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.04em;border:1px solid var(--line);color:var(--muted)}
+.pill.live{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.pill.clear{color:var(--good);border-color:color-mix(in srgb,var(--good) 45%,transparent)}
+.pill.fail{color:var(--trap);border-color:color-mix(in srgb,var(--trap) 45%,transparent)}
+.pill.local{color:var(--rage);border-color:color-mix(in srgb,var(--rage) 45%,transparent)}
+.btn{border:1px solid var(--line);background:var(--panel2);padding:8px 14px;border-radius:8px;font-weight:500}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{border-color:color-mix(in srgb,var(--trap) 50%,transparent);color:var(--trap)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.panel h2{font-family:var(--f-display);font-weight:400;font-size:19px;margin:0 0 12px;letter-spacing:.02em}
+.label{font-size:12px;color:var(--muted);letter-spacing:.06em;font-weight:700}
+
+/* Boss HUD */
+.hud{position:relative;overflow:hidden;background:linear-gradient(180deg,#151d27 0%,var(--panel) 100%)}
+.hud-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.boss-name{font-family:var(--f-display);font-size:34px;line-height:1.1;margin:0;text-wrap:balance}
+.boss-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.phase{font-family:var(--f-display);font-size:16px;padding:4px 12px;border-radius:6px;background:var(--panel2);border:1px solid var(--line)}
+.phase.enrage{background:var(--hp-dim);border-color:var(--hp);color:#ffd6d7;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 4px color-mix(in srgb,var(--hp) 25%,transparent)}}
+.gauge{display:grid;grid-template-columns:72px 1fr auto;align-items:center;gap:12px;margin-top:10px}
+.gauge .g-label{font-family:var(--f-display);font-size:18px}
+.bar{position:relative;height:30px;border-radius:6px;background:var(--hp-dim);overflow:hidden;border:1px solid #00000055}
+.bar.rage{height:18px;background:var(--rage-dim)}
+.bar .fill{position:absolute;inset:0 auto 0 0;background:var(--hp);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.bar.rage .fill{background:var(--rage)}
+.bar .mark{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#ffffff55}
+.bar .ticks{position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 1px),#00000040 calc(10% - 1px) 10%)}
+.g-val{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:18px;font-weight:700;white-space:nowrap;text-align:right;min-width:9ch}
+.g-val small{color:var(--muted);font-size:13px;font-weight:500}
+.hud-foot{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;color:var(--muted);font-size:13px}
+.hud-foot b{color:var(--fg);font-family:var(--f-mono);font-weight:700}
+.chain{display:inline-flex;gap:4px;vertical-align:middle}
+.chain i{width:10px;height:10px;border-radius:2px;background:var(--line);display:inline-block}
+.chain i.on{background:var(--accent)}
+.banner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(2px);text-align:center;padding:16px}
+.banner strong{font-family:var(--f-display);font-weight:400;font-size:52px;line-height:1}
+.banner.clear strong{color:var(--good)}
+.banner.fail strong{color:var(--trap)}
+.banner span{color:var(--muted)}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:16px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+@media (max-width:880px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Member chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel2);border-radius:8px;padding:8px 12px;font-weight:500;display:inline-flex;gap:6px;align-items:center}
+.chip[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--panel2));color:#e9fbff}
+.chip .tag{font-size:11px;padding:1px 6px;border-radius:4px;background:#ffffff14;color:var(--muted)}
+.chip .tag.fx{background:color-mix(in srgb,var(--legend) 30%,transparent);color:#f0dcff}
+
+.field{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--panel2);padding:10px 18px;font-weight:700;font-family:var(--f-display);font-size:17px}
+.seg button[aria-pressed="true"].win{background:color-mix(in srgb,var(--good) 25%,var(--panel2));color:#d8ffe6}
+.seg button[aria-pressed="true"].loss{background:color-mix(in srgb,var(--hp) 28%,var(--panel2));color:#ffe0e1}
+input[type=number],input[type=text],select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:9px 12px;min-width:0}
+input[type=number]{width:120px;font-family:var(--f-mono);font-size:20px;font-weight:700}
+textarea{width:100%;resize:vertical;min-height:84px}
+.checks{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.check input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px}
+.check small{display:block;color:var(--muted);font-size:12px}
+.preview{margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--panel2);font-size:14px;color:var(--muted);border:1px dashed var(--line)}
+.preview b{color:var(--fg)}
+.form-actions{display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted)}
+
+/* Roulette */
+.reel{height:86px;border-radius:10px;border:1px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;text-align:center;padding:8px;transition:border-color .2s}
+.reel .t{font-family:var(--f-display);font-size:14px;letter-spacing:.08em}
+.reel .n{font-weight:700;font-size:17px}
+.tier-꽝{--tc:var(--muted)} .tier-일반{--tc:var(--fg)} .tier-희귀{--tc:var(--rare)} .tier-전설{--tc:var(--legend)} .tier-함정{--tc:var(--trap)}
+.reel[class*="tier-"]{border-color:var(--tc)} .reel[class*="tier-"] .t{color:var(--tc)}
+.odds{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:10px}
+.odds div{font-size:11px;text-align:center;padding:5px 2px;border-radius:6px;background:var(--panel2);color:var(--tc)}
+.odds div b{display:block;font-family:var(--f-mono);font-size:13px}
+details.manual{margin-top:12px}
+details.manual summary{cursor:pointer;color:var(--muted);font-size:13px}
+details.manual .row{margin-top:8px}
+
+/* Party table */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.04em}
+td.r,th.r{text-align:right}
+td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:700}
+.share{display:inline-block;height:6px;border-radius:3px;background:var(--accent);vertical-align:middle;margin-left:6px}
+.add-row{display:flex;gap:8px;margin-top:12px}
+.add-row input{flex:1}
+
+/* Log */
+.log{list-style:none;margin:0;padding:0;max-height:440px;overflow-y:auto;display:flex;flex-direction:column}
+.log li{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);align-items:start}
+.log .time{font-family:var(--f-mono);font-size:12px;color:var(--muted);padding-top:2px}
+.log .what{min-width:0}
+.log .what b{font-weight:700}
+.log .fx{font-size:12px;color:var(--muted);margin-top:2px}
+.log .delta{font-family:var(--f-mono);font-weight:700;font-size:14px;text-align:right}
+.d-hp{color:var(--hp)} .d-rage{color:var(--rage)} .d-heal{color:var(--good)}
+.log li.undone .what,.log li.undone .delta{opacity:.4;text-decoration:line-through}
+.log li.ignored{opacity:.5}
+.undo{display:block;border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:0;margin-top:4px}
+.empty{color:var(--muted);font-size:14px;padding:12px 0}
+
+/* Setup */
+.setup[hidden]{display:none}
+.diffs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:560px){.diffs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.diff{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px;text-align:left;display:flex;flex-direction:column;gap:2px}
+.diff[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel2))}
+.diff .dn{font-family:var(--f-display);font-size:18px}
+.diff .dd{font-size:12px;color:var(--muted)}
+.custom{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.custom .field input{width:110px;font-size:15px}
+.setup-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+@media (max-width:720px){.setup-grid{grid-template-columns:minmax(0,1fr)}}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:8px;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+.flash{animation:flash .5s ease-out}
+@keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+[hidden]{display:none!important}
+.beta{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--accent-ink);background:var(--accent);padding:2px 7px;border-radius:4px;align-self:center}
+.room{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+</style>
+<!-- 베타: Firebase 없이 이 브라우저에 저장합니다. 공유 버전은 config.js와 Firebase 스크립트를 다시 넣으면 켜집니다. -->
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>래더 보스 레이드</h1><span class="beta">BETA</span>
+      <span class="sub" id="subline">래더 점수로 보스를 잡는 협동 레이드</span>
+    </div>
+    <div class="top-actions">
+      <span class="room" id="roomLabel"></span>
+      <span class="pill" id="connPill">연결 중</span>
+      <button class="btn" id="exportBtn" type="button">백업 저장</button>
+      <button class="btn" id="importBtn" type="button">백업 불러오기</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <button class="btn" id="toggleSetup" type="button">레이드 설정</button>
+    </div>
+  </header>
+
+  <!-- Setup -->
+  <section class="panel setup" id="setup" hidden>
+    <h2>새 레이드 만들기</h2>
+    <div class="setup-grid">
+      <div class="field">
+        <label class="label" for="raidName">보스 이름</label>
+        <input type="text" id="raidName" placeholder="예: 1주차 보스 · 심연의 군주" maxlength="40">
+        <label class="label" for="memberList" style="margin-top:10px">참여 파티원 (한 줄에 한 명 또는 쉼표로 구분)</label>
+        <textarea id="memberList" placeholder="파티원A&#10;파티원B&#10;파티원C"></textarea>
+      </div>
+      <div class="field">
+        <span class="label">난이도</span>
+        <div class="diffs" id="diffs"></div>
+        <div class="custom" id="customBox" hidden>
+          <div class="field"><label class="label" for="cHp">1인당 HP</label><input type="number" id="cHp" min="10" step="10" value="240"></div>
+          <div class="field"><label class="label" for="cRage">1인당 분노 한도</label><input type="number" id="cRage" min="10" step="10" value="120"></div>
+          <div class="field"><label class="label" for="cRec">광폭화 회복률 %</label><input type="number" id="cRec" min="0" step="10" value="100"></div>
+        </div>
+        <div class="preview" id="setupPreview"></div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn primary" id="startRaid" type="button">레이드 시작</button>
+      <button class="btn" id="cancelSetup" type="button">닫기</button>
+      <span class="hint" id="setupHint"></span>
+    </div>
+  </section>
+
+  <!-- Boss HUD -->
+  <section class="panel hud" id="hud">
+    <div class="hud-head">
+      <div>
+        <div class="label">BOSS</div>
+        <h2 class="boss-name" id="bossName">레이드 대기 중</h2>
+        <div class="boss-meta" id="bossMeta"></div>
+      </div>
+      <div class="phase" id="phase">1페이즈</div>
+    </div>
+    <div class="gauge">
+      <span class="g-label" style="color:var(--hp)">HP</span>
+      <div class="bar" role="meter" aria-label="보스 HP" id="hpMeter"><div class="fill" id="hpFill" style="width:100%"></div><div class="ticks"></div><div class="mark" title="광폭화 50%"></div></div>
+      <span class="g-val" id="hpVal">0 <small>/ 0</small></span>
+    </div>
+    <div class="gauge">
+      <span class="g-label" style="color:var(--rage)">분노</span>
+      <div class="bar rage" role="meter" aria-label="분노 게이지" id="rageMeter"><div class="fill" id="rageFill" style="width:0%"></div><div class="ticks"></div></div>
+      <span class="g-val" id="rageVal">0 <small>/ 0</small></span>
+    </div>
+    <div class="hud-foot" id="hudFoot"></div>
+    <div class="banner" id="banner" hidden></div>
+  </section>
+
+  <div class="grid">
+    <div class="col">
+      <!-- Result input -->
+      <section class="panel" id="inputPanel">
+        <h2>래더 결과 입력</h2>
+        <div class="field">
+          <span class="label">파티원</span>
+          <div class="chips" id="memberChips"></div>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <div class="field">
+            <span class="label">결과</span>
+            <div class="seg">
+              <button type="button" class="win" id="btnWin" aria-pressed="true">승리 +</button>
+              <button type="button" class="loss" id="btnLoss" aria-pressed="false">패배 −</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="label" for="points">래더 점수 변동</label>
+            <input type="number" id="points" min="0" step="1" placeholder="20" inputmode="numeric">
+          </div>
+        </div>
+        <div class="checks" id="winChecks">
+          <label class="check"><input type="checkbox" id="cMulti"><span>앞마당 멀티 확보 후 승리<small>데미지 1.5배</small></span></label>
+          <label class="check"><input type="checkbox" id="cSame"><span>같은 빌드 2연속 승리<small>데미지 절반</small></span></label>
+          <label class="check"><input type="checkbox" id="cBanned"><span>금지 빌드(극초반 올인)로 승리<small>데미지 0</small></span></label>
+        </div>
+        <div class="preview" id="gamePreview">파티원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.</div>
+        <div class="form-actions">
+          <button class="btn primary" id="submitGame" type="button">결과 반영</button>
+          <span class="hint">Enter로도 반영됩니다</span>
+        </div>
+      </section>
+
+      <!-- Roulette -->
+      <section class="panel" id="roulettePanel">
+        <h2>별풍선 룰렛</h2>
+        <div class="reel" id="reel"><span class="t">READY</span><span class="n">파티원을 고르고 룰렛을 돌리세요</span></div>
+        <div class="odds" id="odds"></div>
+        <div class="form-actions">
+          <button class="btn primary" id="spin" type="button">룰렛 돌리기</button>
+          <span class="hint" id="spinFor"></span>
+        </div>
+        <details class="manual">
+          <summary>다른 룰렛 툴을 썼다면 결과 직접 입력</summary>
+          <div class="row">
+            <select id="manualItem" aria-label="룰렛 결과"></select>
+            <button class="btn" id="applyManual" type="button">반영</button>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="panel">
+        <h2>파티 현황</h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">분노 유발</th><th>대기 효과</th></tr></thead>
+            <tbody id="partyBody"></tbody>
+          </table>
+        </div>
+        <div class="add-row">
+          <input type="text" id="addMember" placeholder="중도 합류 파티원 이름" maxlength="20" aria-label="중도 합류 파티원 이름">
+          <button class="btn" id="addMemberBtn" type="button">합류</button>
+        </div>
+        <p class="hint" style="margin:6px 0 0">합류하면 1인당 HP와 분노 한도만큼 보스가 강해집니다.</p>
+      </section>
+
+      <section class="panel">
+        <h2>전투 기록</h2>
+        <ul class="log" id="log"></ul>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const PRESETS = {
+  light:{label:'라이트', hp:150, rage:160, rec:50,  desc:'1인당 약 7~8승'},
+  normal:{label:'노멀', hp:240, rage:120, rec:100, desc:'1인당 약 12승'},
+  hard:{label:'하드',   hp:360, rage:80,  rec:150, desc:'1인당 약 18승'},
+  custom:{label:'커스텀', desc:'직접 입력'}
+};
+const ITEMS = [
+  {id:'none',   tier:'꽝',  w:30,  name:'꽝'},
+  {id:'hp2',    tier:'일반', w:20,  name:'보스 HP 2% 감소'},
+  {id:'rage5',  tier:'일반', w:20,  name:'분노 게이지 5% 감소'},
+  {id:'double', tier:'희귀', w:10,  name:'다음 판 데미지 2배', next:true},
+  {id:'shield', tier:'희귀', w:10,  name:'다음 판 패배 보호', next:true},
+  {id:'hp7',    tier:'전설', w:2.5, name:'보스 HP 7% 감소'},
+  {id:'mission',tier:'전설', w:2.5, name:'도전 미션 (유닛 1종 금지, 승리 시 3배)', next:true},
+  {id:'heal4',  tier:'함정', w:2.5, name:'보스 HP 4% 회복'},
+  {id:'rage7',  tier:'함정', w:2.5, name:'분노 게이지 7% 증가'}
+];
+const ITEM = Object.fromEntries(ITEMS.map(i=>[i.id,i]));
+const PENDING_LABEL = {double:'데미지 2배', shield:'패배 보호', mission:'도전 미션 3배'};
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+
+let db = null, local = false, readOnly = false, online = false;
+let raid = null, events = [], unsubEvents = null, subRaidId = null;
+// 방 코드: 주소 끝에 ?room=코드 를 붙이면 그룹별로 레이드가 분리됩니다.
+const ROOM = ((new URLSearchParams(location.search).get('room')) || 'main').replace(/[^a-zA-Z0-9_-]/g,'').slice(0,32) || 'main';
+const base = () => 'rooms/' + ROOM;
+let selected = null, isWin = true, diff = 'normal', confirmArm = false, spinning = false;
+let lastState = null;
+
+/* ---------- Store ---------- */
+const store = {
+  async setRaid(data){
+    if(local){ raid = data; events = []; commit(); return; }
+    await db.ref(base()+'/raid').set(data);
+  },
+  async updateRaid(patch){
+    if(local){ raid = {...raid, ...patch}; commit(); return; }
+    await db.ref(base()+'/raid').update(patch);
+  },
+  async addEvent(ev){
+    if(local){ events.push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); return; }
+    await db.ref(base()+'/events/'+ev.raidId).push(ev);
+  },
+  async setUndone(id, undone){
+    if(local){ const e = events.find(x=>x._id===id); if(e) e.undone = undone; commit(); return; }
+    await db.ref(base()+'/events/'+raid.raidId+'/'+id).update({undone});
+  }
+};
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._h); toast._h = setTimeout(()=>{t.hidden = true}, 2600);
+}
+async function guard(fn){
+  try{ await fn(); }
+  catch(e){
+    const msg = String((e && (e.code || e.message)) || '');
+    if(/permission/i.test(msg)){ toast('Firebase 규칙이 쓰기를 막고 있습니다. README의 "보안 규칙" 단계를 확인하세요.'); }
+    else { toast('저장하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요.'); }
+  }
+}
+
+/* ---------- Game logic ---------- */
+function cfgOf(r){ return r && r.cfg ? r.cfg : {hp:240, rage:120, rec:100}; }
+
+function compute(r, evs){
+  const members = (r && r.members) || [];
+  const cfg = cfgOf(r);
+  const n = Math.max(members.length, 1);
+  const maxHp = n*cfg.hp, maxRage = n*cfg.rage, rec = cfg.rec/100;
+  let hp = maxHp, rage = 0, status = 'live', chain = [];
+  const stats = {}, pending = {}, log = [];
+  const st = m => stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0});
+  members.forEach(st);
+  const sorted = evs.slice().sort((a,b)=> (a.t-b.t) || String(a._id).localeCompare(String(b._id)));
+  for(const ev of sorted){
+    const entry = {ev, notes:[], dHp:0, dRage:0};
+    log.push(entry);
+    if(ev.undone){ entry.undone = true; continue; }
+    if(status !== 'live'){ entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
+    const enraged = hp <= maxHp*0.5;
+    const m = ev.member;
+    if(ev.type === 'game'){
+      const s = st(m);
+      const pend = pending[m]; delete pending[m];
+      const p = Number(ev.points)||0;
+      if(p > 0){
+        s.w++;
+        if(ev.banned){ entry.notes.push('금지 빌드 · 데미지 0'); if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸'); chain = []; }
+        else{
+          let mult = 1;
+          if(ev.multi){ mult *= 1.5; entry.notes.push('멀티 확보 ×1.5'); }
+          if(ev.same){ mult *= 0.5; entry.notes.push('같은 빌드 연속 ×0.5'); }
+          if(pend === 'double'){ mult *= 2; entry.notes.push('룰렛 2배'); }
+          if(pend === 'mission'){ mult *= 3; entry.notes.push('도전 미션 ×3'); }
+          if(pend === 'shield') entry.notes.push('패배 보호 미사용 소멸');
+          const d = Math.round(p*mult);
+          hp -= d; s.dmg += d; entry.dHp -= d;
+          if(chain.includes(m)) chain = [m]; else chain.push(m);
+          if(chain.length >= 3){
+            const b = Math.round(maxHp*0.02);
+            hp -= b; s.dmg += b; entry.dHp -= b; entry.notes.push('체인 보너스 '+fmt(b)); chain = [];
+          }
+        }
+      } else if(p < 0){
+        s.l++; chain = [];
+        const a = Math.abs(p);
+        if(pend === 'shield'){ entry.notes.push('패배 보호 발동 · 분노·회복 없음'); }
+        else{
+          if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸');
+          rage += a; s.rage += a; entry.dRage += a;
+          if(enraged && rec > 0){
+            const h = Math.min(Math.round(a*rec), maxHp-hp);
+            if(h > 0){ hp += h; entry.dHp += h; entry.notes.push('광폭화 회복 '+fmt(h)); }
+          }
+        }
+      } else {
+        entry.notes.push('점수 변동 없음');
+        if(pend) pending[m] = pend;
+      }
+    } else if(ev.type === 'roulette'){
+      const it = ITEM[ev.item] || ITEM.none;
+      entry.item = it;
+      switch(it.id){
+        case 'hp2': { const d = Math.round(maxHp*0.02); hp -= d; entry.dHp -= d; st(m).dmg += d; break; }
+        case 'hp7': { const d = Math.round(maxHp*0.07); hp -= d; entry.dHp -= d; st(m).dmg += d; break; }
+        case 'rage5': { const d = Math.min(Math.round(maxRage*0.05), rage); rage -= d; entry.dRage -= d; break; }
+        case 'heal4': { const h = Math.min(Math.round(maxHp*0.04), maxHp-hp); hp += h; entry.dHp += h; break; }
+        case 'rage7': { const d = Math.round(maxRage*0.07); rage += d; entry.dRage += d; break; }
+        default:
+          if(it.next){ if(pending[m] && pending[m] !== it.id) entry.notes.push(PENDING_LABEL[pending[m]]+' → 교체'); pending[m] = it.id; }
+      }
+    }
+    if(hp <= 0){ hp = 0; status = 'clear'; entry.notes.push('보스 처치!'); }
+    else if(rage >= maxRage){ status = 'fail'; entry.notes.push('분노 폭발 · 레이드 실패'); }
+  }
+  return {maxHp, maxRage, hp, rage, status, stats, pending, log, chain, enraged: hp <= maxHp*0.5, cfg, members};
+}
+
+/* ---------- Rendering ---------- */
+function render(){
+  const s = compute(raid, events);
+  lastState = s;
+  const hasRaid = !!raid;
+
+  // connection pill
+  const cp = $('connPill');
+  cp.className = 'pill ' + (local ? 'local' : (hasRaid ? s.status : ''));
+  cp.textContent = local ? (hasRaid ? (s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 이 브라우저에 저장') : '레이드 없음') : !online ? '연결 끊김 · 재연결 중' : !hasRaid ? '레이드 없음' : s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 실시간 공유';
+  $('roomLabel').textContent = ROOM === 'main' ? '' : 'ROOM ' + ROOM;
+  $('importBtn').hidden = !local;
+
+  // HUD
+  $('bossName').textContent = hasRaid ? (raid.name || '이름 없는 보스') : '레이드 대기 중';
+  const meta = $('bossMeta');
+  if(hasRaid){
+    const p = PRESETS[raid.diff] || PRESETS.custom;
+    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">파티 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} · 분노 ${fmt(s.cfg.rage)} · 회복 ${s.cfg.rec}%</span>`;
+  } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 파티원과 난이도를 정하면 시작됩니다</span>`;
+  const ph = $('phase');
+  ph.textContent = !hasRaid ? '-' : s.enraged ? '2페이즈 · 광폭화' : '1페이즈';
+  ph.classList.toggle('enrage', hasRaid && s.enraged && s.status==='live');
+  const hpPct = hasRaid ? s.hp/s.maxHp*100 : 100;
+  const ragePct = hasRaid ? Math.min(100, s.rage/s.maxRage*100) : 0;
+  $('hpFill').style.width = hpPct+'%';
+  $('rageFill').style.width = ragePct+'%';
+  $('hpMeter').setAttribute('aria-valuenow', Math.round(hpPct));
+  $('rageMeter').setAttribute('aria-valuenow', Math.round(ragePct));
+  $('hpVal').innerHTML = `${fmt(hasRaid?s.hp:0)} <small>/ ${fmt(hasRaid?s.maxHp:0)}</small>`;
+  $('rageVal').innerHTML = `${fmt(hasRaid?s.rage:0)} <small>/ ${fmt(hasRaid?s.maxRage:0)}</small>`;
+  const games = s.log.filter(e=>!e.undone && !e.ignored && e.ev.type==='game');
+  const wins = games.filter(e=>e.ev.points>0).length, losses = games.filter(e=>e.ev.points<0).length;
+  const chainDots = [0,1,2].map(i=>`<i class="${i < s.chain.length ? 'on':''}"></i>`).join('');
+  $('hudFoot').innerHTML = hasRaid ? `
+    <span>HP <b>${hpPct.toFixed(1)}%</b></span>
+    <span>전적 <b>${wins}승 ${losses}패</b></span>
+    <span>체인 <span class="chain" title="서로 다른 3명 연속 승리 시 보스 HP 2% 추가">${chainDots}</span> <b>${s.chain.length}/3</b></span>
+    <span>${s.enraged ? '광폭화: 패배 점수의 '+s.cfg.rec+'%만큼 보스 회복' : 'HP 50% 이하부터 광폭화'}</span>` : '';
+  const bn = $('banner');
+  if(hasRaid && s.status !== 'live'){
+    bn.hidden = false; bn.className = 'banner ' + s.status;
+    const mvp = topDealer(s);
+    bn.innerHTML = s.status==='clear'
+      ? `<strong>레이드 성공</strong><span>${wins}승 ${losses}패${mvp ? ' · MVP '+esc(mvp) : ''}</span>`
+      : `<strong>레이드 실패</strong><span>분노 게이지가 가득 찼습니다 · 남은 HP ${fmt(s.hp)}</span>`;
+  } else bn.hidden = true;
+
+  // chips
+  if(selected && !s.members.includes(selected)) selected = null;
+  if(!selected && s.members.length) selected = s.members[0];
+  $('memberChips').innerHTML = s.members.length ? s.members.map(m=>{
+    const pend = s.pending[m];
+    return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===selected}">${esc(m)}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
+  }).join('') : `<span class="empty">레이드를 시작하면 파티원이 여기에 표시됩니다.</span>`;
+
+  // party table
+  const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
+  const top = rows.length ? s.stats[rows[0]].dmg : 0;
+  const maxD = Math.max(1, top);
+  $('partyBody').innerHTML = rows.length ? rows.map(m=>{
+    const x = s.stats[m], pend = s.pending[m];
+    return `<tr><td>${esc(m)}${x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>':''}</td>
+      <td class="r num">${x.w}</td><td class="r num">${x.l}</td>
+      <td class="r num">${fmt(x.dmg)}<span class="share" style="width:${Math.round(x.dmg/maxD*40)}px"></span></td>
+      <td class="r num">${fmt(x.rage)}</td>
+      <td>${pend ? esc(PENDING_LABEL[pend]) : '<span style="color:var(--muted)">-</span>'}</td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty">아직 파티원이 없습니다.</td></tr>`;
+
+  // log
+  const items = s.log.slice().reverse();
+  $('log').innerHTML = items.length ? items.map(e=>{
+    const ev = e.ev, d = new Date(ev.t);
+    const tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+    let what;
+    if(ev.type==='game'){
+      const p = Number(ev.points)||0;
+      what = `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점`;
+    } else {
+      const it = ITEM[ev.item] || ITEM.none;
+      what = `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`;
+    }
+    const deltas = [];
+    if(e.dHp < 0) deltas.push(`<span class="d-hp">HP ${fmt(e.dHp)}</span>`);
+    if(e.dHp > 0) deltas.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
+    if(e.dRage > 0) deltas.push(`<span class="d-rage">분노 +${fmt(e.dRage)}</span>`);
+    if(e.dRage < 0) deltas.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
+    const id = esc(ev._id);
+    const ctl = (readOnly || !ev._id) ? '' : `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>`;
+    return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span>
+      <div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${ctl}</div>
+      <div class="delta">${deltas.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
+  }).join('') : `<li style="display:block" class="empty">결과를 입력하거나 룰렛을 돌리면 기록이 쌓입니다. 잘못 넣은 기록은 여기서 취소할 수 있습니다.</li>`;
+
+  // input availability
+  const canAct = hasRaid && s.status==='live' && !readOnly && s.members.length>0;
+  ['submitGame','spin','applyManual','points','cMulti','cSame','cBanned','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && (id==='spin'||id==='applyManual')); });
+  $('addMember').disabled = $('addMemberBtn').disabled = !hasRaid || readOnly || s.status!=='live';
+  $('spinFor').textContent = selected ? `${selected} 방송 룰렛으로 기록됩니다` : '';
+  $('subline').textContent = hasRaid ? `시작 ${new Date(raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
+  $('toggleSetup').disabled = readOnly;
+  updateGamePreview();
+}
+
+function topDealer(s){
+  let best = null, v = 0;
+  for(const m of s.members){ if(s.stats[m].dmg > v){ v = s.stats[m].dmg; best = m; } }
+  return best;
+}
+
+function updateGamePreview(){
+  const s = lastState; const el = $('gamePreview');
+  $('winChecks').hidden = !isWin;
+  if(!s || !raid || !selected){ el.innerHTML = '파티원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
+  const p = Math.abs(parseInt($('points').value,10) || 0);
+  const pend = s.pending[selected];
+  if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}`; return; }
+  if(isWin){
+    if($('cBanned').checked){ el.innerHTML = '금지 빌드 승리는 <b>데미지 0</b>입니다.'; return; }
+    let mult = 1;
+    if($('cMulti').checked) mult *= 1.5;
+    if($('cSame').checked) mult *= 0.5;
+    if(pend==='double') mult *= 2;
+    if(pend==='mission') mult *= 3;
+    const chainNext = !s.chain.includes(selected) && s.chain.length===2;
+    el.innerHTML = `보스 HP <b class="d-hp">−${fmt(Math.round(p*mult))}</b>${mult!==1?` (×${mult})`:''}${chainNext?` + 체인 보너스 <b class="d-hp">−${fmt(Math.round(s.maxHp*0.02))}</b>`:''}`;
+  } else {
+    if(pend==='shield'){ el.innerHTML = '패배 보호가 발동해서 <b>분노가 오르지 않습니다</b>.'; return; }
+    const h = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
+    el.innerHTML = `분노 <b class="d-rage">+${fmt(p)}</b>${h?` · 광폭화로 보스 HP <b class="d-heal">+${fmt(h)}</b> 회복`:''}`;
+  }
+}
+
+/* ---------- Setup ---------- */
+function renderDiffs(){
+  $('diffs').innerHTML = Object.entries(PRESETS).map(([k,p])=>
+    `<button type="button" class="diff" data-d="${k}" aria-pressed="${k===diff}"><span class="dn">${p.label}</span><span class="dd">${k==='custom' ? p.desc : `HP ${p.hp} · 분노 ${p.rage} · 회복 ${p.rec}%`}</span></button>`).join('');
+  $('customBox').hidden = diff !== 'custom';
+  updateSetupPreview();
+}
+function parseMembers(){
+  const seen = new Set();
+  return $('memberList').value.split(/[\n,]/).map(x=>x.trim()).filter(x=>x && x.length<=20 && !seen.has(x) && seen.add(x));
+}
+function setupCfg(){
+  if(diff !== 'custom'){ const p = PRESETS[diff]; return {hp:p.hp, rage:p.rage, rec:p.rec}; }
+  return {hp:Math.max(10, +$('cHp').value||240), rage:Math.max(10, +$('cRage').value||120), rec:Math.max(0, +$('cRec').value||0)};
+}
+function updateSetupPreview(){
+  const ms = parseMembers(), c = setupCfg(), n = ms.length;
+  $('setupPreview').innerHTML = n
+    ? `파티 <b>${n}명</b> → 보스 HP <b>${fmt(n*c.hp)}</b> · 분노 최대치 <b>${fmt(n*c.rage)}</b> · 광폭화 회복률 <b>${c.rec}%</b>`
+    : '파티원을 입력하면 보스 HP와 분노 최대치가 계산됩니다.';
+  confirmArm = false; $('startRaid').textContent = '레이드 시작'; $('setupHint').textContent = '';
+}
+function openSetup(open){
+  $('setup').hidden = !open;
+  if(open){
+    if(raid){
+      $('raidName').value = raid.name || '';
+      $('memberList').value = (raid.members||[]).join('\n');
+      diff = raid.diff || 'normal';
+      if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cRage').value = raid.cfg.rage; $('cRec').value = raid.cfg.rec; }
+    }
+    renderDiffs();
+    $('raidName').focus();
+  }
+}
+
+/* ---------- Events ---------- */
+document.addEventListener('click', e=>{
+  const chip = e.target.closest('.chip[data-m]');
+  if(chip){ selected = chip.dataset.m; render(); return; }
+  const d = e.target.closest('.diff[data-d]');
+  if(d){ diff = d.dataset.d; renderDiffs(); return; }
+  const u = e.target.closest('[data-undo]');
+  if(u){ guard(()=>store.setUndone(u.dataset.undo, u.dataset.state !== '1')); return; }
+});
+$('toggleSetup').onclick = ()=>openSetup($('setup').hidden);
+$('cancelSetup').onclick = ()=>openSetup(false);
+['memberList','cHp','cRage','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
+$('startRaid').onclick = ()=>{
+  const ms = parseMembers();
+  if(!ms.length){ $('setupHint').textContent = '파티원을 한 명 이상 입력하세요.'; return; }
+  const live = raid && lastState && lastState.status==='live' && events.length>0;
+  if(live && !confirmArm){
+    confirmArm = true; $('startRaid').textContent = '진행 중 레이드를 끝내고 새로 시작';
+    $('setupHint').textContent = '진행 중인 레이드 기록은 화면에서 사라집니다. 한 번 더 누르면 시작합니다.'; return;
+  }
+  const data = {raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:$('raidName').value.trim().slice(0,40) || '이름 없는 보스', members:ms, diff, cfg:setupCfg(), startedAt:Date.now()};
+  guard(async()=>{ await store.setRaid(data); openSetup(false); toast('레이드를 시작했습니다.'); });
+};
+
+function setResult(win){ isWin = win; $('btnWin').setAttribute('aria-pressed', win); $('btnLoss').setAttribute('aria-pressed', !win); updateGamePreview(); }
+$('btnWin').onclick = ()=>setResult(true);
+$('btnLoss').onclick = ()=>setResult(false);
+['points','cMulti','cSame','cBanned'].forEach(id=>$(id).addEventListener('input', updateGamePreview));
+$('points').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitGame(); } });
+$('submitGame').onclick = submitGame;
+function submitGame(){
+  if($('submitGame').disabled) return;
+  const p = Math.abs(parseInt($('points').value,10) || 0);
+  if(!selected){ toast('파티원을 먼저 고르세요.'); return; }
+  if(!p){ toast('래더 결과 화면의 점수 변동값을 입력하세요.'); $('points').focus(); return; }
+  const ev = {raidId:raid.raidId, t:Date.now(), type:'game', member:selected, points: isWin ? p : -p,
+    multi: isWin && $('cMulti').checked, same: isWin && $('cSame').checked, banned: isWin && $('cBanned').checked, undone:false};
+  guard(async()=>{
+    await store.addEvent(ev);
+    $('points').value = ''; $('cMulti').checked = $('cSame').checked = $('cBanned').checked = false;
+    flash(isWin ? 'hpFill' : 'rageFill');
+    toast(`${selected} ${isWin?'승리':'패배'} ${isWin?'+':'−'}${p}점 반영`);
+    updateGamePreview();
+  });
+}
+function flash(id){ const el = $(id); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+
+/* Roulette */
+const TIERS = ['꽝','일반','희귀','전설','함정'];
+$('odds').innerHTML = TIERS.map(t=>{ const w = ITEMS.filter(i=>i.tier===t).reduce((a,i)=>a+i.w,0); return `<div class="tier-${t}"><b>${w}%</b>${t}</div>`; }).join('');
+$('manualItem').innerHTML = ITEMS.map(i=>`<option value="${i.id}">[${i.tier}] ${esc(i.name)}</option>`).join('');
+function pick(){
+  const arr = new Uint32Array(1); crypto.getRandomValues(arr);
+  let r = arr[0]/4294967296*100;
+  for(const it of ITEMS){ if((r -= it.w) < 0) return it; }
+  return ITEMS[0];
+}
+function showReel(it, label){
+  const reel = $('reel');
+  reel.className = 'reel tier-'+it.tier;
+  reel.innerHTML = `<span class="t">${label || it.tier}</span><span class="n">${esc(it.name)}</span>`;
+}
+$('spin').onclick = ()=>{
+  if(spinning || !selected) return;
+  const result = pick(), who = selected;
+  spinning = true; render();
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const steps = reduce ? 0 : 16; let i = 0;
+  const tick = ()=>{
+    if(i < steps){ showReel(ITEMS[Math.floor(Math.random()*ITEMS.length)]); i++; setTimeout(tick, 50 + i*i*1.6); return; }
+    showReel(result, result.tier + (result.next ? ' · '+who+' 다음 판' : ''));
+    spinning = false;
+    guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, undone:false}));
+    render();
+  };
+  tick();
+};
+$('applyManual').onclick = ()=>{
+  if(!selected) return;
+  const it = ITEM[$('manualItem').value];
+  showReel(it, it.tier + ' · 직접 입력');
+  guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'roulette', member:selected, item:it.id, manual:true, undone:false}));
+};
+
+$('addMemberBtn').onclick = addMember;
+$('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addMember(); } });
+function addMember(){
+  const name = $('addMember').value.trim().slice(0,20);
+  if(!name || !raid) return;
+  if(raid.members.includes(name)){ toast('이미 파티에 있는 이름입니다.'); return; }
+  guard(async()=>{ await store.updateRaid({members:[...raid.members, name]}); $('addMember').value=''; toast(`${name} 합류 · 보스가 강해졌습니다`); });
+}
+
+/* ---------- Boot ---------- */
+/* 베타 로컬 저장: 같은 브라우저의 다른 탭에도 자동 반영 */
+const LS_KEY = 'sc-boss-raid:' + ROOM;
+function loadLocal(){
+  try{ const d = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if(d){ raid = d.raid || null; events = Array.isArray(d.events) ? d.events : []; } }
+  catch(_){}
+}
+function commit(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({raid, events, savedAt:Date.now()})); }
+  catch(_){ toast('브라우저 저장 공간에 저장하지 못했습니다. "백업 저장"으로 파일을 남겨두세요.'); }
+  render();
+}
+window.addEventListener('storage', e=>{ if(local && e.key === LS_KEY){ loadLocal(); render(); } });
+function startLocal(){ local = true; loadLocal(); render(); if(!raid) openSetup(true); }
+
+$('exportBtn').onclick = ()=>{
+  if(!raid){ toast('저장할 레이드가 없습니다.'); return; }
+  const blob = new Blob([JSON.stringify({version:1, room:ROOM, raid, events}, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  const d = new Date(), pad = n=>String(n).padStart(2,'0');
+  a.href = URL.createObjectURL(blob);
+  a.download = `boss-raid-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+  toast('백업 파일을 저장했습니다.');
+};
+$('importBtn').onclick = ()=>{ if(local) $('importFile').click(); };
+$('importFile').onchange = async e=>{
+  const f = e.target.files[0]; e.target.value = '';
+  if(!f) return;
+  try{
+    const d = JSON.parse(await f.text());
+    if(!d || !d.raid || !Array.isArray(d.raid.members) || !Array.isArray(d.events)) throw new Error('format');
+    raid = d.raid; events = d.events; commit(); openSetup(false);
+    toast(`"${raid.name}" 레이드를 불러왔습니다.`);
+  }catch(_){ toast('레이드 백업 파일이 아닙니다. "백업 저장"으로 만든 .json 파일을 고르세요.'); }
+};
+render();
+(function boot(){
+  const cfg = window.RAID_FIREBASE_CONFIG;
+  if(!cfg || !cfg.databaseURL || /여기에|YOUR_/.test(cfg.databaseURL) || !window.firebase){
+    startLocal();
+    return;
+  }
+  try{
+    const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
+    db = app.database();
+  }catch(e){ startLocal(); toast('Firebase 설정이 올바르지 않습니다. config.js 값을 확인하세요.'); return; }
+
+  db.ref('.info/connected').on('value', snap=>{ online = snap.val() === true; render(); });
+
+  db.ref(base()+'/raid').on('value', snap=>{
+    raid = snap.val();
+    if(raid && !Array.isArray(raid.members)) raid.members = Object.values(raid.members || {});
+    const rid = raid && raid.raidId;
+    if(rid !== subRaidId){
+      if(unsubEvents) unsubEvents();
+      unsubEvents = null; events = []; subRaidId = rid;
+      if(rid){
+        const ref = db.ref(base()+'/events/'+rid);
+        const handler = qs=>{
+          const list = [];
+          qs.forEach(ch=>{ list.push({...ch.val(), _id:ch.key}); });
+          events = list; render();
+        };
+        ref.on('value', handler, ()=>toast('전투 기록을 불러오지 못했습니다. Firebase 보안 규칙을 확인하세요.'));
+        unsubEvents = ()=>ref.off('value', handler);
+      }
+    }
+    if(!raid && $('setup').hidden) openSetup(true);
+    render();
+  }, ()=>{ toast('레이드 정보를 불러오지 못했습니다. Firebase 보안 규칙을 확인하세요.'); });
+})();
+})();
+</script>
+</body>
+</html>
+
