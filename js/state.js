@@ -8,6 +8,7 @@ const fmt = n => Math.round(n).toLocaleString('ko-KR');
 let db = null, local = false, readOnly = false, online = false;
 let history = [], histTab = 'hist', openHist = null;
 let raid = null, events = [], unsubEvents = null, subRaidId = null;
+let ladderSnap = {}, collector = null, unsubLadder = null;   // 래더 자동 수집 (Firebase 연결 때만)
 // 방 코드: 주소 끝에 ?room=코드 를 붙이면 그룹별로 레이드가 분리됩니다.
 const OVERLAY = document.documentElement.classList.contains('overlay');
 /* 게임 모드. 나중에 '래더 보스 레이드 대전' 버전을 추가하면 'versus'처럼 다른 값을 써서 데이터가 섞이지 않게 합니다. */

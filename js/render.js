@@ -96,7 +96,6 @@ function render(){
   $('log').innerHTML = items.length ? items.map(e=>{
     const ev = e.ev, d = new Date(ev.t);
     const tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
-    const what = whatHtml(e);
     const deltas = [];
     if(e.dHp < 0) deltas.push(`<span class="d-hp">HP ${fmt(e.dHp)}</span>`);
     if(e.dHp > 0) deltas.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
@@ -105,9 +104,14 @@ function render(){
     const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">파티 −${fmt(pd)}</span>`);
     if(e.healed) deltas.push(`<span class="d-heal">파티 +${fmt(e.healed)}</span>`);
     const id = esc(ev._id);
-    const ctl = (readOnly || !ev._id || (me && ev.member !== me)) ? '' : `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>`;
+    const canCtl = !(readOnly || !ev._id || (me && ev.member !== me));
+    const ctl = canCtl ? `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>` : '';
+    const wtCur = ev.multi?'multi':ev.same?'same':ev.banned?'banned':'normal';
+    const wtSel = (canCtl && ev.type==='game' && Number(ev.points) > 0 && !ev.undone && s.status==='live')
+      ? `<select class="wtsel" data-wtev="${id}" aria-label="승리 유형">${[['normal','일반 승리'],['multi','운영 승리'],['same','빌드 반복'],['banned','초반 올인']].map(([k,l])=>`<option value="${k}"${k===wtCur?' selected':''}>${l}</option>`).join('')}</select>` : '';
+    if(wtSel) e.wtEdit = true;
     return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span>
-      <div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>
+      <div class="what">${whatHtml(e)}${wtSel}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>
       <div class="delta">${deltas.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
   }).join('') : `<li style="display:block" class="empty">결과를 입력하거나 룰렛을 돌리면 기록이 쌓입니다. 잘못 넣은 기록은 여기서 취소할 수 있습니다.</li>`;
 
@@ -125,6 +129,7 @@ function render(){
   renderEndBtn(s, me);
   renderGearPanel(s, canAct, me);
   renderRoleBar(s, me, canAct);
+  if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);
   $('wtMulti').textContent = `멀티 확보 ×${s.S.win.multi}`; $('wtSame').textContent = `같은 빌드 2연속 ×${s.S.win.same}`; $('wtBanned').textContent = `금지 빌드 ×${s.S.win.banned}`;
   renderOdds(s.S);
   renderSkillBoard(s);
@@ -143,7 +148,7 @@ function updateGamePreview(){
   if(!s || !raid || !selected){ el.innerHTML = '파티원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
   const p = Math.abs(parseInt($('points').value,10) || 0);
   const pend = s.pending[selected];
-  if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}`; return; }
+  if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}${autoOn(selected)?'<br><b style="color:#ffd34d">이 파티원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.':''}`; return; }
   if(isWin){
     if(winType==='banned' && !s.S.win.banned){ el.innerHTML = '초반 올인(금지 빌드) 승리는 <b>데미지 0</b>입니다.'; return; }
     let mult = 1;

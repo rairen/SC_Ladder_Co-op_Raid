@@ -40,7 +40,7 @@ function gearFromIdx(idx, S){
   return {idx:{...idx}, weapon:w, armor:a, accessory:c, dmg:w.v, hp:a.v, rageCut: ci === 1 ? c.v : 0, immortal: ci === 2};
 }
 const rosterKey = name => String(name).replace(/[.#$\[\]\/]/g, '_');
-function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0)}; }
+function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0), ladder: String(x.ladder||''), gw: Number(x.gw)||30}; }
 
 /* 같은 기록이면 어느 화면에서 계산해도 같은 결과가 나오는 난수 */
 function seeded(str){
@@ -246,7 +246,7 @@ function compute(r, evs){
 
 function whatHtml(e){
   const ev = e.ev;
-  if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점`; }
+  if(ev.type==='game'){ const p = Number(ev.points)||0; const wt = ev.multi?'운영 승리':ev.same?'빌드 반복':ev.banned?'초반 올인':''; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${wt && !e.wtEdit?`<span class="wt-tag">${wt}</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b>${esc(g0.name)}</b>`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
   const it = ITEM[ev.item] || ITEM.none;

@@ -69,6 +69,7 @@ render();
 
   db.ref('.info/connected').on('value', snap=>{ online = snap.val() === true; render(); });
   db.ref(base()+'/history').on('value', snap=>{ history = Object.values(snap.val() || {}); renderHistory(); });
+  db.ref(base()+'/collector').on('value', snap=>{ collector = snap.val(); render(); });
 
   db.ref(base()+'/raid').on('value', snap=>{
     raid = snap.val();
@@ -77,6 +78,8 @@ render();
     if(rid !== subRaidId){
       if(unsubEvents) unsubEvents();
       unsubEvents = null; events = []; subRaidId = rid;
+      if(unsubLadder) unsubLadder();
+      unsubLadder = null; ladderSnap = {};
       if(rid){
         const ref = db.ref(base()+'/events/'+rid);
         const handler = qs=>{
@@ -86,6 +89,8 @@ render();
         };
         ref.on('value', handler, ()=>toast('전투 기록을 불러오지 못했습니다. Firebase 보안 규칙을 확인하세요.'));
         unsubEvents = ()=>ref.off('value', handler);
+        const lref = db.ref(base()+'/ladder/'+rid), lh = snap=>{ ladderSnap = snap.val() || {}; render(); };
+        lref.on('value', lh); unsubLadder = ()=>lref.off('value', lh);
       }
     }
     if(!raid && $('setup').hidden && !meName && !OVERLAY) openSetup(true);

@@ -35,11 +35,16 @@ const store = {
     if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); raid = null; events = []; commit(); return; }
     await db.ref(base()+'/history/'+sum.raidId).set(sum);
     await db.ref(base()+'/events/'+sum.raidId).remove();
+    await db.ref(base()+'/ladder/'+sum.raidId).remove();
     await db.ref(base()+'/raid').remove();
   },
   async archive(sum){
     if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); return; }
     await db.ref(base()+'/history/'+sum.raidId).set(sum);
+  },
+  async updateEvent(id, patch){
+    if(local){ const e = events.find(x=>x._id===id); if(e) Object.assign(e, patch); commit(); return; }
+    await db.ref(base()+'/events/'+raid.raidId+'/'+id).update(patch);
   },
   async setUndone(id, undone){
     if(local){ const e = events.find(x=>x._id===id); if(e) e.undone = undone; commit(); return; }

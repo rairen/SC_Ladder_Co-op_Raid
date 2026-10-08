@@ -379,3 +379,19 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 .me{display:inline-flex;align-items:center;gap:8px}.me select{padding:7px 10px}
 .chip:disabled{opacity:.35;cursor:not-allowed}
 .beta{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--accent-ink);background:var(--accent);padding:2px 7px;border-radius:4px;align-self:center}
+
+/* 래더 자동 수집 */
+.col-state{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line,#333);color:var(--muted);white-space:nowrap}
+.col-state.on{color:#7ee2a8;border-color:#2f7a52}
+.col-state.warn{color:#ffd34d;border-color:#8a7020}
+.ltable td,.ltable th{padding-left:6px;padding-right:6px}
+.ltable input{width:104px;padding:4px 6px;font-size:13px}
+.ltable select{padding:3px 4px;font-size:13px}
+.ltable .err{color:#ffd34d;font-size:12px}
+.ltable .ok{color:#7ee2a8;font-size:12px}
+.howto{margin-top:10px;font-size:13px}
+.howto summary{cursor:pointer;color:var(--accent,#7cc4ff)}
+.howto ol{margin:8px 0;padding-left:20px;line-height:1.6}
+.auto-tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:4px;font-size:11px;background:#1e3a5a;color:#9fd0ff;vertical-align:1px}
+.log select.wtsel{margin-left:6px;padding:1px 4px;font-size:12px}
+.wt-tag{margin-left:6px;font-size:12px;color:var(--muted)}

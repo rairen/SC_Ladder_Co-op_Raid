@@ -66,11 +66,12 @@ function doJoin(){
   if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
   if(!raid){ toast('아직 열린 레이드가 없습니다. 운영자가 레이드를 열면 참가할 수 있습니다.'); return; }
   const already = raid.members.includes(name);
-  const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0));
+  const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value);
   guard(async()=>{
     await store.join(name);
     if(!already || role !== rosterOf(raid, name).role || fee !== rosterOf(raid, name).fee) await store.setRoster(name, {role, fee});
-    $('joinName').value = '';
+    if(ladder) await store.setRoster(name, {ladder});
+    $('joinName').value = ''; $('joinLadder').value = '';
     setMe(name);
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
   });

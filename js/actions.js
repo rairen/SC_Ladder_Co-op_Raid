@@ -16,6 +16,12 @@ document.addEventListener('click', e=>{
   const u = e.target.closest('[data-undo]');
   if(u){ guard(()=>store.setUndone(u.dataset.undo, u.dataset.state !== '1')); return; }
 });
+/* 전투 기록에서 승리 유형 고치기 (자동 수집된 판에 유형 붙이기) */
+document.addEventListener('change', e=>{
+  const w = e.target.closest('[data-wtev]'); if(!w) return;
+  const t = w.value;
+  guard(()=>store.updateEvent(w.dataset.wtev, {multi: t==='multi', same: t==='same', banned: t==='banned'}));
+});
 $('cancelSetup').onclick = ()=>openSetup(false);
 ['cHp','cBonus','cRage','cRageRate','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
 $('startRaid').onclick = ()=>{

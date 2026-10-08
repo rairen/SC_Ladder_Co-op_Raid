@@ -130,6 +130,7 @@
           <div class="field" style="flex:1 1 180px"><label class="label" for="joinName">내 이름</label><input type="text" id="joinName" placeholder="방송 닉네임" maxlength="20"></div>
           <div class="field"><label class="label" for="joinRole">역할</label><select id="joinRole"></select></div>
           <div class="field"><label class="label" for="joinFee">입장료 (별풍선)</label><input type="number" id="joinFee" min="0" step="10" value="0" style="width:120px;font-size:15px"></div>
+          <div class="field"><label class="label" for="joinLadder">래더 아이디 (선택)</label><input type="text" id="joinLadder" placeholder="게임 아이디" maxlength="24" style="width:140px" autocomplete="off" spellcheck="false"></div>
           <button class="btn primary" id="joinBtn" type="button">참가하기</button>
         </div>
         <p class="hint" id="joinGear" style="margin:8px 0 0"></p>
@@ -180,6 +181,26 @@
           <button class="btn primary" id="submitGame" type="button">결과 반영</button>
           <span class="hint">Enter로도 반영됩니다</span>
         </div>
+      </section>
+
+      <section class="panel" id="ladderPanel">
+        <div class="panel-head"><h2>래더 자동 수집</h2><span class="col-state" id="collectorState"></span></div>
+        <p class="hint" style="margin:0 0 10px">래더 아이디를 넣어 두면, 수집기를 켠 PC가 래더 한 판이 끝날 때마다 승패와 점수 변동을 자동으로 넣습니다. 승리 유형은 전투 기록에서 고칠 수 있습니다.</p>
+        <div class="tbl-wrap">
+          <table class="ltable">
+            <thead><tr><th>파티원</th><th>래더 아이디</th><th>서버</th><th class="r">점수</th><th>상태</th></tr></thead>
+            <tbody id="ladderBody"></tbody>
+          </table>
+        </div>
+        <details class="howto" id="collectorHowto">
+          <summary>수집기 켜는 방법</summary>
+          <ol>
+            <li>스타크래프트: 리마스터를 켜고 로그인합니다. 한 PC만 있으면 되고, 그 PC가 모든 파티원의 점수를 조회합니다.</li>
+            <li><a href="collector/ladder-collector.cmd" download>수집기 받기 (ladder-collector.cmd)</a> 를 같은 PC에서 받아 더블클릭합니다.<br><span class="hint">"Windows의 PC 보호" 창이 뜨면 <b>추가 정보 → 실행</b>을 누르세요.</span></li>
+            <li>검은 창이 열려 있는 동안 자동으로 수집합니다. 위 상태가 <b>수집 중</b>으로 바뀌면 됩니다.</li>
+          </ol>
+          <p class="hint">수집기를 켜기 전에 끝난 판, 배치 게임은 자동으로 들어가지 않으니 직접 입력하세요. 같은 판을 직접 입력까지 하면 두 번 들어가니, 자동으로 들어온 판은 손으로 넣지 마세요.</p>
+        </details>
       </section>
 
     </div>
@@ -287,6 +308,7 @@
 <script src="js/overlay.js"></script>
 <script src="js/role-skill.js"></script>
 <script src="js/info-window.js"></script>
+<script src="js/ladder.js"></script>
 <script src="js/history.js"></script>
 <script src="js/boot.js"></script>
 
