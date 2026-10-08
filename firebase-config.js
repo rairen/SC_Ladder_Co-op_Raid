@@ -11,9 +11,9 @@
      database.rules.json 의 보안 규칙이 담당합니다.
    ===================================================================== */
 window.RAID_FIREBASE_CONFIG = {
-  apiKey: "여기에_apiKey",
-  authDomain: "여기에_프로젝트ID.firebaseapp.com",
-  databaseURL: "여기에_https://프로젝트ID-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "여기에_프로젝트ID",
-  appId: "여기에_appId"
+  apiKey: "AIzaSyArtTHPsYhDza6Z18DhVk_FBkFLEzH6L74",
+  authDomain: "scl-coop-raid.firebaseapp.com",
+  databaseURL: "https://scl-coop-raid-default-rtdb.asia-southeast1.firebasedatabase.app/",
+  projectId: "scl-coop-raid",
+  appId: "1:701110240769:web:5bc295da60ad3848306200"
 };
