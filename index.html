@@ -420,8 +420,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <div class="custom" id="customBox" hidden>
           <div class="field"><label class="label" for="cHp">1인당 HP</label><input type="number" id="cHp" min="5" step="5" value="220"></div>
           <div class="field"><label class="label" for="cBonus">인원당 추가 HP</label><input type="number" id="cBonus" min="0" step="5" value="20"></div>
-          <div class="field"><label class="label" for="cRage">1인당 분노 한도</label><input type="number" id="cRage" min="5" step="5" value="20"></div>
-          <div class="field"><label class="label" for="cRec">광폭화 회복률 %</label><input type="number" id="cRec" min="0" step="5" value="40"></div>
+          <div class="field"><label class="label" for="cRage">분노 최대치</label><input type="number" id="cRage" min="5" step="5" value="80"></div>
+          <div class="field"><label class="label" for="cRageRate">분노 상승률</label><input type="number" id="cRageRate" min="0" step="0.1" value="0.5"></div>
+          <div class="field"><label class="label" for="cRec">보스 회복률 % (HP 50% 이하 패배 시)</label><input type="number" id="cRec" min="0" step="5" value="40"></div>
         </div>
         <div class="preview" id="setupPreview"></div>
       </div>
@@ -569,7 +570,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
           <select id="addMemberRole" aria-label="역할"></select>
           <button class="btn" id="addMemberBtn" type="button">추가</button>
         </div>
-        <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼, 분노 한도가 1인당 분노만큼 늘어납니다.</p>
+        <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼 늘어납니다.</p>
       </section>
 
       <section class="panel logpanel">
@@ -621,9 +622,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 <script>
 (function(){
 const PRESETS = {
-  light:{label:'라이트', hp:120, bonus:10, rage:30, rec:25,  desc:'가볍게'},
-  normal:{label:'노멀', hp:220, bonus:20, rage:20, rec:40, desc:'보통'},
-  hard:{label:'하드',   hp:280, bonus:30, rage:15,  rec:60, desc:'어렵게'},
+  light:{label:'라이트', hp:120, bonus:10, rage:100, rageRate:0.5, rec:25,  desc:'가볍게'},
+  normal:{label:'노멀', hp:220, bonus:20, rage:80, rageRate:0.5, rec:40, desc:'보통'},
+  hard:{label:'하드',   hp:280, bonus:30, rage:60, rageRate:0.5, rec:60, desc:'어렵게'},
   custom:{label:'커스텀', desc:'직접 입력'}
 };
 const ITEMS = [
@@ -631,7 +632,7 @@ const ITEMS = [
   {id:'hp2',    tier:'일반', w:20,  name:'보스 HP 2% 감소'},
   {id:'rage5',  tier:'일반', w:20,  name:'분노 게이지 5% 감소'},
   {id:'double', tier:'희귀', w:10,  name:'다음 판 데미지 2배', next:true},
-  {id:'shield', tier:'희귀', w:10,  name:'다음 판 패배 보호', next:true},
+  {id:'shield', tier:'희귀', w:10,  name:'다음 판 패배 보호 (보스 회복 없음)', next:true},
   {id:'hp7',    tier:'전설', w:2.5, name:'보스 HP 7% 감소'},
   {id:'mission',tier:'전설', w:2.5, name:'도전 미션 (유닛 1종 금지, 승리 시 3배)', next:true},
   {id:'heal4',  tier:'함정', w:2.5, name:'보스 HP 4% 회복'},
@@ -724,7 +725,7 @@ async function guard(fn){
 }
 
 /* ---------- Game logic ---------- */
-function cfgOf(r){ return r && r.cfg ? {bonus:0, ...r.cfg} : {hp:220, bonus:20, rage:20, rec:40}; }
+function cfgOf(r){ return r && r.cfg ? {bonus:0, rageRate:0.5, ...r.cfg} : {hp:220, bonus:20, rage:80, rageRate:0.5, rec:40}; }
 /* 보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1) */
 function bossHpOf(cfg, n){ return n > 0 ? n*cfg.hp + (Number(cfg.bonus)||0)*(n-1) : 0; }
 
@@ -843,7 +844,8 @@ function compute(r, evs){
   const members = (r && r.members) || [];
   const cfg = cfgOf(r), G = gaugeOf(r), BS = bossSkillsOf(r), RS = roleSkillsOf(r), S = settingsOf(r);
   const n = members.length;
-  const maxHp = bossHpOf(cfg, n), maxRage = n*cfg.rage, rec = cfg.rec/100;
+  /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
+  const maxHp = bossHpOf(cfg, n), maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
   const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {};
   const st = m => {
@@ -869,6 +871,17 @@ function compute(r, evs){
     entry.party.push({m, d: Math.max(0, before - after), down: after === 0});
   };
 
+  /* 보스에게 데미지를 주고, 그만큼 분노를 올림 */
+  const hit = (m, d, entry) => {
+    if(d <= 0) return;
+    hp -= d; entry.dHp -= d;
+    if(stats[m]){ stats[m].dmg += d; }
+    let r = d * rageRate;
+    const cut = gear[m] && gear[m].rageCut;
+    if(cut){ const r0 = r; r = r * (1 - cut); entry.rageSaved = (entry.rageSaved||0) + (r0 - r); }
+    r = Math.round(r * 10) / 10;
+    rage += r; entry.dRage += r; if(stats[m]) stats[m].rage += r;
+  };
   function bossSkill(entry, seedBase){
     const roll = seeded(seedBase + '|' + skillN), roll2 = seeded(seedBase + '|t|' + skillN);
     skillN++;
@@ -938,26 +951,23 @@ function compute(r, evs){
           if(barrier > 0){ mult *= 0.5; barrier--; entry.notes.push('보스 보호막 ×0.5'); }
           if(rally > 0){ mult *= 1.5; rally--; entry.notes.push('전투 자극 ×1.5'); }
           const d = Math.round(p*mult);
-          hp -= d; s.dmg += d; entry.dHp -= d; if(d > s.best) s.best = d;
+          hit(m, d, entry); if(d > s.best) s.best = d;
           if(chain.includes(m)) chain = [m]; else chain.push(m);
           if(chain.length >= 3){
             const b = Math.round(maxHp*S.chain/100);
-            hp -= b; s.dmg += b; entry.dHp -= b; entry.notes.push('체인 보너스 '+fmt(b)); chain = [];
+            hit(m, b, entry); entry.notes.push('체인 보너스 '+fmt(b)); chain = [];
           }
         }
         addGauge(m, G.win);
       } else if(p < 0){
         s.l++; chain = [];
         const a0 = Math.abs(p);
-        if(pend === 'shield'){ entry.notes.push('패배 보호 발동 · 분노·회복 없음'); }
+        if(pend === 'shield'){ entry.notes.push('패배 보호 발동 · 보스 회복 없음'); }
         else{
           if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸');
-          const a = gear[m].rageCut ? Math.round(a0 * (1 - gear[m].rageCut)) : a0;
-          if(a !== a0) entry.notes.push(`평온의 부적 분노 ${fmt(a0)}→${fmt(a)}`);
-          rage += a; s.rage += a; entry.dRage += a;
           if(enraged && rec > 0){
             const h = Math.min(Math.round(a0*rec), maxHp-hp);
-            if(h > 0){ hp += h; entry.dHp += h; entry.notes.push('광폭화 회복 '+fmt(h)); }
+            if(h > 0){ hp += h; entry.dHp += h; entry.notes.push('보스 회복 '+fmt(h)); }
           }
         }
         addGauge(m, G.loss);
@@ -970,8 +980,8 @@ function compute(r, evs){
       entry.item = it;
       st(m);
       switch(it.id){
-        case 'hp2': { const d = Math.round(maxHp*0.02); hp -= d; entry.dHp -= d; stats[m].dmg += d; break; }
-        case 'hp7': { const d = Math.round(maxHp*0.07); hp -= d; entry.dHp -= d; stats[m].dmg += d; break; }
+        case 'hp2': { hit(m, Math.round(maxHp*0.02), entry); break; }
+        case 'hp7': { hit(m, Math.round(maxHp*0.07), entry); break; }
         case 'rage5': { const d = Math.min(Math.round(maxRage*0.05), rage); rage -= d; entry.dRage -= d; break; }
         case 'heal4': { const h = Math.min(Math.round(maxHp*0.04), maxHp-hp); hp += h; entry.dHp += h; break; }
         case 'rage7': { const d = Math.round(maxRage*0.07); rage += d; entry.dRage += d; break; }
@@ -986,7 +996,7 @@ function compute(r, evs){
       if(gauge[m] < needG[m]){ entry.ignored = true; entry.notes.push(`게이지 부족 (${gauge[m]}/${needG[m]}) · 반영 안 됨`); continue; }
       gauge[m] = 0; stats[m].used++;
       switch(ROLES[rk].type){
-        case 'nuke': { const d = Math.round(maxHp*v/100); hp -= d; entry.dHp -= d; stats[m].dmg += d; entry.notes.push(`보스 HP ${v}% 감소`); break; }
+        case 'nuke': { hit(m, Math.round(maxHp*v/100), entry); entry.notes.push(`보스 HP ${v}% 감소`); break; }
         case 'heal': {
           let healed = 0, revived = [];
           for(const x of Object.keys(mhp)){ const before = mhp[x]; mhp[x] = Math.min(maxH[x], mhp[x] + v); healed += mhp[x]-before; if(before <= 0 && mhp[x] > 0) revived.push(x); }
@@ -997,6 +1007,7 @@ function compute(r, evs){
         case 'rally': { rally = Math.max(rally, Math.round(v)); const cleared = Object.keys(curse).length; for(const k in curse) delete curse[k]; entry.notes.push(`다음 승리 ${Math.round(v)}번 데미지 ×1.5${cleared ? ' · 저주 해제' : ''}`); break; }
       }
     }
+    if(entry.rageSaved) entry.notes.push(`평온의 부적 분노 −${fmt(Math.round(entry.rageSaved*10)/10)}`);
     if(hp <= 0){ hp = 0; status = 'clear'; entry.notes.push('보스 처치!'); }
     else {
       checkRage(entry, seedBase);
@@ -1024,7 +1035,7 @@ function gearHtml(s, m){
   const S = s.S, wv = g.weapon.v, av = g.armor.v, ci = S.gear.accessory.findIndex(x=>x.name===g.accessory.name);
   const w = `<span class="w${wv?'':' base'}" title="무기 · ${wv ? '승리 데미지 +'+Math.round(wv*100)+'%' : '기본'}">${esc(g.weapon.name)}${wv ? ' +'+Math.round(wv*100)+'%' : ''}</span>`;
   const a = `<span class="a${av?'':' base'}" title="갑옷 · ${av ? '최대 체력 +'+av : '기본'}">${esc(g.armor.name)}${av ? ' +'+av : ''}</span>`;
-  const cTitle = ci===1 ? `내 패배 분노 −${Math.round(g.accessory.v*100)}%` : ci===2 ? `레이드당 1회 쓰러질 때 체력 ${REVIVE_HP}` : '장신구 없음';
+  const cTitle = ci===1 ? `내 공격으로 오르는 분노 −${Math.round(g.accessory.v*100)}%` : ci===2 ? `레이드당 1회 쓰러질 때 체력 ${REVIVE_HP}` : '장신구 없음';
   const used = ci===2 && s.immUsed && s.immUsed[m];
   const c = `<span class="c${ci>0?'':' base'}${used?' used':''}" title="장신구 · ${cTitle}${used?' (사용함)':''}">${esc(g.accessory.name)}</span>`;
   return `<span class="gear">${w}${a}${c}</span>`;
@@ -1054,7 +1065,7 @@ function render(){
   const meta = $('bossMeta');
   if(hasRaid){
     const p = PRESETS[raid.diff] || PRESETS.custom;
-    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">파티 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 ${fmt(s.cfg.rage)} · 회복 ${s.cfg.rec}%</span>`;
+    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">파티 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
   } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 파티원과 난이도를 정하면 시작됩니다</span>`;
   const hpPct = hasRaid && s.maxHp ? s.hp/s.maxHp*100 : 100;
   const ragePct = hasRaid && s.maxRage ? Math.min(100, s.rage/s.maxRage*100) : 0;
@@ -1193,19 +1204,19 @@ function updateGamePreview(){
     if(s.rally) mult *= 1.5;
     mult = Math.round(mult*100)/100;
     const chainNext = !s.chain.includes(selected) && s.chain.length===2;
-    el.innerHTML = `보스 HP <b class="d-hp">−${fmt(Math.round(p*mult))}</b>${mult!==1?` (×${mult})`:''}${chainNext?` + 체인 보너스 <b class="d-hp">−${fmt(Math.round(s.maxHp*s.S.chain/100))}</b>`:''}`;
+    const dmgP = Math.round(p*mult), rr = Math.round(dmgP * (s.cfg.rageRate ?? 0.5) * (1 - ((s.gear[selected]||{}).rageCut||0)) * 10)/10, boomW = s.maxRage && s.rage + rr >= s.maxRage;
+    el.innerHTML = `보스 HP <b class="d-hp">−${fmt(dmgP)}</b>${mult!==1?` (×${mult})`:''} · 분노 <b class="d-rage">+${fmt(rr)}</b>${boomW?' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>':''}${chainNext?` + 체인 보너스 <b class="d-hp">−${fmt(Math.round(s.maxHp*s.S.chain/100))}</b>`:''}`;
   } else {
-    if(pend==='shield'){ el.innerHTML = '패배 보호가 발동해서 <b>분노가 오르지 않습니다</b>.'; return; }
+    if(pend==='shield'){ el.innerHTML = '패배 보호가 발동해서 <b>보스가 회복하지 않습니다</b>.'; return; }
     const h = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
-    const boom = s.maxRage && s.rage + p >= s.maxRage;
-    el.innerHTML = `분노 <b class="d-rage">+${fmt(p)}</b>${h?` · 광폭화로 보스 HP <b class="d-heal">+${fmt(h)}</b> 회복`:''}${boom?' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>':''}`;
+    el.innerHTML = h ? `보스 HP가 50% 아래라 <b class="d-heal">+${fmt(h)}</b> 회복합니다. 스킬 게이지 +${s.G.loss}` : `패배는 보스에게 영향이 없습니다. 스킬 게이지 +${s.G.loss}`;
   }
 }
 
 /* ---------- Setup ---------- */
 function renderDiffs(){
   $('diffs').innerHTML = Object.entries(PRESETS).map(([k,p])=>
-    `<button type="button" class="diff" data-d="${k}" aria-pressed="${k===diff}"><span class="dn">${p.label}</span><span class="dd">${k==='custom' ? p.desc : `HP ${p.hp} +인원당 ${p.bonus} · 분노 ${p.rage} · 회복 ${p.rec}%`}</span></button>`).join('');
+    `<button type="button" class="diff" data-d="${k}" aria-pressed="${k===diff}"><span class="dn">${p.label}</span><span class="dd">${k==='custom' ? p.desc : `HP ${p.hp} +인원당 ${p.bonus} · 분노 최대 ${p.rage} · 회복 ${p.rec}%`}</span></button>`).join('');
   $('customBox').hidden = diff !== 'custom';
   updateSetupPreview();
 }
@@ -1231,14 +1242,14 @@ $('memberAddBtn').onclick = addSetupMember;
 $('memberAdd').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); addSetupMember(); } });
 $('setupMembers').addEventListener('click', e=>{ const b = e.target.closest('[data-rm]'); if(b){ setupList.splice(+b.dataset.rm, 1); renderSetupMembers(); } });
 function setupCfg(){
-  if(diff !== 'custom'){ const p = PRESETS[diff]; return {hp:p.hp, bonus:p.bonus, rage:p.rage, rec:p.rec}; }
-  return {hp:Math.max(5, +$('cHp').value||220), bonus:Math.max(0, +$('cBonus').value||0), rage:Math.max(5, +$('cRage').value||20), rec:Math.max(0, +$('cRec').value||0)};
+  if(diff !== 'custom'){ const p = PRESETS[diff]; return {hp:p.hp, bonus:p.bonus, rage:p.rage, rageRate:p.rageRate, rec:p.rec}; }
+  return {hp:Math.max(5, +$('cHp').value||220), bonus:Math.max(0, +$('cBonus').value||0), rage:Math.max(5, +$('cRage').value||80), rageRate:Math.max(0, +$('cRageRate').value||0), rec:Math.max(0, +$('cRec').value||0)};
 }
 function updateSetupPreview(){
   const ms = parseMembers(), c = setupCfg(), n = ms.length;
   $('setupPreview').innerHTML = n
-    ? `파티 <b>${n}명</b> → 보스 HP <b>${fmt(bossHpOf(c, n))}</b> (${fmt(c.hp)}×${n}${n>1?` + ${fmt(c.bonus)}×${n-1}`:''}) · 분노 최대치 <b>${fmt(n*c.rage)}</b> · 광폭화 회복률 <b>${c.rec}%</b>`
-    : `파티원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 첫 참가자는 보스 HP <b>${fmt(c.hp)}</b>, 이후 한 명마다 <b>+${fmt(c.hp + c.bonus)}</b>, 분노 최대치 <b>+${fmt(c.rage)}</b>`;
+    ? `파티 <b>${n}명</b> → 보스 HP <b>${fmt(bossHpOf(c, n))}</b> (${fmt(c.hp)}×${n}${n>1?` + ${fmt(c.bonus)}×${n-1}`:''}) · 분노 최대치 <b>${fmt(c.rage)}</b> (데미지 × ${c.rageRate}) · 회복률 <b>${c.rec}%</b>`
+    : `파티원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 첫 참가자는 보스 HP <b>${fmt(c.hp)}</b>, 이후 한 명마다 <b>+${fmt(c.hp + c.bonus)}</b>. 분노 최대치는 인원과 상관없이 <b>${fmt(c.rage)}</b>`;
   confirmArm = false; $('startRaid').textContent = '레이드 시작'; $('setupHint').textContent = '';
 }
 function openSetup(open){
@@ -1249,7 +1260,7 @@ function openSetup(open){
       $('raidName').value = raid.name || '';
       setupList = (raid.members||[]).slice(); setupRoles = Object.fromEntries(setupList.map(m=>[m, rosterOf(raid, m).role]));
       diff = raid.diff || 'normal';
-      if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cBonus').value = raid.cfg.bonus || 0; $('cRage').value = raid.cfg.rage; $('cRec').value = raid.cfg.rec; }
+      if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cBonus').value = raid.cfg.bonus || 0; $('cRage').value = raid.cfg.rage; $('cRageRate').value = raid.cfg.rageRate ?? 0.5; $('cRec').value = raid.cfg.rec; }
     }
     else { $('raidName').value = randomBossName(); }
     $('bossRace').value = (raid && raid.race) || raceOfName($('raidName').value.trim()); renderRaceSkills();
@@ -1304,7 +1315,7 @@ document.addEventListener('click', e=>{
 });
 $('toggleSetup').onclick = ()=>openSetup($('setup').hidden);
 $('cancelSetup').onclick = ()=>openSetup(false);
-['cHp','cBonus','cRage','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
+['cHp','cBonus','cRage','cRageRate','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
 $('startRaid').onclick = ()=>{
   const ms = parseMembers();
   const live = raid && lastState && lastState.status==='live' && events.length>0;
@@ -1446,7 +1457,7 @@ function renderJoin(s, me){
   $('joinExisting').innerHTML = others.length
     ? '이미 참가한 이름이면 눌러서 들어가세요: ' + others.map(m=>`<button type="button" class="linkbtn" data-claim="${esc(m)}">${esc(m)}</button>`).join(' · ')
     : '아직 참가한 파티원이 없습니다. 첫 번째로 참가해 보세요.';
-  $('addHint').textContent = me ? '파티원 추가는 운영자 모드에서만 할 수 있습니다.' : '파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼, 분노 한도가 1인당 분노만큼 늘어납니다.';
+  $('addHint').textContent = me ? '파티원 추가는 운영자 모드에서만 할 수 있습니다.' : '파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼 늘어납니다.';
 }
 
 $('addMemberBtn').onclick = addMember;
@@ -1466,7 +1477,7 @@ function evText(e){
   if(ev.type === 'game'){
     const p = Number(ev.points)||0;
     if(p > 0) return `${ev.member} 승리! 보스에게 ${fmt(-e.dHp)} 데미지${e.notes.length ? ' · '+e.notes.join(' · ') : ''}`;
-    if(p < 0) return `${ev.member} 패배… 분노 +${fmt(e.dRage)}${e.dHp > 0 ? ' · 보스 HP +'+fmt(e.dHp)+' 회복' : ''}`;
+    if(p < 0) return `${ev.member} 패배…${e.dHp > 0 ? ' 보스 HP +'+fmt(e.dHp)+' 회복' : ''}`;
     return `${ev.member} 무승부`;
   }
   if(ev.type === 'role'){ const r0 = e.role || {name:'역할 스킬'}; return `${ev.member} 역할 스킬 ${r0.name}! ${e.notes.join(' · ')}`; }
@@ -1610,7 +1621,7 @@ function renderSkillModal(){
   const gearInfo = {
     weapon:   {title:'무기',   unit:'%', show:v=> v ? `승리 데미지 +${Math.round(v*100)}%` : '기본', pctv:true},
     armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
-    accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 패배로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-', pctv:true}
+    accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-', pctv:true}
   };
   $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 슬롯마다 조건을 만족하는 가장 좋은 장비를 자동으로 착용합니다.${edit ? ' 필요 입장료와 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
     ${Object.entries(gearInfo).map(([k,info])=>`<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>${info.title}</th><th class="r">필요 입장료</th><th class="r">수치${info.unit?' ('+info.unit+')':''}</th><th>효과</th></tr></thead><tbody>
@@ -1805,7 +1816,7 @@ function histDetail(h, mem){
   const dur = h.endedAt && h.startedAt ? Math.max(0, Math.round((h.endedAt - h.startedAt)/60000)) : null;
   const meta = `<div class="hd-meta">
     <span>시작 <b>${fmtDate(h.startedAt)}</b></span><span>종료 <b>${fmtDate(h.endedAt)}</b></span>${dur!==null ? `<span>진행 <b>${dur >= 60 ? Math.floor(dur/60)+'시간 '+(dur%60)+'분' : dur+'분'}</b></span>` : ''}
-    <span>1인당 HP <b>${fmt(cfg.hp)}</b> · 분노 <b>${fmt(cfg.rage)}</b> · 회복 <b>${cfg.rec}%</b></span>
+    <span>1인당 HP <b>${fmt(cfg.hp)}</b> · 분노 최대 <b>${fmt(cfg.rage)}</b> · 회복 <b>${cfg.rec}%</b></span>
     <span>보스 HP <b>${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</b></span><span>분노 <b>${fmt(h.rage)} / ${fmt(h.maxRage)}</b></span></div>`;
   const table = `<div class="tbl-wrap"><table class="mini">
     <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th></tr></thead>
