@@ -413,9 +413,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <span class="label">난이도</span>
         <div class="diffs" id="diffs"></div>
         <div class="custom" id="customBox" hidden>
-          <div class="field"><label class="label" for="cHp">1인당 HP</label><input type="number" id="cHp" min="10" step="10" value="400"></div>
-          <div class="field"><label class="label" for="cRage">1인당 분노 한도</label><input type="number" id="cRage" min="10" step="10" value="120"></div>
-          <div class="field"><label class="label" for="cRec">광폭화 회복률 %</label><input type="number" id="cRec" min="0" step="10" value="100"></div>
+          <div class="field"><label class="label" for="cHp">1인당 HP</label><input type="number" id="cHp" min="5" step="5" value="55"></div>
+          <div class="field"><label class="label" for="cRage">1인당 분노 한도</label><input type="number" id="cRage" min="5" step="5" value="20"></div>
+          <div class="field"><label class="label" for="cRec">광폭화 회복률 %</label><input type="number" id="cRec" min="0" step="5" value="40"></div>
         </div>
         <div class="preview" id="setupPreview"></div>
       </div>
@@ -615,9 +615,9 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 <script>
 (function(){
 const PRESETS = {
-  light:{label:'라이트', hp:250, rage:160, rec:50,  desc:'1인당 약 13승'},
-  normal:{label:'노멀', hp:400, rage:120, rec:100, desc:'1인당 약 20승'},
-  hard:{label:'하드',   hp:600, rage:80,  rec:150, desc:'1인당 약 30승'},
+  light:{label:'라이트', hp:30, rage:30, rec:25,  desc:'약 1시간'},
+  normal:{label:'노멀', hp:55, rage:20, rec:40, desc:'약 2시간'},
+  hard:{label:'하드',   hp:70, rage:15,  rec:60, desc:'약 3시간'},
   custom:{label:'커스텀', desc:'직접 입력'}
 };
 const ITEMS = [
@@ -718,7 +718,7 @@ async function guard(fn){
 }
 
 /* ---------- Game logic ---------- */
-function cfgOf(r){ return r && r.cfg ? r.cfg : {hp:400, rage:120, rec:100}; }
+function cfgOf(r){ return r && r.cfg ? r.cfg : {hp:55, rage:20, rec:40}; }
 
 /* 파티원 체력 */
 const PARTY_HP = 100, REVIVE_HP = 30;
@@ -1188,7 +1188,7 @@ function updateGamePreview(){
 /* ---------- Setup ---------- */
 function renderDiffs(){
   $('diffs').innerHTML = Object.entries(PRESETS).map(([k,p])=>
-    `<button type="button" class="diff" data-d="${k}" aria-pressed="${k===diff}"><span class="dn">${p.label}</span><span class="dd">${k==='custom' ? p.desc : `HP ${p.hp} · 분노 ${p.rage} · 회복 ${p.rec}%`}</span></button>`).join('');
+    `<button type="button" class="diff" data-d="${k}" aria-pressed="${k===diff}"><span class="dn">${p.label}</span><span class="dd">${k==='custom' ? p.desc : `${p.desc} · HP ${p.hp} · 분노 ${p.rage} · 회복 ${p.rec}%`}</span></button>`).join('');
   $('customBox').hidden = diff !== 'custom';
   updateSetupPreview();
 }
@@ -1215,7 +1215,7 @@ $('memberAdd').addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isCompo
 $('setupMembers').addEventListener('click', e=>{ const b = e.target.closest('[data-rm]'); if(b){ setupList.splice(+b.dataset.rm, 1); renderSetupMembers(); } });
 function setupCfg(){
   if(diff !== 'custom'){ const p = PRESETS[diff]; return {hp:p.hp, rage:p.rage, rec:p.rec}; }
-  return {hp:Math.max(10, +$('cHp').value||400), rage:Math.max(10, +$('cRage').value||120), rec:Math.max(0, +$('cRec').value||0)};
+  return {hp:Math.max(5, +$('cHp').value||55), rage:Math.max(5, +$('cRage').value||20), rec:Math.max(0, +$('cRec').value||0)};
 }
 function updateSetupPreview(){
   const ms = parseMembers(), c = setupCfg(), n = ms.length;
