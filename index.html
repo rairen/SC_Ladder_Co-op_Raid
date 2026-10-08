@@ -218,6 +218,11 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.seg.small{flex-wrap:wrap}
+.calc-in{display:flex;flex-wrap:wrap;gap:10px}
+.calc-in .field input{width:96px;font-size:14px;padding:6px 8px}
+.plan-tag{font-size:11px;font-weight:700;color:#1d1600;background:#ffd34d;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
+.sk-table td.hl{font-weight:700;color:var(--fg)}
 .gear{display:flex;flex-wrap:wrap;gap:4px}
 .gear span{font-size:11px;line-height:1.4;padding:1px 6px;border-radius:4px;border:1px solid var(--line);background:var(--panel2);white-space:nowrap}
 .gear span.base{color:var(--muted);border-style:dashed}
@@ -456,7 +461,7 @@ tr.hdetail td{background:var(--bg);white-space:normal}
         <h2 class="boss-name" id="bossName">레이드 대기 중</h2>
         <div class="boss-meta" id="bossMeta"></div>
       </div>
-      <div class="hud-right"><button class="btn" id="skillsBtn" type="button">스킬·설정</button></div>
+      <div class="hud-right"><button class="btn" id="skillsBtn" type="button">정보·설정</button></div>
     </div>
     <div class="gauge">
       <span class="g-label" style="color:var(--hp)">HP</span>
@@ -602,19 +607,23 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 <div class="modal" id="skillModal" hidden role="dialog" aria-modal="true" aria-labelledby="skillModalTitle">
   <div class="modal-box">
     <div class="modal-head">
-      <h2 id="skillModalTitle">스킬·설정</h2>
+      <h2 id="skillModalTitle">정보·설정</h2>
       <button class="btn" id="skillClose" type="button">닫기</button>
     </div>
     <div class="seg small" role="tablist">
       <button type="button" data-sktab="boss" aria-pressed="true">보스 스킬</button>
       <button type="button" data-sktab="role" aria-pressed="false">역할 스킬</button>
       <button type="button" data-sktab="gear" aria-pressed="false">입장료·장비</button>
+      <button type="button" data-sktab="rules" aria-pressed="false">규칙·난이도</button>
+      <button type="button" data-sktab="roulette" aria-pressed="false">룰렛</button>
       <button type="button" data-sktab="settings" aria-pressed="false">레이드 설정</button>
     </div>
     <div id="skTabBoss"></div>
     <div id="skTabRole" hidden></div>
     <div id="skTabGear" hidden></div>
     <div id="skTabSettings" hidden></div>
+    <div id="skTabRules" hidden></div>
+    <div id="skTabRoulette" hidden></div>
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -1576,9 +1585,89 @@ $('skillModal').querySelector('[role=tablist]').addEventListener('click', e=>{
   $('skillModal').querySelectorAll('[data-sktab]').forEach(x=>x.setAttribute('aria-pressed', x===b));
   renderSkillModal();
 });
+/* ---------- 규칙·난이도 탭 (구글 시트 내용) ---------- */
+let calcIn = {min:20, wr:50, pts:20, loss:20, mult:1.2, n:2};
+try{ Object.assign(calcIn, JSON.parse(localStorage.getItem('sc-boss-raid:calc') || '{}')); }catch(_){}
+function clearTime(p, c){
+  const n = Math.max(1, c.n), perHr = 60 / Math.max(1, c.min), wr = c.wr/100;
+  const hpT = bossHpOf(p, n);
+  const g = n * perHr * wr * c.pts * c.mult;
+  const h = g - n * perHr * (1-wr) * c.loss * (p.rec/100);
+  if(g <= 0 || h <= 0) return {hp:hpT, time:null, skills:null};
+  const t = hpT/2/g + hpT/2/h;
+  return {hp:hpT, time:t, skills: g * t * (p.rageRate ?? 0.5) / p.rage};
+}
+function fmtHours(t){ if(t == null) return '클리어 어려움'; const m = Math.round(t*60); return m >= 60 ? `${Math.floor(m/60)}시간 ${m%60}분` : `${m}분`; }
+function renderRulesTab(){
+  const box = $('skTabRules'); if(box.hidden) return;
+  const G = gaugeOf(raid), S = settingsOf(raid);
+  const rows = ['light','normal','hard'].map(k=>{ const p = PRESETS[k], r = clearTime(p, calcIn);
+    return `<tr><td><b>${p.label}</b></td><td class="r num">${p.hp}</td><td class="r num">${p.bonus}</td><td class="r num">${p.rage}</td><td class="r num">${p.rageRate}</td><td class="r num">${p.rec}%</td>
+      <td class="r num hl">${fmt(r.hp)}</td><td class="r hl">${fmtHours(r.time)}</td><td class="r num">${r.skills==null?'-':(Math.round(r.skills*10)/10)+'회'}</td></tr>`; }).join('');
+  const inp = (k,label,step,suffix) => `<div class="field"><label class="label" for="ci_${k}">${label}</label><input type="number" id="ci_${k}" data-ci="${k}" min="0" step="${step}" value="${calcIn[k]}">${suffix?`<span class="hint">${suffix}</span>`:''}</div>`;
+  const perHr = 60/Math.max(1,calcIn.min), avgG = (G.win*calcIn.wr + G.loss*(100-calcIn.wr))/100;
+  box.innerHTML = `<p class="sk-note">보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1). 분노는 보스가 받은 데미지 × 상승률만큼 오르고, 최대치에 닿으면 보스 스킬이 나갑니다.</p>
+    <h3 class="label" style="margin:4px 0 0">클리어 시간 계산 가정 (이 화면에서만 쓰는 값)</h3>
+    <div class="calc-in">${inp('n','파티 인원',1,'')}${inp('min','한 판 시간(분)',1,'')}${inp('wr','승률(%)',5,'')}${inp('pts','평균 승리 점수',1,'')}${inp('loss','평균 패배 점수',1,'')}${inp('mult','승리 보너스 배율',0.1,'')}</div>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>난이도</th><th class="r">1인당 HP</th><th class="r">인원당 추가</th><th class="r">분노 최대</th><th class="r">분노 상승률</th><th class="r">보스 회복률</th><th class="r">보스 총 HP</th><th class="r">예상 클리어</th><th class="r">예상 보스 스킬</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="sk-note">룰렛, 체인 보너스, 역할 스킬 때문에 실제로는 조금 더 빨리 끝납니다. 역할 스킬은 평균 ${Math.round(G.max / Math.max(1,avgG) * 10)/10}판(약 ${fmtHours(G.max/Math.max(1,avgG)/perHr)})에 한 번 쓸 수 있습니다.</p>
+    <h3 class="label" style="margin:4px 0 0">기본 규칙 수치</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody>
+      <tr><td><b>파티원 기본 체력</b></td><td class="r num">${PARTY_HP}</td><td class="desc">갑옷 보너스가 더해짐. 0이 되면 전투불능</td></tr>
+      <tr><td><b>부활 체력</b></td><td class="r num">${REVIVE_HP}</td><td class="desc">전투불능 상태에서 승리하거나 불사의 목걸이 발동 시</td></tr>
+      <tr><td><b>보스 회복 시작</b></td><td class="r num">50%</td><td class="desc">보스 HP가 이 아래면 패배 점수 × 회복률만큼 보스 회복</td></tr>
+      <tr><td><b>체인 보너스</b></td><td class="r num">${S.chain}%</td><td class="desc">서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지</td></tr>
+      <tr><td><b>역할 스킬 게이지</b></td><td class="r num">${G.max}</td><td class="desc">시작 ${G.start}, 승리 +${G.win}, 패배 +${G.loss}. 필요 게이지 = ${G.max} − 입장료 × ${S.feeGauge}</td></tr>
+      <tr><td><b>성공 / 실패</b></td><td class="r">-</td><td class="desc">보스 HP 0 / 파티 전원 전투불능</td></tr>
+    </tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">보스 이름과 종족</h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>종족</th><th>보스 이름</th><th>스킬 세트</th></tr></thead><tbody>
+      ${Object.entries(BOSS_BY_RACE).map(([k,list])=>`<tr><td><b>${RACES[k]}</b></td><td>${list.map(esc).join(', ')}</td><td class="desc">${BOSS_SETS[k].map(x=>esc(x.name)).join(', ')}</td></tr>`).join('')}
+      <tr><td><b>${RACES.mixed}</b></td><td class="desc">목록에 없는 이름</td><td class="desc">${BOSS_SETS.mixed.map(x=>esc(x.name)).join(', ')}</td></tr>
+    </tbody></table></div>`;
+}
+$('skillModal').addEventListener('input', e=>{
+  const k = e.target.dataset && e.target.dataset.ci; if(!k) return;
+  calcIn[k] = Math.max(0, Number(e.target.value)||0);
+  try{ localStorage.setItem('sc-boss-raid:calc', JSON.stringify(calcIn)); }catch(_){}
+  const id = e.target.id, pos = e.target.selectionStart; renderRulesTab();
+  const el = $(id); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} }
+});
+
+/* ---------- 룰렛 탭 ---------- */
+const ROULETTE_PLAN = [
+  {name:'일반 룰렛', cost:100, p:[30,40,20,5,5]},
+  {name:'고급 룰렛', cost:300, p:[10,35,35,15,5]},
+  {name:'전설 룰렛', cost:1000, p:[0,20,40,35,5]}
+];
+const PARTY_SKILL_PLAN = [
+  {tier:'일반', name:'응급 치료', desc:'룰렛을 돌린 파티원 체력 +40'},
+  {tier:'희귀', name:'부활', desc:'전투불능 파티원 1명 체력 50으로 부활'},
+  {tier:'희귀', name:'저주 해제', desc:'파티 전체의 저주 해제'},
+  {tier:'전설', name:'전체 치유', desc:'파티원 전원 체력 +30 (전투불능도 부활)'},
+  {tier:'전설', name:'보호막 파괴', desc:'보스 보호막 제거, 분노 게이지 비우기'}
+];
+function renderRouletteTab(){
+  const box = $('skTabRoulette'); if(box.hidden) return;
+  const ws = rouletteWeights(settingsOf(raid)), tot = ws.reduce((a,x)=>a+x.w,0) || 1;
+  box.innerHTML = `<p class="sk-note">별풍선 룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 파티원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
+      ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
+    </tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">별풍선 양에 따른 룰렛 등급 <span class="plan-tag">기획안 · 미적용</span></h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>룰렛</th><th class="r">필요 별풍선</th>${TIERS.map(t=>`<th class="r tier-${t}" style="color:var(--tc)">${t}</th>`).join('')}</tr></thead><tbody>
+      ${ROULETTE_PLAN.map(r=>`<tr><td><b>${r.name}</b></td><td class="r num">${fmt(r.cost)}개</td>${r.p.map(v=>`<td class="r num">${v}%</td>`).join('')}</tr>`).join('')}
+    </tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">추가 파티 스킬 (룰렛 결과) <span class="plan-tag">기획안 · 미적용</span></h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>스킬</th><th>효과</th></tr></thead><tbody>
+      ${PARTY_SKILL_PLAN.map(x=>`<tr><td class="tier-${x.tier}" style="color:var(--tc)"><b>${x.tier}</b></td><td>${esc(x.name)}</td><td class="desc">${esc(x.desc)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
 function renderSkillModal(){
   const edit = canEditSkills();
-  $('skTabBoss').hidden = skTab !== 'boss'; $('skTabRole').hidden = skTab !== 'role'; $('skTabGear').hidden = skTab !== 'gear'; $('skTabSettings').hidden = skTab !== 'settings';
+  $('skTabBoss').hidden = skTab !== 'boss'; $('skTabRole').hidden = skTab !== 'role'; $('skTabGear').hidden = skTab !== 'gear'; $('skTabSettings').hidden = skTab !== 'settings'; $('skTabRules').hidden = skTab !== 'rules'; $('skTabRoulette').hidden = skTab !== 'roulette';
+  renderRulesTab(); renderRouletteTab();
   const race = (raid && raid.race) || 'mixed';
   // 보스 스킬
   const list = bsDraft || bossSkillsOf(raid).map(x=>({...x}));
