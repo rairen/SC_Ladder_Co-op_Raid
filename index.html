@@ -161,6 +161,13 @@ td .mvp{font-size:11px;color:var(--accent-ink);background:var(--accent);padding:
 @keyframes flash{0%{filter:brightness(2)}100%{filter:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 [hidden]{display:none!important}
+.danger{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px;padding-top:14px;border-top:1px dashed var(--line)}
+.danger-text{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--muted);min-width:0;flex:1 1 320px}
+.danger-text b{color:var(--fg)}
+.danger-act{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.danger-act .warn{font-size:13px;color:var(--trap);font-weight:700}
+.btn.danger.solid{background:var(--trap);color:#1a0506;border-color:var(--trap);font-weight:700}
+html.overlay .danger{display:none!important}
 .chip .x{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:0 0 0 4px}
 .chip .x:hover{color:var(--trap)}
 .banner .btn{margin-top:10px}
@@ -422,6 +429,12 @@ tr.hdetail td{background:var(--bg);white-space:normal}
     <div class="records" id="records"></div>
     <div id="histView"></div>
     <div id="fameView" hidden></div>
+    <div class="danger" id="dangerZone">
+      <div class="danger-text"><b>데이터 초기화</b><span>이 방의 현재 레이드, 전투 기록, 지난 레이드 기록, 명예의 전당을 모두 지웁니다. 되돌릴 수 없으니 먼저 <b>백업 저장</b>을 권합니다.</span></div>
+      <div class="danger-act" id="wipeAct">
+        <button type="button" class="btn danger" id="wipeBtn">데이터 초기화</button>
+      </div>
+    </div>
   </section>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -482,6 +495,10 @@ const store = {
       const arr = Array.isArray(list) ? list : Object.values(list || {});
       return arr.includes(name) ? arr : arr.concat([name]);
     });
+  },
+  async wipe(){
+    if(local){ raid = null; events = []; history = []; commitHistory(); commit(); return; }
+    await db.ref(base()).remove();
   },
   async reset(sum){
     if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); raid = null; events = []; commit(); return; }
@@ -914,6 +931,7 @@ function renderJoin(s, me){
   $('mePanel').hidden = !me;
   $('meNameView').textContent = me || '';
   $('meSelect').parentElement.hidden = !!me || OVERLAY;
+  $('dangerZone').hidden = !!me;
   if(!me && meName && !$('joinName').value && document.activeElement !== $('joinName')) $('joinName').value = meName;
   const others = s.members;
   $('joinExisting').innerHTML = others.length
@@ -1080,6 +1098,27 @@ function histDetail(h, mem){
   }
   return meta + `<div class="hd-grid"><div><h3>파티원 기록</h3>${table}</div><div><h3>전투 기록</h3>${logHtml}</div></div>`;
 }
+function wipeIdle(){
+  $('wipeAct').innerHTML = '<button type="button" class="btn danger" id="wipeBtn">데이터 초기화</button>';
+}
+$('dangerZone').addEventListener('click', e=>{
+  const id = e.target.id;
+  if(id === 'wipeBtn'){
+    $('wipeAct').innerHTML = `<span class="warn">${ROOM==='main' ? '' : 'ROOM '+esc(ROOM)+' · '}모든 기록을 지울까요?</span>
+      <button type="button" class="btn danger solid" id="wipeYes">모두 지우기</button>
+      <button type="button" class="btn" id="wipeNo">취소</button>`;
+    $('wipeNo').focus();
+  } else if(id === 'wipeNo'){
+    wipeIdle();
+  } else if(id === 'wipeYes'){
+    guard(async()=>{
+      await store.wipe();
+      openHist = null; wipeIdle(); renderHistory(); render();
+      openSetup(true);
+      toast('모든 데이터를 초기화했습니다.');
+    });
+  }
+});
 function setHistTab(t){ histTab = t; $('tabHist').setAttribute('aria-pressed', t==='hist'); $('tabFame').setAttribute('aria-pressed', t==='fame'); renderHistory(); }
 $('tabHist').onclick = ()=>setHistTab('hist');
 $('tabFame').onclick = ()=>setHistTab('fame');
