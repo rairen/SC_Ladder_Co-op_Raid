@@ -116,6 +116,7 @@ function wipeIdle(){
 }
 $('dangerZone').addEventListener('click', e=>{
   const id = e.target.id;
+  if((id === 'wipeBtn' || id === 'wipeYes') && !canOperate()){ wipeIdle(); toast('데이터 초기화는 운영자만 할 수 있습니다.'); return; }
   if(id === 'wipeBtn'){
     $('wipeAct').innerHTML = `<span class="warn">모든 기록을 지울까요?</span>
       <button type="button" class="btn danger solid" id="wipeYes">모두 지우기</button>

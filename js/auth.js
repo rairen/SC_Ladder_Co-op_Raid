@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    Firebase 를 연결했을 때만 동작합니다. (브라우저 저장 모드에서는 로그인 없음)
      users/<uid>   내 프로필 {name, ladder, gw}       본인만 쓰기
-     admins/<uid>  운영자 표시 true                   운영자만 쓰기 (운영자가 없으면 첫 로그인 사용자가 등록)
+     admins/<uid>  운영자 표시 true                   운영자만 쓰기 (첫 운영자는 Firebase 콘솔에서 직접 등록)
    권한
      로그인 안 함   보기만 가능
      로그인        참가하기, 내 결과·룰렛·장비·역할 스킬 입력
@@ -22,6 +22,8 @@ function initAuth(app){
   auth = app.auth();
   db.ref('admins').on('value', snap=>{ admins = snap.val() || {}; adminsLoaded = true; render(); renderAuth(); });
   auth.onAuthStateChanged(u=>{
+    // 계정이 바뀌면 이전 사람의 "내 이름" 선택을 지움 (같은 PC를 여럿이 쓸 때)
+    if((authUser && authUser.uid) !== (u && u.uid) && authUser !== null){ meName = ''; try{ localStorage.removeItem(ME_KEY); }catch(_){} }
     authUser = u || null;
     if(unsubProfile){ unsubProfile(); unsubProfile = null; }
     profile = null;
@@ -93,7 +95,7 @@ function renderProfile(){
   $('pfAdmin').innerHTML = isAdmin()
     ? '<b class="ok">운영자</b> · 레이드 열기·종료, 파티원 추가, 데이터 초기화를 할 수 있습니다.'
     : noAdmins
-      ? '아직 운영자가 없습니다. 이 레이드를 운영할 사람이면 등록하세요. <button class="btn sm" type="button" id="claimAdmin">운영자로 등록</button>'
+      ? `아직 운영자가 없습니다. 첫 운영자는 Firebase 콘솔에서 등록합니다. 내 계정 ID: <code class="uid">${esc(authUser ? authUser.uid : '')}</code> <button class="btn sm" type="button" id="copyUid">복사</button>`
       : '스트리머 계정입니다. 운영자가 운영자 목록에서 권한을 줄 수 있습니다.';
   // 운영자: 로그인한 사용자 목록에서 운영자 지정
   const list = $('pfUsers');
@@ -128,7 +130,7 @@ document.addEventListener('click', e=>{
   else if(id === 'pfClose') openProfile(false);
   else if(id === 'pfSave') saveProfile();
   else if(id === 'pfLogout'){ auth.signOut(); openProfile(false); toast('로그아웃했습니다.'); }
-  else if(id === 'claimAdmin') guard(async()=>{ await db.ref('admins/'+authUser.uid).set(true); toast('운영자로 등록했습니다.'); });
+  else if(id === 'copyUid'){ navigator.clipboard.writeText(authUser.uid).then(()=>toast('계정 ID를 복사했습니다.'), ()=>toast(authUser.uid)); }
 });
 $('profileModal').addEventListener('change', e=>{
   const c = e.target.closest('[data-admin]'); if(!c) return;

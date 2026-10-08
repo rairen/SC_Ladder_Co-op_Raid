@@ -404,3 +404,4 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 .pf-user{display:flex;align-items:center;gap:6px;font-size:14px}
 .join-login{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #authBox .btn{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.uid{font-family:var(--f-mono,monospace);font-size:12px;padding:1px 5px;border-radius:4px;background:var(--panel2);word-break:break-all}
