@@ -104,14 +104,24 @@ function doJoin(){
   if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
   if(!raid){ toast('아직 열린 레이드가 없습니다. 운영자가 레이드를 열면 참가할 수 있습니다.'); return; }
   const already = raid.members.includes(name);
+  const needCode = authed && !isAdmin(), code = String($('joinCode').value||'').trim().toUpperCase();
+  if(needCode && !code){ toast('운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
+  if(authed){ const ro0 = raid.roster && raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== authUser.uid){ toast('같은 이름의 파티원이 이미 있습니다. 프로필에서 방송 닉네임을 바꿔 주세요.'); return; } }
   const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(profile && profile.gw)||30) : 30;
   guard(async()=>{
+    if(authed){
+      if(needCode){
+        try{ await db.ref('joins/'+ROOM+'/'+authUser.uid).set(code); }
+        catch(_){ toast('초대 코드가 맞지 않습니다. 운영자에게 지금 코드를 다시 확인하세요.'); return; }
+      }
+      await db.ref(base()+'/raid/uids/'+authUser.uid).set(name);
+    }
     await store.join(name);
     if(!already || role !== rosterOf(raid, name).role || fee !== rosterOf(raid, name).fee) await store.setRoster(name, {role, fee});
     if(authed) await store.setRoster(name, {uid: authUser.uid, ladder, gw});
     else if(ladder) await store.setRoster(name, {ladder});
     if(authed && profile && ladder !== (profile.ladder||'')) await db.ref('users/'+authUser.uid).update({ladder});
-    $('joinName').value = ''; $('joinLadder').value = ''; delete $('joinLadder').dataset.touched;
+    $('joinName').value = ''; $('joinLadder').value = ''; $('joinCode').value = ''; delete $('joinLadder').dataset.touched;
     setMe(name);
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
   });
@@ -141,6 +151,7 @@ function renderJoin(s, me){
   $('joinExisting').hidden = authed && !isAdmin();
   $('leaveMe').hidden = authed && !isAdmin();
   $('joinName').disabled = authed;
+  $('joinCodeField').hidden = !(authed && authUser && !isAdmin());
   if(authed && authUser){
     $('joinName').value = profileName();
     if(document.activeElement !== $('joinLadder') && !$('joinLadder').dataset.touched) $('joinLadder').value = (profile && profile.ladder) || '';

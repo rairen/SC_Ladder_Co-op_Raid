@@ -39,18 +39,20 @@ function initAuth(app){
   });
 }
 
+function joinedAs(nm){ return !!(authUser && raid && nm && (raid.members||[]).includes(nm) && raid.uids && raid.uids[authUser.uid] === nm); }
 /* render() 맨 앞에서 호출: 로그인 상태에 따라 보기 전용 여부를 정함 */
 function applyAccess(){
   if(!useAuth()) return;
   const nm = profileName();
-  const member = !!(raid && nm && (raid.members||[]).includes(nm));
+  // 초대 코드로 참가해서 uids 에 내 계정이 이 이름으로 올라가 있어야 파티원
+  const member = joinedAs(nm);
   readOnly = !(isAdmin() || (authUser && member));
 }
 /* 로그인 모드에서 "내 이름": 운영자가 아니면 프로필 닉네임으로 고정 */
 function authMe(s){
   if(isAdmin()) return meName && s.members.includes(meName) ? meName : '';
   const nm = profileName();
-  return authUser && nm && s.members.includes(nm) ? nm : '';
+  return joinedAs(nm) ? nm : '';
 }
 
 function renderAuth(){
@@ -116,7 +118,29 @@ document.addEventListener('click', e=>{
   else if(id === 'profileBtn') openProfile(true);
   else if(id === 'pfClose') openProfile(false);
   else if(id === 'pfSave') saveProfile();
+  else if(id === 'pfDelete') deleteAccount(e.target);
   else if(id === 'pfLogout'){ auth.signOut(); openProfile(false); toast('로그아웃했습니다.'); }
   else if(id === 'copyUid'){ navigator.clipboard.writeText(authUser.uid).then(()=>toast('계정 ID를 복사했습니다.'), ()=>toast(authUser.uid)); }
 });
 $('profileModal').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('#pfName,#pfLadder')) saveProfile(); if(e.key==='Escape') openProfile(false); });
+
+/* 로그인 정보 삭제: 내 프로필과 구글 로그인 연결을 지움 (끝난 레이드 기록은 남음) */
+let deleteArm = false;
+async function deleteAccount(btn){
+  if(!authUser) return;
+  if(!deleteArm){ deleteArm = true; btn.textContent = '정말 삭제 (한 번 더)'; setTimeout(()=>{ deleteArm = false; btn.textContent = '로그인 정보 삭제'; }, 4000); return; }
+  deleteArm = false;
+  const uid = authUser.uid;
+  await guard(async()=>{
+    await db.ref('users/'+uid).remove();
+    await db.ref('joins/'+ROOM+'/'+uid).remove().catch(()=>{});
+    const u = auth.currentUser;
+    try{ await u.delete(); }
+    catch(e){
+      if(/requires-recent-login/.test(String(e && e.code))){ await u.reauthenticateWithPopup(new firebase.auth.GoogleAuthProvider()); await u.delete(); }
+      else throw e;
+    }
+    openProfile(false);
+    toast('로그인 정보를 삭제했습니다. 끝난 레이드 기록은 남아 있습니다.');
+  });
+}

@@ -6,11 +6,11 @@
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610091857">
+<link rel="stylesheet" href="css/style.css?v=202610091909">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); } })();
 </script>
-<script src="firebase-config.js?v=202610091857"></script>
+<script src="firebase-config.js?v=202610091909"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -47,6 +47,7 @@
         <label class="label" for="bossRace" style="margin-top:10px">보스 종족 (스킬 세트)</label>
         <select id="bossRace"></select>
         <p class="hint" id="raceSkills" style="margin:4px 0 0"></p>
+        <div id="setupMembersBox">
         <label class="label" for="memberAdd" style="margin-top:10px">미리 넣을 파티원 (선택 · 비워두면 각자 참가)</label>
         <div class="add-row" style="margin:0">
           <input type="text" id="memberAdd" placeholder="파티원 이름 입력 후 Enter" maxlength="20">
@@ -54,6 +55,8 @@
           <button class="btn" id="memberAddBtn" type="button">추가</button>
         </div>
         <div class="chips" id="setupMembers" style="margin-top:8px"></div>
+        </div>
+        <p class="hint" id="setupInviteHint" hidden style="margin:10px 0 0">파티원은 레이드를 시작한 뒤 <b>초대 코드</b>로 각자 참가합니다. 코드는 파티 현황에 표시됩니다.</p>
       </div>
       <div class="field">
         <span class="label">난이도</span>
@@ -128,11 +131,12 @@
       <section class="panel join" id="joinPanel" hidden>
         <h2>레이드 참가</h2>
         <p class="hint" style="margin:0 0 10px" id="joinIntro">방송에서 쓰는 이름으로 참가하면, 이 브라우저에서는 내 결과와 룰렛만 입력하게 됩니다.</p>
-        <div class="join-login" id="joinLogin" hidden><button class="btn primary" type="button" id="loginBtn2">구글 로그인</button><span class="hint">로그인하면 내 프로필(방송 닉네임·게임 아이디)로 바로 참가합니다.</span></div>
+        <div class="join-login" id="joinLogin" hidden><button class="btn primary" type="button" id="loginBtn2">구글 로그인</button><span class="hint">로그인하면 내 프로필(방송 닉네임·게임 아이디)로 바로 참가합니다. 로그인할 때 다루는 정보는 <a href="privacy.html" target="_blank" rel="noopener">개인정보 안내</a>에 있습니다.</span></div>
         <div class="row" style="margin:0" id="joinForm">
           <div class="field" style="flex:1 1 180px"><label class="label" for="joinName">내 이름</label><input type="text" id="joinName" placeholder="방송 닉네임" maxlength="20"></div>
           <div class="field"><label class="label" for="joinRole">역할</label><select id="joinRole"></select></div>
           <div class="field"><label class="label" for="joinFee">입장료 (별풍선)</label><input type="number" id="joinFee" min="0" step="10" value="0" style="width:120px;font-size:15px"></div>
+          <div class="field" id="joinCodeField" hidden><label class="label" for="joinCode">초대 코드</label><input type="text" id="joinCode" placeholder="예: K7P2QX" maxlength="8" style="width:110px;text-transform:uppercase" autocomplete="off" spellcheck="false"></div>
           <div class="field"><label class="label" for="joinLadder">래더 아이디 (선택)</label><input type="text" id="joinLadder" placeholder="게임 아이디" maxlength="24" style="width:140px" autocomplete="off" spellcheck="false"></div>
           <button class="btn primary" id="joinBtn" type="button">참가하기</button>
         </div>
@@ -243,7 +247,8 @@
             <tbody id="partyBody"></tbody>
           </table>
         </div>
-        <div class="add-row">
+        <div class="invite" id="inviteBox" hidden></div>
+        <div class="add-row" id="addMemberRow">
           <input type="text" id="addMember" placeholder="운영자가 대신 추가할 파티원 이름" maxlength="20" aria-label="파티원 추가">
           <select id="addMemberRole" aria-label="역할"></select>
           <button class="btn" id="addMemberBtn" type="button">추가</button>
@@ -312,32 +317,36 @@
       <div class="field"><label class="label" for="pfGw">서버</label><select id="pfGw"></select></div>
     </div>
     <p class="hint" style="margin:0">게임 아이디를 넣어 두면 참가할 때 자동으로 등록되고, 수집기가 래더 결과를 자동으로 넣습니다.</p>
+    <p class="hint" style="margin:0">방송 닉네임과 게임 아이디는 레이드 화면에 공개됩니다. 구글 이메일은 공개되지 않습니다. <a href="privacy.html" target="_blank" rel="noopener">개인정보 안내</a></p>
     <p class="hint" id="pfAdmin" style="margin:0"></p>
     <div class="form-actions">
       <button class="btn primary" id="pfSave" type="button">저장</button>
       <button class="btn" id="pfLogout" type="button">로그아웃</button>
+      <button class="btn danger" id="pfDelete" type="button">로그인 정보 삭제</button>
     </div>
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
 <!-- 게임 수치는 js/game-data.js 에서 바꿉니다. 아래 파일은 이 순서대로 읽혀야 합니다. -->
-<script src="js/game-data.js?v=202610091857"></script>
-<script src="js/state.js?v=202610091857"></script>
-<script src="js/store.js?v=202610091857"></script>
-<script src="js/logic.js?v=202610091857"></script>
-<script src="js/render.js?v=202610091857"></script>
-<script src="js/setup.js?v=202610091857"></script>
-<script src="js/actions.js?v=202610091857"></script>
-<script src="js/gear-roulette.js?v=202610091857"></script>
-<script src="js/overlay.js?v=202610091857"></script>
-<script src="js/role-skill.js?v=202610091857"></script>
-<script src="js/info-window.js?v=202610091857"></script>
-<script src="js/ladder.js?v=202610091857"></script>
-<script src="js/auth.js?v=202610091857"></script>
-<script src="js/history.js?v=202610091857"></script>
-<script src="js/boot.js?v=202610091857"></script>
+<script src="js/game-data.js?v=202610091909"></script>
+<script src="js/state.js?v=202610091909"></script>
+<script src="js/store.js?v=202610091909"></script>
+<script src="js/logic.js?v=202610091909"></script>
+<script src="js/render.js?v=202610091909"></script>
+<script src="js/setup.js?v=202610091909"></script>
+<script src="js/actions.js?v=202610091909"></script>
+<script src="js/gear-roulette.js?v=202610091909"></script>
+<script src="js/overlay.js?v=202610091909"></script>
+<script src="js/role-skill.js?v=202610091909"></script>
+<script src="js/info-window.js?v=202610091909"></script>
+<script src="js/ladder.js?v=202610091909"></script>
+<script src="js/party.js?v=202610091909"></script>
+<script src="js/auth.js?v=202610091909"></script>
+<script src="js/history.js?v=202610091909"></script>
+<script src="js/boot.js?v=202610091909"></script>
 
+<footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>
 </html>
 

@@ -38,7 +38,9 @@ $('startRaid').onclick = ()=>{
   const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: setupRoles[m] || 'dealer', fee:0}])), diff, cfg:setupCfg(), startedAt:Date.now()};
   guard(async()=>{
     if(raid && events.some(e=>!e.undone)) await store.archive(summarize(raid, compute(raid, events), true));
-    await store.setRaid(data); setupSrc = null; openSetup(false); toast('레이드를 시작했습니다. 수치는 이제 고정됩니다.');
+    await store.setRaid(data); setupSrc = null; openSetup(false);
+    if(useAuth()){ await newInvite(data.raidId); toast('레이드를 시작했습니다. 파티 현황의 초대 코드를 파티원에게 알려 주세요.'); }
+    else toast('레이드를 시작했습니다. 수치는 이제 고정됩니다.');
   });
 };
 

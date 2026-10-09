@@ -181,6 +181,7 @@ function compute(r, evs){
     if(status !== 'live'){ entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
     const enraged = hp <= maxHp*0.5;
     const m = ev.member;
+    if(m && !members.includes(m)){ entry.ignored = true; entry.notes.push('파티에 없는 파티원 · 반영 안 됨'); continue; }
     const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item ?? ''}`;
     if(ev.type === 'game'){
       const s = st(m);

@@ -42,6 +42,10 @@ function updateSetupPreview(){
 }
 function openSetup(open){
   $('setup').hidden = !open;
+  // 로그인 모드에서는 파티원을 미리 넣지 않고, 초대 코드로 각자 참가
+  const invite = typeof useAuth === 'function' && useAuth();
+  $('setupMembersBox').hidden = invite; $('setupInviteHint').hidden = !invite;
+  if(invite){ setupList = []; setupRoles = {}; }
   if(open && !raid){ setupList = []; setupRoles = {}; setupSrc = null; }
   if(open){
     if(raid){

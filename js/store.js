@@ -27,6 +27,13 @@ const store = {
       return arr.includes(name) ? arr : arr.concat([name]);
     });
   },
+  /* 파티에서 내보내기 (운영자). 그 파티원의 기록은 계산에서 빠집니다. */
+  async kick(name){
+    if(local){ raid = {...raid, members: raid.members.filter(x=>x!==name)}; commit(); return; }
+    await db.ref(base()+'/raid/members').transaction(list=>{ const arr = Array.isArray(list) ? list : Object.values(list || {}); return arr.filter(x=>x!==name); });
+    const uid = raid && raid.roster && raid.roster[rosterKey(name)] && raid.roster[rosterKey(name)].uid;
+    if(uid) await db.ref(base()+'/raid/uids/'+uid).remove();
+  },
   async wipe(){
     if(local){ raid = null; events = []; history = []; commitHistory(); commit(); return; }
     await db.ref(base()).remove();

@@ -76,7 +76,8 @@ function render(){
     const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0);
     const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 받은 입장료">` : `<span class="num">${fmt(ro.fee)}</span>`) + `<div class="hint num" title="장비 룰렛에 쓰고 남은 입장료">남음 ${fmt(left)}</div>`;
     const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
-    return `<tr><td>${esc(m)}${x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>':''}</td>
+    const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="파티에서 내보내기">${kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
+    return `<tr><td>${esc(m)}${x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>':''}${kick}</td>
       <td>${roleCell}</td><td class="r">${feeCell}</td><td>${gearHtml(s, m)}</td>
       <td class="r num">${x.w}</td><td class="r num">${x.l}</td>
       <td class="r num">${fmt(x.dmg)}<span class="share" style="width:${Math.round(x.dmg/maxD*40)}px"></span></td>
@@ -131,6 +132,7 @@ function render(){
   renderGearPanel(s, canAct, me);
   renderRoleBar(s, me, canAct);
   if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);
+  if(typeof renderInvite === 'function') renderInvite(s, me);
   $('wtMulti').textContent = `멀티 확보 ×${s.S.win.multi}`; $('wtSame').textContent = `같은 빌드 2연속 ×${s.S.win.same}`; $('wtBanned').textContent = `금지 빌드 ×${s.S.win.banned}`;
   renderOdds(s.S);
   renderSkillBoard(s);

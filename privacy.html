@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>개인정보 안내 · 래더 협동 보스 레이드</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .doc{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+  .doc h1{font-family:var(--f-display);font-weight:400;font-size:26px;margin:0}
+  .doc h2{font-size:17px;margin:18px 0 6px}
+  .doc p,.doc li{color:var(--fg);font-size:15px}
+  .doc ul{margin:0;padding-left:20px;line-height:1.7}
+  .doc table{font-size:14px}
+  .doc td,.doc th{vertical-align:top;white-space:normal;min-width:90px}
+  .doc a{color:var(--accent)}
+</style>
+</head>
+<body>
+<main class="doc panel">
+  <p><a href="./">← 레이드 화면으로</a></p>
+  <h1>로그인과 개인정보 안내</h1>
+  <p class="hint">시행일 2026년 10월 10일</p>
+  <p>래더 협동 보스 레이드는 방송용 레이드 진행판입니다. 참가와 권한 관리를 위해 구글 로그인을 씁니다. 이 사이트가 다루는 정보와 그 범위를 아래에 안내합니다.</p>
+
+  <h2>1. 다루는 정보</h2>
+  <div class="tbl-wrap"><table>
+    <thead><tr><th>구분</th><th>항목</th><th>어디에 저장되나</th></tr></thead>
+    <tbody>
+      <tr><td>구글 로그인</td><td>구글 계정 이메일, 이름, 프로필 사진 주소, 계정 고유 ID</td><td>Google Firebase 인증. 이 사이트의 데이터베이스에는 이메일·이름·사진을 따로 저장하지 않습니다.</td></tr>
+      <tr><td>내 프로필 (직접 입력)</td><td>방송 닉네임, 게임(래더) 아이디, 서버</td><td>Firebase 데이터베이스</td></tr>
+      <tr><td>레이드 기록</td><td>참가 이름, 역할, 입장료, 래더 결과(승패·점수), 룰렛·장비 기록, 참가한 계정 고유 ID</td><td>Firebase 데이터베이스</td></tr>
+      <tr><td>래더 자동 수집</td><td>등록한 게임 아이디의 래더 점수와 시즌 전적</td><td>Firebase 데이터베이스 (수집기를 켠 경우만)</td></tr>
+      <tr><td>이 브라우저</td><td>로그인 상태, 내 이름 선택, 계산기 입력값</td><td>브라우저 저장소. 광고·분석용 쿠키는 쓰지 않습니다.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>2. 쓰는 목적</h2>
+  <ul>
+    <li>본인 확인과 레이드 참가, 내 기록만 입력할 수 있게 하는 권한 관리</li>
+    <li>운영자 권한 확인</li>
+    <li>레이드 진행 상황과 기록, 명예의 전당 표시, 방송 오버레이 표시</li>
+  </ul>
+
+  <h2>3. 공개 범위</h2>
+  <ul>
+    <li><b>방송 닉네임, 게임 아이디, 레이드 기록은 사이트를 여는 누구에게나 보입니다.</b> 방송 화면에 띄우는 용도이기 때문입니다. 공개되어도 괜찮은 이름을 쓰세요.</li>
+    <li>구글 이메일은 화면에 공개되지 않습니다. 다만 사이트 관리자는 Firebase 콘솔에서 로그인한 계정 목록(이메일 포함)을 볼 수 있습니다.</li>
+    <li>판매하거나 다른 목적으로 제3자에게 제공하지 않습니다.</li>
+  </ul>
+
+  <h2>4. 처리를 맡기는 곳</h2>
+  <ul>
+    <li><b>Google Firebase</b> (Google LLC): 로그인 인증과 데이터베이스 저장. 데이터베이스는 Google의 아시아(싱가포르) 서버에 있습니다.</li>
+    <li><b>GitHub Pages</b>: 사이트 파일 제공. <b>Google Fonts</b>: 글꼴 제공. 이 과정에서 각 서비스가 접속 IP 같은 일반 접속 정보를 받을 수 있습니다.</li>
+  </ul>
+
+  <h2>5. 보관 기간과 삭제</h2>
+  <ul>
+    <li>프로필은 직접 고치거나, 프로필 창의 <b>로그인 정보 삭제</b>로 언제든 지울 수 있습니다. 이때 프로필과 구글 로그인 연결이 함께 삭제됩니다.</li>
+    <li>이미 끝난 레이드 기록(참가 이름과 결과)은 레이드 기록·명예의 전당을 위해 남습니다. 지우고 싶으면 아래로 요청하세요.</li>
+    <li>사이트 운영을 끝내면 데이터베이스를 삭제합니다.</li>
+  </ul>
+
+  <h2>6. 문의와 요청</h2>
+  <p>열람·수정·삭제 요청이나 문의는 <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid/issues" target="_blank" rel="noopener">GitHub 이슈</a>로 남기거나 레이드 운영자에게 직접 알려 주세요.</p>
+
+  <p class="hint">로그인하지 않아도 레이드 진행 화면과 기록은 볼 수 있습니다. 로그인은 레이드에 참가하거나 운영할 때만 필요합니다.</p>
+</main>
+</body>
+</html>
