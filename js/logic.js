@@ -328,16 +328,25 @@ function skillHtml(e){
   const downs = (e.party||[]).filter(x=>x.down).map(x=>x.m);
   return e.skills.map(k=>`<div class="skill">보스 스킬 <b>${esc(k.name)}</b> · ${esc(k.text)}</div>`).join('') + (downs.length ? `<div class="skill">전투불능: <b>${esc(downs.join(', '))}</b></div>` : '');
 }
-const durText = it => it.dur === Infinity ? '' : ` ${it.dur}/${it.maxDur}`;
+/* 착용 장비 칸 (무기·갑옷·장신구). 등급 색 테두리, 내구도 눈금 */
+const SLOT_ICON = {
+  weapon:   '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 4l-10.5 10.5"/><path d="M20 4h-3M20 4v3"/><path d="M6.5 11.5l6 6"/><path d="M8.5 15.5L4 20"/></svg>',
+  armor:    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 2.8v5.4c0 4.6-3 8-7 9.8-4-1.8-7-5.2-7-9.8V5.8z"/><path d="M12 7v10"/></svg>',
+  accessory:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14.5" r="5.5"/><path d="M12 3.5l2.2 2.2L12 8 9.8 5.7z"/></svg>'
+};
 function gearHtml(s, m){
   const g = s.gear[m]; if(!g) return '';
-  const one = (cls, it, title) => {
-    if(it.base) return `<span class="${cls} base" title="${esc(title)} · 기본">${esc(it.name)}</span>`;
-    const used = it.idx === 2 && cls === 'c' && s.immUsed && s.immUsed[m];
-    return `<span class="${cls}${it.grade?' gr-'+it.grade:''}${used?' used':''}" title="${esc(title)}${it.gradeLabel?' · '+it.gradeLabel:''}${it.dur!==Infinity?` · 내구도 ${it.dur}/${it.maxDur}`:''}">${esc(it.name)}${cls==='w' ? ' +'+Math.round(it.v*100)+'%' : cls==='a' ? ' +'+it.v : ''}<small class="dur">${durText(it)}</small></span>`;
+  const one = (slot, it) => {
+    const used = slot === 'accessory' && it.idx === 2 && s.immUsed && s.immUsed[m];
+    const stat = it.base ? '기본' : slot === 'weapon' ? `공격 +${Math.round(it.v*100)}%` : slot === 'armor' ? `체력 +${it.v}` : it.idx === 1 ? `분노 −${Math.round(it.v*100)}%` : `부활 ${it.revive || REVIVE_HP}`;
+    const hasDur = !it.base && it.dur !== Infinity && it.maxDur;
+    const dura = hasDur ? `<span class="dura${it.dur <= Math.ceil(it.maxDur/4) ? ' low' : ''}" style="--seg:${Math.min(it.maxDur, 20)}"><i style="width:${Math.round(it.dur/it.maxDur*100)}%"></i></span><span class="dura-n num">${it.dur}/${it.maxDur}</span>` : '';
+    const title = `${GEAR_SLOT[slot]} · ${it.name}${it.gradeLabel ? ' ['+it.gradeLabel+']' : ''} · ${stat}${hasDur ? ` · 내구도 ${it.dur}/${it.maxDur}` : ''}${used ? ' · 사용함' : ''}`;
+    return `<span class="slot ${slot}${it.base ? ' base' : ''}${it.grade ? ' gr-'+it.grade : ''}${used ? ' used' : ''}" title="${esc(title)}">
+      <span class="slot-ic">${SLOT_ICON[slot]}</span>
+      <span class="slot-tx"><span class="slot-nm">${esc(it.name)}</span><span class="slot-st">${it.gradeLabel && !it.base ? `<em>${it.gradeLabel}</em> ` : ''}${stat}</span>${dura ? `<span class="slot-du">${dura}</span>` : ''}</span></span>`;
   };
-  const c = g.accessory, cTitle = c.idx===1 ? `내 공격으로 오르는 분노 −${Math.round(c.v*100)}%` : c.idx===2 ? `한 번 쓰러질 때 체력 ${c.revive}으로 버팀` : '장신구';
-  return `<span class="gear">${one('w', g.weapon, '무기 · 승리 데미지 +'+Math.round((g.weapon.v||0)*100)+'%')}${one('a', g.armor, '갑옷 · 최대 체력 +'+(g.armor.v||0))}${one('c', c, cTitle)}</span>`;
+  return `<span class="gear">${one('weapon', g.weapon)}${one('armor', g.armor)}${one('accessory', g.accessory)}</span>`;
 }
 function statusTags(s, m){
   const t = [];

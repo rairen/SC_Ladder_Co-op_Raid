@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610092127">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="css/style.css?v=202610092245">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else document.documentElement.classList.add('ovl-hp'); } })();
 </script>
-<script src="firebase-config.js?v=202610092127"></script>
+<script src="firebase-config.js?v=202610092245"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -115,7 +115,7 @@
   <section class="dmgmeter" id="dmgMeter" aria-label="파티 딜 미터기" hidden></section>
 
   <div class="grid">
-    <div class="col">
+    <div class="col col-left">
       <!-- Result input -->
       <section class="panel join" id="joinPanel" hidden>
         <h2>레이드 참가</h2>
@@ -203,7 +203,21 @@
 
     </div>
 
-    <div class="col">
+    <div class="col col-mid">
+      <section class="panel party-panel" id="partyPanel">
+        <div class="panel-head"><h2>파티 상태</h2><span class="hint" id="partyCount"></span></div>
+        <div class="party-list" id="partyBody"></div>
+        <div class="invite" id="inviteBox" hidden></div>
+        <div class="add-row" id="addMemberRow">
+          <input type="text" id="addMember" placeholder="운영자가 대신 추가할 파티원 이름" maxlength="20" aria-label="파티원 추가">
+          <select id="addMemberRole" aria-label="역할"></select>
+          <button class="btn" id="addMemberBtn" type="button">추가</button>
+        </div>
+        <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼 늘어납니다.</p>
+      </section>
+    </div>
+
+    <div class="col col-right">
       <!-- Roulette -->
       <section class="panel" id="roulettePanel">
         <div class="panel-head"><h2>룰렛</h2><button class="btn sm" type="button" data-openlist="roulette">목록</button></div>
@@ -230,29 +244,14 @@
         <div class="inv-head"><span class="label">인벤토리</span><span class="hint" id="invCount"></span></div>
         <ul class="inv" id="invList"></ul>
       </section>
-      <section class="panel">
-        <h2>파티 현황</h2>
-        <div class="tbl-wrap">
-          <table class="ptable">
-            <thead><tr><th>파티원</th><th>역할</th><th class="r">입장료</th><th>장비</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">체력</th><th>게이지</th><th>상태</th></tr></thead>
-            <tbody id="partyBody"></tbody>
-          </table>
-        </div>
-        <div class="invite" id="inviteBox" hidden></div>
-        <div class="add-row" id="addMemberRow">
-          <input type="text" id="addMember" placeholder="운영자가 대신 추가할 파티원 이름" maxlength="20" aria-label="파티원 추가">
-          <select id="addMemberRole" aria-label="역할"></select>
-          <button class="btn" id="addMemberBtn" type="button">추가</button>
-        </div>
-        <p class="hint" id="addHint" style="margin:6px 0 0">파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼 늘어납니다.</p>
-      </section>
 
-      <section class="panel logpanel">
-        <h2>전투 기록</h2>
-        <ul class="log" id="log"></ul>
-      </section>
     </div>
   </div>
+
+  <section class="panel logpanel" id="logPanel">
+    <h2>전투 기록</h2>
+    <ul class="log" id="log"></ul>
+  </section>
 
   <section class="panel" id="historyPanel">
     <div class="hist-head">
@@ -337,24 +336,24 @@
 <div class="toast" id="toast" hidden></div>
 
 <!-- 게임 수치는 js/game-data.js 에서 바꿉니다. 아래 파일은 이 순서대로 읽혀야 합니다. -->
-<script src="js/game-data.js?v=202610092127"></script>
-<script src="js/state.js?v=202610092127"></script>
-<script src="js/store.js?v=202610092127"></script>
-<script src="js/logic.js?v=202610092127"></script>
-<script src="js/render.js?v=202610092127"></script>
-<script src="js/setup.js?v=202610092127"></script>
-<script src="js/actions.js?v=202610092127"></script>
-<script src="js/gear-roulette.js?v=202610092127"></script>
-<script src="js/overlay.js?v=202610092127"></script>
-<script src="js/role-skill.js?v=202610092127"></script>
-<script src="js/info-window.js?v=202610092127"></script>
-<script src="js/ladder-local.js?v=202610092127"></script>
-<script src="js/ladder.js?v=202610092127"></script>
-<script src="js/party.js?v=202610092127"></script>
-<script src="js/ladder-browser.js?v=202610092127"></script>
-<script src="js/auth.js?v=202610092127"></script>
-<script src="js/history.js?v=202610092127"></script>
-<script src="js/boot.js?v=202610092127"></script>
+<script src="js/game-data.js?v=202610092245"></script>
+<script src="js/state.js?v=202610092245"></script>
+<script src="js/store.js?v=202610092245"></script>
+<script src="js/logic.js?v=202610092245"></script>
+<script src="js/render.js?v=202610092245"></script>
+<script src="js/setup.js?v=202610092245"></script>
+<script src="js/actions.js?v=202610092245"></script>
+<script src="js/gear-roulette.js?v=202610092245"></script>
+<script src="js/overlay.js?v=202610092245"></script>
+<script src="js/role-skill.js?v=202610092245"></script>
+<script src="js/info-window.js?v=202610092245"></script>
+<script src="js/ladder-local.js?v=202610092245"></script>
+<script src="js/ladder.js?v=202610092245"></script>
+<script src="js/party.js?v=202610092245"></script>
+<script src="js/ladder-browser.js?v=202610092245"></script>
+<script src="js/auth.js?v=202610092245"></script>
+<script src="js/history.js?v=202610092245"></script>
+<script src="js/boot.js?v=202610092245"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>

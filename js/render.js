@@ -63,28 +63,41 @@ function render(){
     return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${(s.mhp[m] ?? 1) <= 0 ? '<span class="tag">전투불능</span>' : ''}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
   }).join('') : `<span class="empty">참가한 파티원이 여기에 표시됩니다.</span>`;
 
-  // party table
+  // party status cards (파티 상태)
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
   const top = rows.length ? s.stats[rows[0]].dmg : 0;
   const maxD = Math.max(1, top);
   const editAll = hasRaid && !readOnly && !OVERLAY && s.status === 'live';
-  $('partyBody').innerHTML = rows.length ? rows.map(m=>{
+  const alive = rows.filter(m=>(s.mhp[m] ?? 1) > 0).length;
+  $('partyCount').textContent = rows.length ? `생존 ${alive} / ${rows.length}` : '';
+  const pb = $('partyBody');
+  if(!(pb.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName))){
+  pb.innerHTML = rows.length ? rows.map((m,i)=>{
     const x = s.stats[m], ro = rosterOf(raid, m), canEdit = editAll && (!me || me === m);
+    const h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0, low = !down && h <= mx*0.4;
+    const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
+    const rk = s.role[m] || ro.role;
     const roleCell = canEdit
       ? `<select data-rrole="${esc(m)}" aria-label="${esc(m)} 역할">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===ro.role?' selected':''}>${v.label}</option>`).join('')}</select>`
-      : `<span class="role-tag ${ro.role}">${ROLES[ro.role].short}</span>${ROLES[ro.role].label}`;
+      : `<span>${ROLES[rk].label}</span>`;
     const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0);
-    const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 받은 입장료">` : `<span class="num">${fmt(ro.fee)}</span>`) + `<div class="hint num" title="장비 룰렛에 쓰고 남은 입장료">남음 ${fmt(left)}</div>`;
-    const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
+    const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 받은 입장료">` : `<b class="num">${fmt(ro.fee)}</b>`) + `<span class="hint num" title="장비 룰렛에 쓰고 남은 입장료">남음 ${fmt(left)}</span>`;
     const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="파티에서 내보내기">${kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
-    return `<tr><td>${esc(m)}${x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>':''}${kick}</td>
-      <td>${roleCell}</td><td class="r">${feeCell}</td><td>${gearHtml(s, m)}</td>
-      <td class="r num">${x.w}</td><td class="r num">${x.l}</td>
-      <td class="r num">${fmt(x.dmg)}<span class="share" style="width:${Math.round(x.dmg/maxD*40)}px"></span></td>
-      <td class="r num">${fmt(s.mhp[m] ?? PARTY_HP)}/${fmt(s.maxH[m] ?? PARTY_HP)}</td>
-      <td class="num"><span class="gauge-mini${full?' full':''}"><i style="width:${Math.min(100, g/need*100)}%"></i></span>${g}/${need}</td>
-      <td>${statusTags(s, m) || '<span style="color:var(--muted)">-</span>'}</td></tr>`;
-  }).join('') : `<tr><td colspan="10" class="empty">아직 파티원이 없습니다.</td></tr>`;
+    const mvp = x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>' : '';
+    return `<article class="pcard${down?' down':''}${low?' low':''}${m===me?' mine':''}">
+      <header class="pc-head"><span class="pc-rank num">${i+1}</span><span class="role-tag ${rk}">${ROLES[rk].short}</span><b class="pc-name">${esc(m)}</b>${mvp}<span class="pc-tags">${statusTags(s, m)}</span>${kick}</header>
+      <div class="rbar hp${low?' low':''}${down?' ko':''}"><i style="width:${Math.max(0, h/mx*100)}%"></i><span class="rb-l">HP</span><span class="rb-v num">${down ? '전투불능' : `${fmt(h)} / ${fmt(mx)}`}</span></div>
+      <div class="rbar sp${full?' full':''}"><i style="width:${Math.min(100, g/need*100)}%"></i><span class="rb-l">스킬</span><span class="rb-v num">${full ? '사용 가능' : `${g} / ${need}`}</span></div>
+      ${gearHtml(s, m)}
+      <footer class="pc-foot">
+        <span class="pc-stat"><span class="hint">전적</span><b class="num">${x.w}승 ${x.l}패</b></span>
+        <span class="pc-stat"><span class="hint">데미지</span><b class="num">${fmt(x.dmg)}</b><span class="share" style="width:${Math.round(x.dmg/maxD*48)}px"></span></span>
+        <span class="pc-stat"><span class="hint">역할</span>${roleCell}</span>
+        <span class="pc-stat"><span class="hint">입장료</span>${feeCell}</span>
+      </footer>
+    </article>`;
+  }).join('') : `<p class="empty">아직 파티원이 없습니다. 초대 코드로 참가하면 여기에 나타납니다.</p>`;
+  }
 
   // party HP strip (HUD & overlay)
   $('partyStrip').innerHTML = s.members.map(m=>{
