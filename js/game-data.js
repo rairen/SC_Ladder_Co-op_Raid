@@ -153,13 +153,31 @@ const DEFAULT_GAUGE = {max:100, start:20, win:25, loss:15};
    무기   v : 승리 데미지 증가 비율 (0.10 = +10%)
    갑옷   v : 최대 체력 증가량
    장신구   : [1] 평온의 부적 v = 내 공격으로 오르는 분노 감소 비율 (0.10 = −10%)
-              [2] 불사의 목걸이 = 레이드당 1회, 쓰러질 때 체력 REVIVE_HP 로 버팀 */
+              [2] 불사의 목걸이 = 쓰러질 때 체력 REVIVE_HP 로 버티고 부서짐 (1회용) */
 const GEAR = {
   weapon:   [{name:'낡은 검', v:0}, {name:'강철 검',     v:0.10}, {name:'마력 검',       v:0.25}],
   armor:    [{name:'천 옷',   v:0}, {name:'사슬 갑옷',   v:20},   {name:'판금 갑옷',     v:50}],
   accessory:[{name:'없음',    v:0}, {name:'평온의 부적', v:0.10}, {name:'불사의 목걸이', v:1}]
 };
 const GEAR_SLOT = {weapon:'무기', armor:'갑옷', accessory:'장신구'};
+
+
+/* ---------- 장비 등급과 내구도 ----------
+   장비 룰렛에서 장비가 나오면 등급도 함께 정해집니다.
+   w    : 등급 확률 비중
+   dur  : 내구도 (사용 횟수)
+          무기·평온의 부적  내 래더 승리 공격 1번마다 1씩 닳음
+          갑옷             보스에게 공격받을 때마다 1씩 닳음
+          불사의 목걸이     등급과 상관없이 한 번 발동하면 부서짐
+          0 이 되면 부서지고, 인벤토리에서 같은 종류의 가장 좋은 장비를 자동으로 착용합니다.
+   stat : 능력치 배율 (일반 = 1). 예: 강철 검 +10% → 전설 +13%
+          불사의 목걸이는 버티는 체력(REVIVE_HP)에 곱합니다. */
+const GEAR_GRADES = [
+  {id:'common', label:'일반', w:60, dur:3,  stat:1.00},
+  {id:'rare',   label:'고급', w:28, dur:5,  stat:1.10},
+  {id:'epic',   label:'희귀', w:10, dur:8,  stat:1.20},
+  {id:'legend', label:'전설', w:2,  dur:12, stat:1.30}
+];
 
 
 /* ---------- 장비 룰렛 확률 ----------
@@ -187,7 +205,8 @@ const DEFAULT_SETTINGS = {
   gearCost: 100,
   gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
-  gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))]))
+  gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))])),
+  grades: GEAR_GRADES.map(g=>({w:g.w, dur:g.dur, stat:g.stat}))
 };
 
 

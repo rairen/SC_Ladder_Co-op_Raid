@@ -12,6 +12,7 @@ function evText(e){
     return `${ev.member} 무승부`;
   }
   if(ev.type === 'gear'){ return `${ev.member} 장비 룰렛 ${(e.gear||{}).name||''} · ${e.notes.join(' · ')}`; }
+  if(ev.type === 'equip'){ return `${ev.member} ${e.notes.join(' · ')}`; }
   if(ev.type === 'role'){ const r0 = e.role || {name:'역할 스킬'}; return `${ev.member} 역할 스킬 ${r0.name}! ${e.notes.join(' · ')}`; }
   const it = ITEM[ev.item] || ITEM.none;
   return `${ev.member} 룰렛 [${it.tier}] ${it.name}`;

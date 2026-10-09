@@ -4,13 +4,48 @@
 /* ---------- 장비 룰렛 ---------- */
 function renderGearPanel(s, canAct, me){
   const S = s.S, m = selected;
-  if(!raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">파티원을 고르면 남은 입장료와 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; return; }
+  if(!raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">파티원을 고르면 남은 입장료와 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; $('invList').innerHTML = ''; $('invCount').textContent = ''; return; }
   const left = (s.fee[m]||0) - (s.spent[m]||0), cost = S.gearCost, times = cost > 0 ? Math.floor(left / cost) : 0;
   $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 입장료 <b>${fmt(left)}</b> / 받은 ${fmt(s.fee[m]||0)}</span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
+  renderInventory(s, m, canAct && (!me || me === m));
   const mine = !me || me === m;
   $('gearSpin').disabled = !(canAct && mine && left >= cost);
   $('gearSpin').textContent = `장비 뽑기 (−${fmt(cost)})`;
   $('gearFor').textContent = left < cost ? '입장료가 부족합니다. 파티 현황에서 받은 입장료를 늘려 주세요.' : '';
+}
+/* 인벤토리: 얻은 장비 목록, 착용·해제 */
+function renderInventory(s, m, canEdit){
+  const box = $('invList'), items = (s.inv && s.inv[m]) || [], eq = (s.eq && s.eq[m]) || {};
+  $('invCount').textContent = items.length ? `${items.filter(x=>!x.broken).length}개 보유${items.some(x=>x.broken) ? ` · 파괴 ${items.filter(x=>x.broken).length}` : ''}` : '';
+  if(!items.length){ box.innerHTML = '<li class="empty">장비 룰렛으로 얻은 장비가 여기에 쌓입니다.</li>'; return; }
+  const order = {weapon:0, armor:1, accessory:2};
+  const list = items.slice().sort((a,b)=> (a.broken-b.broken) || (order[a.slot]-order[b.slot]) || (itemScore(b)-itemScore(a)));
+  box.innerHTML = list.map(it=>{
+    const on = eq[it.slot] === it.id;
+    const eff = it.slot==='weapon' ? `승리 데미지 +${Math.round(it.v*100)}%` : it.slot==='armor' ? `최대 체력 +${it.v}` : it.idx===1 ? `분노 상승 −${Math.round(it.v*100)}%` : `쓰러질 때 체력 ${it.revive}`;
+    const dur = it.dur === Infinity ? '' : `<span class="inv-dur"><i style="width:${Math.round(it.dur/it.maxDur*100)}%"></i></span><span class="num">${it.dur}/${it.maxDur}</span>`;
+    const btn = !canEdit || it.broken ? '' : on
+      ? `<button type="button" class="btn sm" data-unequip="${it.slot}">해제</button>`
+      : `<button type="button" class="btn sm" data-equip="${esc(it.id)}">장착</button>`;
+    return `<li class="${it.broken?'broken':''}${on?' on':''}"><span class="inv-slot">${GEAR_SLOT[it.slot]}</span>
+      <span class="inv-name${it.grade?' gr-'+it.grade:''}">${it.gradeLabel?`<span class="gr-tag">${it.gradeLabel}</span>`:''}${esc(it.name)}</span>
+      <span class="inv-eff">${eff}</span><span class="inv-d">${it.broken ? '<span class="d-hp">파괴</span>' : dur}</span>
+      <span class="inv-act">${on ? '<span class="inv-on">착용 중</span>' : ''}${btn}</span></li>`;
+  }).join('');
+}
+document.addEventListener('click', e=>{
+  const eqb = e.target.closest('[data-equip]'), off = e.target.closest('[data-unequip]');
+  if(!(eqb || off) || !raid || !selected) return;
+  const who = selected;
+  guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'equip', member:who, item: eqb ? eqb.dataset.equip : 'off:'+off.dataset.unequip, undone:false}));
+});
+function pickGrade(){
+  const S = settingsOf(raid), list = GEAR_GRADES.map(g=>gradeOf(S, g.id)), tot = list.reduce((a,x)=>a+x.w,0);
+  if(!tot) return GEAR_GRADES[0].id;
+  const arr = new Uint32Array(1); crypto.getRandomValues(arr);
+  let r = arr[0]/4294967296*tot;
+  for(const x of list){ if((r -= x.w) < 0) return x.id; }
+  return GEAR_GRADES[0].id;
 }
 function pickGear(){
   const S = settingsOf(raid), list = gearRollList(S), tot = list.reduce((a,x)=>a+x.w,0);
@@ -23,16 +58,16 @@ function pickGear(){
 let gearSpinning = false;
 $('gearSpin').onclick = ()=>{
   if(gearSpinning || !selected || !raid) return;
-  const who = selected, S = settingsOf(raid), key = pickGear(), cost = S.gearCost;
+  const who = selected, S = settingsOf(raid), key = pickGear(), grade = key === 'none' ? '' : pickGrade(), cost = S.gearCost;
   gearSpinning = true; $('gearSpin').disabled = true;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches, keys = Object.keys(DEFAULT_GEAR_ROLL);
   let i = 0; const steps = reduce ? 0 : 12;
-  const show = (k, label)=>{ $('gearReel').innerHTML = `<span class="t">${label || (k==='none' ? '꽝' : GEAR_SLOT[k.split(':')[0]])}</span><span class="n">${esc(gearItemName(S, k))}</span>`; };
+  const show = (k, label, gr)=>{ $('gearReel').innerHTML = `<span class="t">${label || (k==='none' ? '꽝' : GEAR_SLOT[k.split(':')[0]])}</span><span class="n${gr?' gr-'+gr:''}">${esc(gearItemName(S, k, gr))}</span>`; };
   const tick = ()=>{
     if(i < steps){ show(keys[Math.floor(Math.random()*keys.length)]); i++; setTimeout(tick, 50 + i*i*2); return; }
-    show(key, key==='none' ? '꽝' : GEAR_SLOT[key.split(':')[0]] + ' 획득');
+    show(key, key==='none' ? '꽝' : GEAR_SLOT[key.split(':')[0]] + ' 획득', grade);
     gearSpinning = false;
-    guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'gear', member:who, item:key, cost, undone:false}));
+    guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'gear', member:who, item:key, ...(grade ? {grade} : {}), cost, undone:false}));
     render();
   };
   tick();

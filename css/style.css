@@ -405,3 +405,24 @@ tr.hdetail td{background:var(--bg);white-space:normal}
 .join-login{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 #authBox .btn{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .uid{font-family:var(--f-mono,monospace);font-size:12px;padding:1px 5px;border-radius:4px;background:var(--panel2);word-break:break-all}
+
+/* 장비 등급·인벤토리 */
+:root{--gr-common:#c9d3dd; --gr-rare:#5fd28a; --gr-epic:#6aa8ff; --gr-legend:#ffb347}
+.gr-common{color:var(--gr-common)} .gr-rare{color:var(--gr-rare)} .gr-epic{color:var(--gr-epic)} .gr-legend{color:var(--gr-legend)}
+.gear .dur{margin-left:3px;font-size:10px;opacity:.75}
+.gr-tag{display:inline-block;margin-right:5px;padding:0 5px;border-radius:4px;font-size:11px;border:1px solid currentColor}
+.inv-head{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}
+.inv{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:260px;overflow-y:auto}
+.inv li{display:grid;grid-template-columns:44px minmax(0,1.3fr) minmax(0,1.2fr) 92px auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-size:13px}
+.inv li.empty{display:block;color:var(--muted);border-style:dashed}
+.inv li.on{border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}
+.inv li.broken{opacity:.45}
+.inv-slot{color:var(--muted);font-size:12px}
+.inv-name{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inv-eff{color:var(--muted);font-size:12px}
+.inv-d{display:flex;align-items:center;gap:6px;font-size:12px}
+.inv-dur{flex:1;height:5px;border-radius:3px;background:var(--panel2);overflow:hidden}
+.inv-dur i{display:block;height:100%;background:var(--accent)}
+.inv-act{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.inv-on{font-size:11px;color:var(--accent)}
+@media (max-width:520px){ .inv li{grid-template-columns:40px minmax(0,1fr) auto; } .inv-eff{grid-column:2} .inv-d{grid-column:2} .inv-act{grid-row:1/3;grid-column:3} }

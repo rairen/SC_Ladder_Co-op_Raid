@@ -155,10 +155,15 @@ function renderSkillModal(){
   const gearInfo = {
     weapon:   {title:'무기',   unit:'%', show:v=> v ? `승리 데미지 +${Math.round(v*100)}%` : '기본', pctv:true},
     armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
-    accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `레이드당 1회, 쓰러질 때 체력 ${REVIVE_HP}으로 버팀` : '-', pctv:true}
+    accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `1회용, 쓰러질 때 체력 ${REVIVE_HP}(등급 배율 적용)으로 버팀` : '-', pctv:true}
   };
-  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 입장료에서 비용을 내고, 아래 확률로 장비 하나가 나옵니다. 지금 것보다 좋은 장비면 바로 장착합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
+  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 입장료에서 비용을 내고, 아래 확률로 장비 하나와 <b>등급</b>이 나옵니다. 얻은 장비는 인벤토리에 쌓이고, 지금 것보다 좋으면 바로 장착합니다. 등급이 높을수록 능력치가 조금 높고 내구도가 깁니다. 무기·평온의 부적은 내 승리 공격마다, 갑옷은 보스에게 맞을 때마다 내구도가 1씩 줄고, 불사의 목걸이는 한 번 발동하면 부서집니다. 부서지면 인벤토리의 다음 장비를 자동으로 착용합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
     ${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,x)=>a+x.w,0) || 1; return `<div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>장비 룰렛 1회 비용</b></td><td class="r">${edit ? `<input type="number" min="0" step="10" value="${SD.gearCost}" data-sp="gearCost" aria-label="장비 룰렛 비용">` : `<span class="num">${fmt(SD.gearCost)}개</span>`}</td><td class="desc">남은 입장료에서 빠집니다</td></tr><tr><td><b>꽝</b></td><td class="r">${edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll.none}" data-gr="none" aria-label="꽝 비중">` : `<span class="num">${SD.gearRoll.none}</span>`}</td><td class="desc" data-grp="none">${Math.round((gl.find(x=>x.key==='none').w)/gt*1000)/10}%</td></tr></tbody></table></div>`; })()}
+    ${(()=>{ const gs = GEAR_GRADES.map((g,i)=>({...g, ...SD.grades[i]})), gt = gs.reduce((a,x)=>a+(Number(x.w)||0),0) || 1;
+      const inp = (i,k,val,step,label) => edit ? `<input type="number" min="0" step="${step}" value="${val}" data-gd="${i}" data-gk="${k}" aria-label="${label}">` : `<span class="num">${val}</span>`;
+      return `<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th class="r">확률 비중</th><th class="r">내구도</th><th class="r">능력치 (%)</th><th>예시</th></tr></thead><tbody>
+      ${gs.map((g,i)=>`<tr><td class="gr-${g.id}"><b>${g.label}</b></td><td class="r">${inp(i,'w',g.w,1,g.label+' 비중')} <span class="hint" data-gdp="${i}">${Math.round((Number(g.w)||0)/gt*1000)/10}%</span></td><td class="r">${inp(i,'dur',g.dur,1,g.label+' 내구도')}</td><td class="r">${inp(i,'stat',Math.round(g.stat*100),1,g.label+' 능력치')}</td><td class="desc">강철 검 +${Math.round(SD.gear.weapon[1].v*g.stat*100)}% · 사슬 갑옷 +${Math.round(SD.gear.armor[1].v*g.stat)} · ${g.dur}회</td></tr>`).join('')}
+      </tbody></table></div>`; })()}
     ${Object.entries(gearInfo).map(([k,info])=>`<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>${info.title}</th><th class="r">확률 비중</th><th class="r">수치${info.unit?' ('+info.unit+')':''}</th><th>효과</th></tr></thead><tbody>
       ${SD.gear[k].map((x,i)=>{
         const fixedV = (k==='accessory' && i!==1) || (i===0 && k!=='gauge');
@@ -197,6 +202,15 @@ $('skillModal').addEventListener('input', e=>{
     setDraft.gearRoll[t.dataset.gr] = Math.max(0, Number(t.value)||0);
     const tot = Object.values(setDraft.gearRoll).reduce((a,b)=>a+(Number(b)||0),0) || 1;
     $('skTabGear').querySelectorAll('[data-grp]').forEach(c=>{ c.textContent = Math.round((Number(setDraft.gearRoll[c.dataset.grp])||0)/tot*1000)/10 + '%'; });
+    setDirty = true; $('skillModal').querySelectorAll('[data-setsave]').forEach(b=>b.disabled = false);
+    return;
+  }
+  if(t.dataset.gd !== undefined){
+    setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
+    const row = setDraft.grades[+t.dataset.gd], val = Math.max(0, Number(t.value)||0);
+    if(t.dataset.gk === 'stat') row.stat = val/100; else if(t.dataset.gk === 'dur') row.dur = Math.max(1, Math.round(val)); else row.w = val;
+    const tot = setDraft.grades.reduce((a,x)=>a+(Number(x.w)||0),0) || 1;
+    $('skTabGear').querySelectorAll('[data-gdp]').forEach(c=>{ c.textContent = Math.round((Number(setDraft.grades[+c.dataset.gdp].w)||0)/tot*1000)/10 + '%'; });
     setDirty = true; $('skillModal').querySelectorAll('[data-setsave]').forEach(b=>b.disabled = false);
     return;
   }
@@ -242,14 +256,14 @@ $('skillModal').addEventListener('click', e=>{
   if(sr){
     setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
     const D = JSON.parse(JSON.stringify(settingsOf(null)));
-    if(sr.dataset.setreset === 'gear'){ setDraft.gear = D.gear; setDraft.gearRoll = D.gearRoll; setDraft.gearCost = D.gearCost; } else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.roulette = D.roulette; }
+    if(sr.dataset.setreset === 'gear'){ setDraft.gear = D.gear; setDraft.gearRoll = D.gearRoll; setDraft.gearCost = D.gearCost; setDraft.grades = D.grades; } else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.roulette = D.roulette; }
     setDirty = true; renderSkillModal(); return;
   }
   if(e.target.closest('[data-setsave]') && setDraft){
     const g = {}; for(const k in setDraft.gear) g[k] = setDraft.gear[k].map(x=>({min: Math.max(0, Math.round(Number(x.min)||0)), v: Math.max(0, Number(x.v)||0)}));
     const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(setDraft.roulette[it.id])||0);
     if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
-    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), gearCost: Math.max(0, Math.round(+setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +setDraft.gearRoll[k]||0)])), roulette, gear:g};
+    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), gearCost: Math.max(0, Math.round(+setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0)}))};
     guard(async()=>{ await saveSrc({settings}); setDraft = null; setDirty = false; renderSkillModal(); updateSetupPreview(); toast('수치를 적용했습니다. 레이드 시작 시 반영됩니다.'); });
     return;
   }

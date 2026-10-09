@@ -14,7 +14,26 @@ function gaugeOf(r){ return {...DEFAULT_GAUGE, ...((r && r.gauge) || {})}; }
 
 function pickTier(list, fee){ let t = list[0]; for(const x of list) if(fee >= x.min) t = x; return t; }
 function gearRollList(S){ return Object.keys(DEFAULT_GEAR_ROLL).map(k=>({key:k, w: Math.max(0, Number(S.gearRoll[k])||0)})); }
-function gearItemName(S, key){ if(key === 'none') return '꽝'; const [sl,i] = key.split(':'); return S.gear[sl][+i].name; }
+function gearItemName(S, key, grade){ if(!key || key === 'none') return '꽝'; const [sl,i] = key.split(':'); const g = grade && gradeOf(S, grade); return S.gear[sl][+i].name + (g && g.label ? ` [${g.label}]` : ''); }
+/* 장비 등급: 등급 정보 (없으면 예전 기록 → 내구도 없음) */
+function gradeOf(S, id){
+  const i = GEAR_GRADES.findIndex(g=>g.id===id);
+  if(i < 0) return {id:'', label:'', rank:-1, dur:Infinity, stat:1};
+  const x = (S.grades && S.grades[i]) || GEAR_GRADES[i];
+  return {id, label:GEAR_GRADES[i].label, rank:i, w:Math.max(0, Number(x.w)||0), dur:Math.max(1, Math.round(Number(x.dur)||1)), stat:Math.max(0, Number(x.stat)||1)};
+}
+/* 장비 하나 만들기: 등급 배율을 적용한 수치와 내구도 */
+function makeItem(S, id, key, gradeId){
+  const [slot, iStr] = key.split(':'), idx = +iStr, base = S.gear[slot][idx], g = gradeOf(S, gradeId);
+  let v = base.v;
+  if(slot === 'armor') v = Math.round(base.v * g.stat);
+  else if(slot === 'weapon' || (slot === 'accessory' && idx === 1)) v = Math.round(base.v * g.stat * 100) / 100;
+  const immortal = slot === 'accessory' && idx === 2;
+  const dur = immortal ? 1 : g.dur;
+  return {id, key, slot, idx, grade:g.id, gradeLabel:g.label, rank:g.rank, name:base.name, v, revive: immortal ? Math.round(REVIVE_HP * g.stat) : 0, dur, maxDur:dur, broken:false};
+}
+/* 자동 장착 비교: 장비 단계 → 등급 → 남은 내구도 */
+const itemScore = it => it ? it.idx*10000 + (it.rank+1)*100 + Math.min(99, it.dur === Infinity ? 99 : it.dur) : 0;
 
 function settingsOf(r){
   const x = (r && r.settings) || {};
@@ -31,13 +50,8 @@ function settingsOf(r){
     const src = x.gear && Array.isArray(x.gear[k]) && x.gear[k].length === GEAR[k].length ? x.gear[k] : DEFAULT_SETTINGS.gear[k];
     out.gear[k] = GEAR[k].map((g,i)=>({name:g.name, min: Math.max(0, Number(src[i].min)||0), v: Number(src[i].v)||0}));
   }
+  out.grades = GEAR_GRADES.map((g,i)=>({...DEFAULT_SETTINGS.grades[i], ...((x.grades && x.grades[i]) || {})}));
   return out;
-}
-/* 슬롯별 장비 번호(0 = 기본)로 장비 정보를 만듭니다 */
-function gearFromIdx(idx, S){
-  S = S || settingsOf(null);
-  const G2 = S.gear, w = G2.weapon[idx.weapon||0], a = G2.armor[idx.armor||0], c = G2.accessory[idx.accessory||0], ci = idx.accessory||0;
-  return {idx:{...idx}, weapon:w, armor:a, accessory:c, dmg:w.v, hp:a.v, rageCut: ci === 1 ? c.v : 0, immortal: ci === 2};
 }
 const rosterKey = name => String(name).replace(/[.#$\[\]\/]/g, '_');
 function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0), ladder: String(x.ladder||''), gw: Number(x.gw)||30}; }
@@ -58,10 +72,40 @@ function compute(r, evs){
   const maxHp = bossHpOf(cfg, n), maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
   const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, spent = {};
+  const inv = {}, eq = {};   // 인벤토리(얻은 장비 전부)와 슬롯별 착용 장비
+  const itemOf = (m, id) => id ? inv[m].find(x=>x.id===id) : null;
+  /* 착용 장비로 능력치 계산 (빈 슬롯은 기본 장비) */
+  function buildGear(m){
+    const w = itemOf(m, eq[m].weapon), a = itemOf(m, eq[m].armor), c = itemOf(m, eq[m].accessory);
+    const base = sl => ({...S.gear[sl][0], base:true});
+    const weapon = w || base('weapon'), armor = a || base('armor'), accessory = c || base('accessory');
+    return {weapon, armor, accessory, dmg: w ? w.v : 0, hp: a ? a.v : 0, rageCut: c && c.idx === 1 ? c.v : 0, immortal: !!(c && c.idx === 2), revive: c && c.idx === 2 ? c.revive : 0};
+  }
+  /* 장착 (갑옷이 바뀌면 최대 체력도 바뀜) */
+  function equip(m, slot, item){
+    const before = gear[m];
+    eq[m][slot] = item ? item.id : null;
+    gear[m] = buildGear(m);
+    if(slot === 'armor'){ const d = gear[m].hp - before.hp; maxH[m] = PARTY_HP + gear[m].hp; if(mhp[m] > 0) mhp[m] = Math.max(1, Math.min(maxH[m], mhp[m] + d)); }
+  }
+  /* 인벤토리에서 그 슬롯의 가장 좋은 장비 */
+  const bestOf = (m, slot) => inv[m].filter(x=>x.slot===slot && !x.broken).sort((a,b)=>itemScore(b)-itemScore(a))[0] || null;
+  /* 내구도 1 감소, 0 이 되면 부서지고 다음 장비 자동 착용 */
+  function wear(m, slot, entry){
+    const it = itemOf(m, eq[m][slot]); if(!it || it.dur === Infinity) return;
+    it.dur = Math.max(0, it.dur - 1);
+    if(it.dur <= 0){
+      it.broken = true;
+      const next = bestOf(m, slot);
+      equip(m, slot, next);
+      entry.notes.push(`${m} ${it.name}${it.gradeLabel?`[${it.gradeLabel}]`:''} 파괴${next ? ` → ${next.name}${next.gradeLabel?`[${next.gradeLabel}]`:''} 착용` : ''}`);
+    }
+  }
   const st = m => {
     if(!(m in mhp)){
-      const ro = rosterOf(r, m), g = gearFromIdx({weapon:0, armor:0, accessory:0}, S);
-      gear[m] = g; role[m] = ro.role; fee[m] = ro.fee; spent[m] = 0;
+      const ro = rosterOf(r, m);
+      inv[m] = []; eq[m] = {weapon:null, armor:null, accessory:null};
+      const g = gear[m] = buildGear(m); role[m] = ro.role; fee[m] = ro.fee; spent[m] = 0;
       maxH[m] = PARTY_HP + g.hp; mhp[m] = maxH[m];
       /* 필요 게이지 = 최대 게이지 − 입장료 × 계수 (예: 100 − 1000 × 0.001 = 99) */
       needG[m] = Math.max(1, Math.round((G.max - ro.fee * (Number(S.feeGauge)||0)) * 10) / 10);
@@ -75,8 +119,9 @@ function compute(r, evs){
   const hurt = (m, d, entry) => {
     const before = mhp[m];
     let after = Math.max(0, before - d);
-    if(after === 0 && gear[m].immortal && !immUsed[m]){ immUsed[m] = true; after = REVIVE_HP; entry.notes.push(`${m} 불사의 목걸이 발동 · 체력 ${REVIVE_HP}`); }
+    if(after === 0 && gear[m].immortal){ immUsed[m] = true; after = gear[m].revive || REVIVE_HP; entry.notes.push(`${m} ${gear[m].accessory.name} 발동 · 체력 ${after}`); wear(m, 'accessory', entry); }
     mhp[m] = after;
+    if(eq[m] && eq[m].armor) wear(m, 'armor', entry);
     stats[m].skills += Math.max(0, before - after);
     entry.party.push({m, d: Math.max(0, before - after), down: after === 0});
   };
@@ -162,6 +207,7 @@ function compute(r, evs){
           if(rally > 0){ mult *= 1.5; rally--; entry.notes.push('전투 자극 ×1.5'); }
           const d = Math.round(p*mult);
           hit(m, d, entry); if(d > s.best) s.best = d;
+          if(d > 0){ wear(m, 'weapon', entry); if(gear[m].rageCut) wear(m, 'accessory', entry); }
           if(chain.includes(m)) chain = [m]; else chain.push(m);
           if(chain.length >= 3){
             const b = Math.round(maxHp*S.chain/100);
@@ -203,17 +249,29 @@ function compute(r, evs){
       const cost = Math.max(0, Number(ev.cost ?? S.gearCost) || 0);
       if(fee[m] - spent[m] < cost){ entry.ignored = true; entry.notes.push(`입장료 부족 (남은 ${fmt(fee[m]-spent[m])} / 필요 ${fmt(cost)}) · 반영 안 됨`); continue; }
       spent[m] += cost;
-      entry.gear = {key: ev.item, name: gearItemName(S, ev.item || 'none'), cost};
+      entry.gear = {key: ev.item, name: gearItemName(S, ev.item || 'none', ev.grade), grade: ev.grade || '', cost};
       if(!ev.item || ev.item === 'none'){ entry.notes.push(`입장료 −${fmt(cost)} · 꽝`); }
       else {
-        const [sl, iStr] = ev.item.split(':'), ni = +iStr, cur = gear[m].idx[sl] || 0;
-        if(ni > cur){
-          const before = gear[m];
-          gear[m] = gearFromIdx({...before.idx, [sl]: ni}, S);
-          if(sl === 'armor'){ const d = gear[m].hp - before.hp; maxH[m] += d; if(mhp[m] > 0) mhp[m] += d; }
-          entry.notes.push(`입장료 −${fmt(cost)} · ${GEAR_SLOT[sl]} ${entry.gear.name} 장착`);
-        } else entry.notes.push(`입장료 −${fmt(cost)} · ${entry.gear.name} (이미 같거나 더 좋은 ${GEAR_SLOT[sl]} 착용 중)`);
+        const it = makeItem(S, ev._id || seedBase, ev.item, ev.grade);
+        inv[m].push(it);
+        const cur = itemOf(m, eq[m][it.slot]);
+        if(itemScore(it) > itemScore(cur)){
+          equip(m, it.slot, it);
+          entry.notes.push(`입장료 −${fmt(cost)} · ${GEAR_SLOT[it.slot]} ${entry.gear.name} 장착`);
+        } else entry.notes.push(`입장료 −${fmt(cost)} · ${entry.gear.name} 인벤토리에 보관`);
       }
+    } else if(ev.type === 'equip'){
+      st(m);
+      const [mode, slotOff] = String(ev.item||'').split(':');
+      if(mode === 'off' && GEAR_SLOT[slotOff]){
+        if(eq[m][slotOff]){ const it = itemOf(m, eq[m][slotOff]); equip(m, slotOff, null); entry.notes.push(`${it.name} 해제 · 인벤토리에 보관`); }
+        else { entry.ignored = true; entry.notes.push('해제할 장비 없음'); }
+      } else {
+        const it = itemOf(m, ev.item);
+        if(!it || it.broken){ entry.ignored = true; entry.notes.push('부서졌거나 없는 장비 · 반영 안 됨'); }
+        else { equip(m, it.slot, it); entry.notes.push(`${GEAR_SLOT[it.slot]} ${it.name}${it.gradeLabel?`[${it.gradeLabel}]`:''} 장착 (내구 ${it.dur === Infinity ? '∞' : it.dur+'/'+it.maxDur})`); }
+      }
+      entry.equip = true;
     } else if(ev.type === 'role'){
       st(m);
       const rk = role[m], sk = RS[rk], v = Number(sk.v)||0;
@@ -240,14 +298,15 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('파티 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, immUsed, fee, spent, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, spent, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
 function whatHtml(e){
   const ev = e.ev;
   if(ev.type==='game'){ const p = Number(ev.points)||0; const wt = ev.multi?'운영 승리':ev.same?'빌드 반복':ev.banned?'초반 올인':''; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${wt && !e.wtEdit?`<span class="wt-tag">${wt}</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
-  if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b>${esc(g0.name)}</b>`; }
+  if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
+  if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
   const it = ITEM[ev.item] || ITEM.none;
   return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`;
@@ -257,15 +316,16 @@ function skillHtml(e){
   const downs = (e.party||[]).filter(x=>x.down).map(x=>x.m);
   return e.skills.map(k=>`<div class="skill">보스 스킬 <b>${esc(k.name)}</b> · ${esc(k.text)}</div>`).join('') + (downs.length ? `<div class="skill">전투불능: <b>${esc(downs.join(', '))}</b></div>` : '');
 }
+const durText = it => it.dur === Infinity ? '' : ` ${it.dur}/${it.maxDur}`;
 function gearHtml(s, m){
   const g = s.gear[m]; if(!g) return '';
-  const S = s.S, wv = g.weapon.v, av = g.armor.v, ci = S.gear.accessory.findIndex(x=>x.name===g.accessory.name);
-  const w = `<span class="w${wv?'':' base'}" title="무기 · ${wv ? '승리 데미지 +'+Math.round(wv*100)+'%' : '기본'}">${esc(g.weapon.name)}${wv ? ' +'+Math.round(wv*100)+'%' : ''}</span>`;
-  const a = `<span class="a${av?'':' base'}" title="갑옷 · ${av ? '최대 체력 +'+av : '기본'}">${esc(g.armor.name)}${av ? ' +'+av : ''}</span>`;
-  const cTitle = ci===1 ? `내 공격으로 오르는 분노 −${Math.round(g.accessory.v*100)}%` : ci===2 ? `레이드당 1회 쓰러질 때 체력 ${REVIVE_HP}` : '장신구 없음';
-  const used = ci===2 && s.immUsed && s.immUsed[m];
-  const c = `<span class="c${ci>0?'':' base'}${used?' used':''}" title="장신구 · ${cTitle}${used?' (사용함)':''}">${esc(g.accessory.name)}</span>`;
-  return `<span class="gear">${w}${a}${c}</span>`;
+  const one = (cls, it, title) => {
+    if(it.base) return `<span class="${cls} base" title="${esc(title)} · 기본">${esc(it.name)}</span>`;
+    const used = it.idx === 2 && cls === 'c' && s.immUsed && s.immUsed[m];
+    return `<span class="${cls}${it.grade?' gr-'+it.grade:''}${used?' used':''}" title="${esc(title)}${it.gradeLabel?' · '+it.gradeLabel:''}${it.dur!==Infinity?` · 내구도 ${it.dur}/${it.maxDur}`:''}">${esc(it.name)}${cls==='w' ? ' +'+Math.round(it.v*100)+'%' : cls==='a' ? ' +'+it.v : ''}<small class="dur">${durText(it)}</small></span>`;
+  };
+  const c = g.accessory, cTitle = c.idx===1 ? `내 공격으로 오르는 분노 −${Math.round(c.v*100)}%` : c.idx===2 ? `한 번 쓰러질 때 체력 ${c.revive}으로 버팀` : '장신구';
+  return `<span class="gear">${one('w', g.weapon, '무기 · 승리 데미지 +'+Math.round((g.weapon.v||0)*100)+'%')}${one('a', g.armor, '갑옷 · 최대 체력 +'+(g.armor.v||0))}${one('c', c, cTitle)}</span>`;
 }
 function statusTags(s, m){
   const t = [];

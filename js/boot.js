@@ -28,7 +28,8 @@ function loadLocal(){
 function commit(){
   try{ localStorage.setItem(LS_KEY, JSON.stringify({raid, events, savedAt:Date.now()})); }
   catch(_){ toast('브라우저 저장 공간에 저장하지 못했습니다. "백업 저장"으로 파일을 남겨두세요.'); }
-  render();
+  // 입력 칸의 change/blur 도중에 화면을 다시 그리면 오류가 나므로 한 박자 뒤에 그림
+  setTimeout(render, 0);
 }
 window.addEventListener('storage', e=>{ if(!local) return; if(e.key === LS_KEY){ loadLocal(); render(); } if(e.key === LS_HIST){ loadHistory(); renderHistory(); } });
 function startLocal(){ local = true; loadLocal(); loadHistory(); render(); renderHistory(); if(!raid && !OVERLAY) openSetup(true); }
