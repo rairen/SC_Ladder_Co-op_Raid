@@ -14,14 +14,23 @@ function renderSkillBoard(s){
 /* ---------- Raid history ---------- */
 function summarize(r, s, stopped){
   const members = {};
-  for(const m of s.members){ const x = s.stats[m] || {w:0,l:0,dmg:0,rage:0,best:0}; members[m] = {w:x.w, l:x.l, dmg:x.dmg, rage:x.rage, best:x.best||0, taken:x.skills||0, hp:s.mhp[m] ?? PARTY_HP}; }
+  for(const m of s.members){
+    const x = s.stats[m] || {w:0,l:0,dmg:0,rage:0,best:0}, ro = rosterOf(r, m), g = s.gear[m];
+    const join = events.find(e=>e.type==='party' && e.action==='join' && e.member===m && !e.undone);
+    const itemName = it => it && !it.base ? it.name + (it.gradeLabel ? `[${it.gradeLabel}]` : '') : '';
+    members[m] = {w:x.w, l:x.l, dmg:x.dmg, rage:x.rage, best:x.best||0, taken:x.skills||0, hp:s.mhp[m] ?? PARTY_HP, maxHp:s.maxH[m] ?? PARTY_HP,
+      role: s.role[m] || ro.role, fee: s.fee[m] ?? ro.fee, spent: s.spent[m] || 0, ladder: ro.ladder || '', joinedAt: join ? join.t : (r.startedAt||0),
+      gear: g ? [itemName(g.weapon), itemName(g.armor), itemName(g.accessory)].filter(Boolean) : [],
+      items: ((s.inv && s.inv[m]) || []).length};
+  }
+  const left = [...new Set(events.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
   const tot = Object.values(members).reduce((a,x)=>({w:a.w+x.w, l:a.l+x.l}), {w:0,l:0});
   const lastT = events.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
   return {raidId:r.raidId, name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
-    maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members,
+    maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
     evCount: events.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
-    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; if(e.undone) o.undone = true; return o; })};
+    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
 }
 let archiveTimer = null;
 function autoArchive(s){
@@ -90,9 +99,14 @@ function histDetail(h, mem){
     <span>1인당 HP <b>${fmt(cfg.hp)}</b> · 분노 최대 <b>${fmt(cfg.rage)}</b> · 회복 <b>${cfg.rec}%</b></span>
     <span>보스 HP <b>${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</b></span><span>분노 <b>${fmt(h.rage)} / ${fmt(h.maxRage)}</b></span></div>`;
   const table = `<div class="tbl-wrap"><table class="mini">
-    <thead><tr><th>파티원</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th></tr></thead>
-    <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${h.mvp===m?'<span class="mvp">MVP</span>':''}</td><td class="r num">${x.w}</td><td class="r num">${x.l}</td><td class="r num">${fmt(x.dmg)}</td><td class="r num">${fmt(x.best||0)}</td><td class="r num">${fmt(x.rage)}</td></tr>`).join('') : '<tr><td colspan="6" class="empty">참가한 파티원이 없었습니다.</td></tr>'}</tbody>
-  </table></div>`;
+    <thead><tr><th>파티원</th><th>역할</th><th class="r">입장료</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th><th class="r">최종 체력</th><th>장비</th></tr></thead>
+    <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${h.mvp===m?'<span class="mvp">MVP</span>':''}${x.ladder?`<div class="hint">${esc(x.ladder)}</div>`:''}</td>
+      <td>${x.role && ROLES[x.role] ? `<span class="role-tag ${x.role}">${ROLES[x.role].short}</span>${ROLES[x.role].label}` : '-'}</td>
+      <td class="r num">${x.fee != null ? fmt(x.fee) + (x.spent ? `<div class="hint">사용 ${fmt(x.spent)}</div>` : '') : '-'}</td>
+      <td class="r num">${x.w}</td><td class="r num">${x.l}</td><td class="r num">${fmt(x.dmg)}</td><td class="r num">${fmt(x.best||0)}</td><td class="r num">${fmt(x.rage)}</td>
+      <td class="r num">${x.hp != null ? (x.hp <= 0 ? '<span class="d-hp">전투불능</span>' : `${fmt(x.hp)}${x.maxHp ? '/'+fmt(x.maxHp) : ''}`) : '-'}</td>
+      <td>${x.gear && x.gear.length ? esc(x.gear.join(', ')) : '<span class="hint">기본</span>'}</td></tr>`).join('') : '<tr><td colspan="10" class="empty">참가한 파티원이 없었습니다.</td></tr>'}</tbody>
+  </table></div>${h.left && h.left.length ? `<p class="hint" style="margin:6px 0 0">중간에 내보낸 파티원: ${esc(h.left.join(', '))}</p>` : ''}`;
   let logHtml = '<p class="empty">이 레이드는 전투 기록이 저장되지 않았습니다.</p>';
   if(Array.isArray(h.events) && h.events.length){
     const st = compute({members:Object.keys(h.members||{}), cfg:h.cfg, bossSkills:h.bossSkills, roleSkills:h.roleSkills, gauge:h.gauge, roster:h.roster, settings:h.settings}, h.events.map((e,i)=>({...e, _id: e.id || 'h'+i})));

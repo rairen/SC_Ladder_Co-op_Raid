@@ -11,6 +11,7 @@ function evText(e){
     if(p < 0) return `${ev.member} 패배…${e.dHp > 0 ? ' 보스 HP +'+fmt(e.dHp)+' 회복' : ''}`;
     return `${ev.member} 무승부`;
   }
+  if(ev.type === 'party'){ return `${ev.member} ${partyText(ev)}`; }
   if(ev.type === 'gear'){ return `${ev.member} 장비 룰렛 ${(e.gear||{}).name||''} · ${e.notes.join(' · ')}`; }
   if(ev.type === 'equip'){ return `${ev.member} ${e.notes.join(' · ')}`; }
   if(ev.type === 'role'){ const r0 = e.role || {name:'역할 스킬'}; return `${ev.member} 역할 스킬 ${r0.name}! ${e.notes.join(' · ')}`; }
@@ -28,7 +29,7 @@ function renderTicker(s){
   const tk = $('ticker');
   const sk = last && last.skills && last.skills.length ? last.skills[last.skills.length-1] : null;
   tk.innerHTML = sk ? `<span class="tk-tag boss">BOSS SKILL</span><span class="tk-text">${esc(sk.name)}! ${esc(sk.text)}${last.party.some(x=>x.down) ? ' · 전투불능 '+esc(last.party.filter(x=>x.down).map(x=>x.m).join(', ')) : ''}</span>`
-    : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : last.ev.type==='role' ? 'PARTY SKILL' : last.ev.type==='gear' ? 'GEAR' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
+    : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : last.ev.type==='role' ? 'PARTY SKILL' : last.ev.type==='gear' ? 'GEAR' : last.ev.type==='party' ? 'PARTY' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
   const id = last ? (last.ev._id || last.ev.t) : null;
   if(tickerReady && id && id !== lastSeenEv && OVERLAY){
     if(last.dHp < 0) popAt('#hpMeter', '−'+fmt(-last.dHp));

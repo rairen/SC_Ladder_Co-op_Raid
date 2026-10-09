@@ -181,6 +181,7 @@ function compute(r, evs){
     if(status !== 'live'){ entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
     const enraged = hp <= maxHp*0.5;
     const m = ev.member;
+    if(ev.type === 'party'){ entry.party0 = true; continue; }
     if(m && !members.includes(m)){ entry.ignored = true; entry.notes.push('파티에 없는 파티원 · 반영 안 됨'); continue; }
     const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item ?? ''}`;
     if(ev.type === 'game'){
@@ -303,11 +304,21 @@ function compute(r, evs){
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
+/* 파티 구성 기록 문구 */
+function partyText(ev){
+  const rl = ROLES[ev.role] ? ROLES[ev.role].label : '';
+  if(ev.action === 'join') return `파티 참가${rl ? ' · '+rl : ''}${ev.fee ? ' · 입장료 '+fmt(ev.fee) : ''}`;
+  if(ev.action === 'kick') return '파티에서 내보냄';
+  if(ev.action === 'role') return `역할 변경 → ${rl}`;
+  if(ev.action === 'fee') return `입장료 ${fmt(ev.fee||0)}(으)로 변경`;
+  return '파티 변경';
+}
 function whatHtml(e){
   const ev = e.ev;
   if(ev.type==='game'){ const p = Number(ev.points)||0; const wt = ev.multi?'운영 승리':ev.same?'빌드 반복':ev.banned?'초반 올인':''; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${wt && !e.wtEdit?`<span class="wt-tag">${wt}</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
+  if(ev.type==='party'){ return `<b>${esc(ev.member)}</b> ${partyText(ev)}`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
   const it = ITEM[ev.item] || ITEM.none;
   return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`;

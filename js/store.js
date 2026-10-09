@@ -53,6 +53,11 @@ const store = {
     if(local){ const e = events.find(x=>x._id===id); if(e) Object.assign(e, patch); commit(); return; }
     await db.ref(base()+'/events/'+raid.raidId+'/'+id).update(patch);
   },
+  /* 파티 구성 변화 기록 (참가, 내보내기, 역할·입장료 변경). 계산에는 영향 없음 */
+  async partyLog(member, action, extra){
+    if(!raid) return;
+    await this.addEvent({raidId: raid.raidId, t: Date.now(), type:'party', member, action, ...(extra||{}), undone:false});
+  },
   async setUndone(id, undone){
     if(local){ const e = events.find(x=>x._id===id); if(e) e.undone = undone; commit(); return; }
     await db.ref(base()+'/events/'+raid.raidId+'/'+id).update({undone});

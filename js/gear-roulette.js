@@ -121,6 +121,7 @@ function doJoin(){
     if(authed) await store.setRoster(name, {uid: authUser.uid, ladder, gw});
     else if(ladder) await store.setRoster(name, {ladder});
     if(authed && profile && ladder !== (profile.ladder||'')) await db.ref('users/'+authUser.uid).update({ladder});
+    if(!already) await store.partyLog(name, 'join', {role, fee});
     $('joinName').value = ''; $('joinLadder').value = ''; $('joinCode').value = ''; delete $('joinLadder').dataset.touched;
     setMe(name);
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
@@ -171,7 +172,7 @@ function addMember(){
   if(!name || !raid) return;
   if(raid.members.includes(name)){ toast('이미 파티에 있는 이름입니다.'); return; }
   const role = $('addMemberRole').value;
-  guard(async()=>{ await store.join(name); await store.setRoster(name, {role}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
+  guard(async()=>{ await store.join(name); await store.setRoster(name, {role}); await store.partyLog(name, 'join', {role, fee:0}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
 }
 
 $('joinLadder').addEventListener('input', ()=>{ $('joinLadder').dataset.touched = '1'; });

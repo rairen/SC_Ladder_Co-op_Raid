@@ -106,7 +106,7 @@ function render(){
     const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">파티 −${fmt(pd)}</span>`);
     if(e.healed) deltas.push(`<span class="d-heal">파티 +${fmt(e.healed)}</span>`);
     const id = esc(ev._id);
-    const canCtl = !(readOnly || !ev._id || (me && ev.member !== me));
+    const canCtl = !(readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party';
     const ctl = canCtl ? `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>` : '';
     const wtCur = ev.multi?'multi':ev.same?'same':ev.banned?'banned':'normal';
     const wtSel = (canCtl && ev.type==='game' && Number(ev.points) > 0 && !ev.undone && s.status==='live')

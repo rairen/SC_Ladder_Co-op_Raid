@@ -21,6 +21,6 @@ document.addEventListener('click', e=>{
 /* 파티 현황에서 역할·입장료 고치기 */
 $('partyBody').addEventListener('change', e=>{
   const r = e.target.closest('[data-rrole]'), f = e.target.closest('[data-rfee]');
-  if(r) guard(()=>store.setRoster(r.dataset.rrole, {role:r.value}));
-  if(f) guard(()=>store.setRoster(f.dataset.rfee, {fee: Math.max(0, Math.round(Number(f.value)||0))}));
+  if(r) guard(async()=>{ await store.setRoster(r.dataset.rrole, {role:r.value}); await store.partyLog(r.dataset.rrole, 'role', {role:r.value}); });
+  if(f){ const fee = Math.max(0, Math.round(Number(f.value)||0)); guard(async()=>{ await store.setRoster(f.dataset.rfee, {fee}); await store.partyLog(f.dataset.rfee, 'fee', {fee}); }); }
 });
