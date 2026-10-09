@@ -24,7 +24,7 @@ $Mode        = 'coop'    # 협동 레이드 데이터 위치
 $IntervalSec = 20        # 조회 간격(초)
 $LocalApi    = ''        # 비워두면 스타크래프트가 연 주소를 자동으로 찾음 (예: http://127.0.0.1:50250)
 $ApiKey      = ''        # 비워두면 사이트의 firebase-config.js 에서 읽음 (수집기 로그인용)
-$Version     = '1.1'
+$Version     = '1.2'
 # -------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
@@ -62,7 +62,13 @@ function Http($method, $url, $body = $null, $timeoutMs = 8000, $ctype = 'applica
     return $sr.ReadToEnd()
   } finally { $res.Close() }
 }
-function Err($e) { $x = $e.Exception; while ($x.InnerException) { $x = $x.InnerException }; return $x.Message }
+function Err($e) {
+  $x = $e.Exception; while ($x.InnerException) { $x = $x.InnerException }
+  $m = $x.Message
+  if ($m -match '\(401\)|\(403\)|Unauthorized|Forbidden|Permission denied') { $m += ' → 권한 없음: Firebase 콘솔 Authentication 에서 "익명" 로그인을 사용 설정했는지, 보안 규칙이 최신인지 확인하세요.' }
+  elseif ($m -match '\(404\)') { $m += ' → 주소를 찾지 못함' }
+  return $m
+}
 function ToJson($o) { ConvertTo-Json -InputObject $o -Depth 10 -Compress }
 function Enc($s) { [Uri]::EscapeDataString([string]$s) }
 
@@ -158,7 +164,7 @@ function Members-Of($raid) {
 
 # ---------- 시작 ----------
 Write-Host ''
-Write-Host '  래더 협동 보스 레이드 · 래더 점수 자동 수집기' -ForegroundColor Cyan
+Write-Host "  래더 협동 보스 레이드 · 래더 점수 자동 수집기 v$Version" -ForegroundColor Cyan
 Write-Host '  이 창을 열어 두는 동안 파티원의 래더 결과가 자동으로 들어갑니다. (종료: 창 닫기)' -ForegroundColor DarkGray
 Write-Host ''
 try { $DatabaseUrl = Find-DatabaseUrl; Log "레이드 저장소: $DatabaseUrl" }
@@ -246,7 +252,7 @@ while ($true) {
     $state = 'error'; $msg = (Err $_)
     Log "오류: $msg" 'Red'
   }
-  try { Db-Put "$Mode/collector" @{ t = (Now-Ms); state = $state; msg = $msg; ver = $Version } } catch { Log ('레이드 사이트에 기록하지 못했습니다: ' + (Err $_)) 'Red' }
+  try { Db-Put "$Mode/collector" @{ t = (Now-Ms); state = $state; msg = $msg; ver = $Version }; if (-not $script:BeatOk) { Log '레이드 사이트에 수집기 상태를 기록했습니다 (사이트에 "수집 중" 또는 대기 상태가 표시됩니다)' 'Green'; $script:BeatOk = $true } } catch { $script:BeatOk = $false; Log ('레이드 사이트에 기록하지 못했습니다: ' + (Err $_)) 'Red' }
   if ($Once) { break }
   Start-Sleep -Seconds $IntervalSec
 }
