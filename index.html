@@ -6,11 +6,11 @@
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610092103">
+<link rel="stylesheet" href="css/style.css?v=202610092127">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else document.documentElement.classList.add('ovl-hp'); } })();
 </script>
-<script src="firebase-config.js?v=202610092103"></script>
+<script src="firebase-config.js?v=202610092127"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -181,7 +181,8 @@
 
       <section class="panel" id="ladderPanel">
         <div class="panel-head"><h2>래더 자동 수집</h2><span class="col-state" id="collectorState"></span></div>
-        <p class="hint" style="margin:0 0 10px">래더 아이디를 넣어 두면, 수집기를 켠 PC가 래더 한 판이 끝날 때마다 승패와 점수 변동을 자동으로 넣습니다. 승리 유형은 전투 기록에서 고칠 수 있습니다.</p>
+        <p class="hint" style="margin:0 0 10px">래더 아이디를 넣어 두면, 래더 한 판이 끝날 때마다 승패와 점수 변동이 자동으로 들어옵니다. 파티장이 스타크래프트를 켠 PC에서 이 화면을 열고 아래 버튼을 누르면 설치 없이 수집합니다. 승리 유형은 전투 기록에서 고칠 수 있습니다.</p>
+        <div class="bcol" id="browserCol" hidden></div>
         <div class="tbl-wrap">
           <table class="ltable">
             <thead><tr><th>파티원</th><th>래더 아이디</th><th>서버</th><th class="r">점수</th><th>상태</th></tr></thead>
@@ -189,7 +190,8 @@
           </table>
         </div>
         <details class="howto" id="collectorHowto">
-          <summary>수집기 켜는 방법</summary>
+          <summary>브라우저 수집이 안 될 때 (수집기 프로그램)</summary>
+          <p class="hint">브라우저 수집 버튼이 "보안에 막혀 읽지 못했습니다"라고 나오는 PC에서만 필요합니다.</p>
           <ol>
             <li>스타크래프트: 리마스터를 켜고 로그인합니다. 한 PC만 있으면 되고, 그 PC가 모든 파티원의 점수를 조회합니다.</li>
             <li><a href="collector/ladder-collector.cmd" download>수집기 받기 (ladder-collector.cmd)</a> 를 같은 PC에서 받아 더블클릭합니다.<br><span class="hint">"Windows의 PC 보호" 창이 뜨면 <b>추가 정보 → 실행</b>을 누르세요.</span></li>
@@ -335,22 +337,24 @@
 <div class="toast" id="toast" hidden></div>
 
 <!-- 게임 수치는 js/game-data.js 에서 바꿉니다. 아래 파일은 이 순서대로 읽혀야 합니다. -->
-<script src="js/game-data.js?v=202610092103"></script>
-<script src="js/state.js?v=202610092103"></script>
-<script src="js/store.js?v=202610092103"></script>
-<script src="js/logic.js?v=202610092103"></script>
-<script src="js/render.js?v=202610092103"></script>
-<script src="js/setup.js?v=202610092103"></script>
-<script src="js/actions.js?v=202610092103"></script>
-<script src="js/gear-roulette.js?v=202610092103"></script>
-<script src="js/overlay.js?v=202610092103"></script>
-<script src="js/role-skill.js?v=202610092103"></script>
-<script src="js/info-window.js?v=202610092103"></script>
-<script src="js/ladder.js?v=202610092103"></script>
-<script src="js/party.js?v=202610092103"></script>
-<script src="js/auth.js?v=202610092103"></script>
-<script src="js/history.js?v=202610092103"></script>
-<script src="js/boot.js?v=202610092103"></script>
+<script src="js/game-data.js?v=202610092127"></script>
+<script src="js/state.js?v=202610092127"></script>
+<script src="js/store.js?v=202610092127"></script>
+<script src="js/logic.js?v=202610092127"></script>
+<script src="js/render.js?v=202610092127"></script>
+<script src="js/setup.js?v=202610092127"></script>
+<script src="js/actions.js?v=202610092127"></script>
+<script src="js/gear-roulette.js?v=202610092127"></script>
+<script src="js/overlay.js?v=202610092127"></script>
+<script src="js/role-skill.js?v=202610092127"></script>
+<script src="js/info-window.js?v=202610092127"></script>
+<script src="js/ladder-local.js?v=202610092127"></script>
+<script src="js/ladder.js?v=202610092127"></script>
+<script src="js/party.js?v=202610092127"></script>
+<script src="js/ladder-browser.js?v=202610092127"></script>
+<script src="js/auth.js?v=202610092127"></script>
+<script src="js/history.js?v=202610092127"></script>
+<script src="js/boot.js?v=202610092127"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>

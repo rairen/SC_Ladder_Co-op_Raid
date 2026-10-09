@@ -473,3 +473,4 @@ html.overlay.ovl-meter .dmgmeter{display:flex;flex-direction:column;gap:6px;back
 .dm-row.down .dm-name{text-decoration:line-through}
 .dm-row .ko{color:#ff6b6b}
 .dm-empty{font-size:14px;color:var(--muted);padding:8px 0}
+.bcol{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 10px;padding:8px 10px;border-radius:8px;background:var(--panel2)}

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>래더 브라우저 수집 테스트 · 래더 협동 보스 레이드</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  .doc{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+  .doc h1{font-family:var(--f-display);font-weight:400;font-size:24px;margin:0}
+  .doc ol{margin:0;padding-left:20px;line-height:1.7}
+  .doc a{color:var(--accent)}
+  .bar2{height:8px;border-radius:4px;background:var(--panel2);overflow:hidden}
+  .bar2 i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+  .res{padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);font-size:15px;line-height:1.6}
+  .res.ok{border-color:#2f7a52}.res.bad{border-color:#8a3030}.res.warn{border-color:#8a7020}
+  .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  pre{white-space:pre-wrap;word-break:break-all;font-size:12px;color:var(--muted);margin:0}
+</style>
+</head>
+<body>
+<main class="doc panel">
+  <p><a href="./">← 레이드 화면으로</a></p>
+  <h1>래더 브라우저 수집 테스트</h1>
+  <p>수집기 프로그램 없이, 이 브라우저가 스타크래프트의 래더 정보를 직접 읽을 수 있는지 확인합니다.</p>
+  <ol>
+    <li>이 페이지를 <b>스타크래프트: 리마스터를 켜고 로그인한 PC</b>에서 엽니다. (크롬 또는 엣지)</li>
+    <li><b>테스트 시작</b>을 누릅니다. 브라우저가 "로컬 네트워크 기기에 접근" 허용을 물으면 <b>허용</b>을 누르세요.</li>
+    <li>결과가 나오면 아래 문구를 그대로 운영자에게 알려 주세요.</li>
+  </ol>
+  <div class="row2">
+    <button class="btn primary" id="go" type="button">테스트 시작</button>
+    <label class="check" style="margin:0"><input type="checkbox" id="full"><span>전체 포트 검사<small>처음 결과가 "찾지 못함"이면 켜고 다시 (1~3분)</small></span></label>
+  </div>
+  <div class="bar2"><i id="prog"></i></div>
+  <p class="hint" id="status">대기 중</p>
+  <div class="res" id="result" hidden></div>
+
+  <div id="lookup" hidden>
+    <p style="margin:6px 0">아이디 조회도 해 보세요. 다른 스트리머 아이디도 됩니다.</p>
+    <div class="row2">
+      <div class="field"><label class="label" for="toon">게임 아이디</label><input type="text" id="toon" maxlength="24" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label class="label" for="gw">서버</label><select id="gw"><option value="30">한국</option><option value="45">아시아</option><option value="10">미국 서부</option><option value="11">미국 동부</option><option value="20">유럽</option></select></div>
+      <button class="btn" id="look" type="button">조회</button>
+    </div>
+    <div class="res" id="lookRes" hidden style="margin-top:8px"></div>
+  </div>
+  <pre id="detail"></pre>
+</main>
+<script src="js/ladder-local.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let port = null;
+$('go').onclick = async ()=>{
+  $('go').disabled = true; $('result').hidden = true; $('lookup').hidden = true; $('detail').textContent = '';
+  $('status').textContent = '스타크래프트 래더 서버를 찾는 중…';
+  const t0 = Date.now();
+  let out;
+  try{
+    out = await BW_LOCAL.find({full: $('full').checked, onProgress:(d,t,n)=>{ $('prog').style.width = Math.round(d/t*100)+'%'; $('status').textContent = `포트 확인 ${d.toLocaleString()} / ${t.toLocaleString()} · 열린 포트 ${n}개`; }});
+  }catch(e){ out = {found:null, open:[], results:[], error:String(e)}; }
+  const sec = Math.round((Date.now()-t0)/1000);
+  const r = $('result'); r.hidden = false;
+  const ua = navigator.userAgent.match(/(Edg|Chrome|Firefox|Safari)\/[\d.]+/g);
+  $('detail').textContent = `브라우저: ${(ua||[]).join(' ')}\n걸린 시간: ${sec}초\n열린 포트: ${out.open.join(', ') || '없음'}\n` + (out.results||[]).map(x=>`  ${x.port}: ${x.readable ? '읽기 성공' : x.reason}`).join('\n') + (out.error ? `\n오류: ${out.error}` : '');
+  if(out.found){
+    port = out.found.port;
+    r.className = 'res ok';
+    r.innerHTML = `<b>성공</b> · 포트 ${port}에서 래더 정보를 읽었습니다. 수집기 프로그램 없이 브라우저로 수집할 수 있습니다.`;
+    $('status').textContent = '완료'; $('lookup').hidden = false;
+  } else if(out.open.length){
+    r.className = 'res bad';
+    r.innerHTML = `<b>읽기 차단</b> · 열린 포트는 찾았지만 브라우저 보안에 막혀 래더 정보를 읽지 못했습니다. 이 PC에서는 수집기 프로그램이 필요합니다.`;
+    $('status').textContent = '완료';
+  } else {
+    r.className = 'res warn';
+    r.innerHTML = `<b>찾지 못함</b> · 열린 포트가 없습니다. 스타크래프트가 켜져 있고 로그인했는지 확인하세요. 그래도 같으면 "전체 포트 검사"를 켜고 다시 해 보세요. 로컬 네트워크 접근을 거부했다면 주소창 왼쪽 자물쇠 아이콘에서 허용으로 바꾼 뒤 다시 하세요.`;
+    $('status').textContent = '완료';
+  }
+  $('go').disabled = false;
+};
+$('look').onclick = async ()=>{
+  const toon = $('toon').value.trim(); if(!toon || !port) return;
+  const o = $('lookRes'); o.hidden = false; o.className = 'res'; o.textContent = '조회 중…';
+  try{
+    const x = await BW_LOCAL.ladder(port, toon, +$('gw').value);
+    o.className = 'res ' + (x.ok && !x.err ? 'ok' : 'warn');
+    o.innerHTML = x.ok ? `<b>${toon}</b> · 점수 <b>${x.rating}</b> · ${x.wins}승 ${x.losses}패 (시즌 ${x.season})${x.err ? ' · '+x.err : ''}` : `조회 실패: ${x.err}`;
+  }catch(e){ o.className = 'res bad'; o.textContent = '조회 실패: ' + e.message; }
+};
+</script>
+</body>
+</html>

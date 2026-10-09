@@ -132,6 +132,7 @@ function render(){
   renderGearPanel(s, canAct, me);
   renderRoleBar(s, me, canAct);
   if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);
+  if(typeof renderBrowserCollect === 'function') renderBrowserCollect();
   if(typeof renderInvite === 'function') renderInvite(s, me);
   $('wtMulti').textContent = `멀티 확보 ×${s.S.win.multi}`; $('wtSame').textContent = `같은 빌드 2연속 ×${s.S.win.same}`; $('wtBanned').textContent = `금지 빌드 ×${s.S.win.banned}`;
   renderOdds(s.S);

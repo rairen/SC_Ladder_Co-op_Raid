@@ -32,7 +32,7 @@ function renderLadderPanel(s, me){
   if(local){ st.textContent = 'Firebase 연결 필요'; st.className = 'col-state warn'; }
   else if(!collector){ st.textContent = '수집기 꺼짐'; st.className = 'col-state'; }
   else if(!collectorAlive()){ st.textContent = `수집기 꺼짐 · 마지막 ${agoText(collector.t)}`; st.className = 'col-state'; }
-  else if(collector.state === 'ok'){ st.textContent = '수집 중'; st.className = 'col-state on'; }
+  else if(collector.state === 'ok'){ st.textContent = collector.src === 'browser' ? '수집 중 (브라우저)' : '수집 중'; st.className = 'col-state on'; }
   else { st.textContent = collector.msg || '대기 중'; st.className = 'col-state warn'; }
   st.title = collector ? `${collector.msg || ''} (${agoText(collector.t)})` : '';
 
