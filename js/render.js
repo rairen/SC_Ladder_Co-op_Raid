@@ -136,6 +136,7 @@ function render(){
   $('wtMulti').textContent = `멀티 확보 ×${s.S.win.multi}`; $('wtSame').textContent = `같은 빌드 2연속 ×${s.S.win.same}`; $('wtBanned').textContent = `금지 빌드 ×${s.S.win.banned}`;
   renderOdds(s.S);
   renderSkillBoard(s);
+  if(typeof renderDmgMeter === 'function') renderDmgMeter(s);
   if(!$('skillModal').hidden && !skDirty && !setDirty) renderSkillModal();
 }
 

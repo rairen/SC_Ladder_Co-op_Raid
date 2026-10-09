@@ -43,7 +43,7 @@ function renderTicker(s){
 function overlayUrl(){
   const u = new URL(location.href); u.search = ''; u.hash = '';
   const q = new URLSearchParams(); q.set('overlay', '1');
-  if(ovlView === 'skills') q.set('view', 'skills'); else if($('ovlNoRage').checked) q.set('rage', '0');
+  if(ovlView === 'meter') q.set('view', 'meter'); else if($('ovlNoRage').checked) q.set('rage', '0');
   return u.toString() + '?' + q.toString();
 }
 function refreshOvl(){
@@ -52,14 +52,17 @@ function refreshOvl(){
     ? '지금은 Firebase가 연결되지 않아 기록이 이 브라우저에만 있습니다. OBS 브라우저 소스는 별도 브라우저라서, 공유 연결 전에는 오버레이에 기록이 보이지 않습니다. 미리보기는 같은 브라우저라 정상으로 보입니다.'
     : '모든 파티원의 입력이 오버레이에 실시간으로 반영됩니다.';
 }
-$('ovlBtn').onclick = ()=>{ const p = $('ovlPanel'); p.hidden = !p.hidden; refreshOvl(); };
+$('ovlBtn').onclick = ()=>{ $('ovlModal').hidden = false; refreshOvl(); };
+$('ovlClose').onclick = ()=>{ $('ovlModal').hidden = true; };
+$('ovlModal').addEventListener('click', e=>{ if(e.target === $('ovlModal')) $('ovlModal').hidden = true; });
+$('ovlModal').addEventListener('keydown', e=>{ if(e.key === 'Escape') $('ovlModal').hidden = true; });
 $('ovlNoRage').onchange = refreshOvl;
 let ovlView = 'hp';
-$('ovlPanel').addEventListener('click', e=>{
+$('ovlModal').addEventListener('click', e=>{
   const b = e.target.closest('[data-ovlview]'); if(!b) return;
   ovlView = b.dataset.ovlview;
-  document.querySelectorAll('[data-ovlview]').forEach(x=>x.setAttribute('aria-pressed', x===b));
-  $('ovlRageWrap').hidden = ovlView === 'skills';
+  document.querySelectorAll('[data-ovlview]').forEach(x=>x.setAttribute('aria-checked', x===b));
+  $('ovlRageWrap').hidden = ovlView !== 'hp';
   refreshOvl();
 });
 $('ovlPreview').onclick = ()=>{ const w = window.open(overlayUrl(), '_blank', 'noopener'); if(!w) toast('팝업이 막혔습니다. 주소를 복사해서 새 탭에 붙여넣으세요.'); };
@@ -68,3 +71,26 @@ $('ovlCopy').onclick = async ()=>{
   try{ await navigator.clipboard.writeText(t); toast('오버레이 주소를 복사했습니다.'); }
   catch(_){ const r = document.createRange(); r.selectNodeContents($('ovlUrl')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('주소를 선택해 두었습니다. Ctrl+C로 복사하세요.'); }
 };
+
+/* ---------- 파티 딜 미터기 오버레이 (?overlay=1&view=meter) ---------- */
+function renderDmgMeter(s){
+  const box = $('dmgMeter');
+  if(!OVERLAY || !document.documentElement.classList.contains('ovl-meter')){ box.hidden = true; return; }
+  box.hidden = false;
+  if(!raid){ box.innerHTML = '<div class="dm-head"><b>파티 딜 미터기</b></div><div class="dm-empty">레이드 대기 중</div>'; return; }
+  const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
+  const total = rows.reduce((a,m)=>a + s.stats[m].dmg, 0), top = rows.length ? Math.max(1, s.stats[rows[0]].dmg) : 1;
+  const alive = rows.filter(m=>(s.mhp[m] ?? 1) > 0).length;
+  box.innerHTML = `<div class="dm-head"><b>파티 딜 미터기</b><span>생존 ${alive}/${rows.length} · 총 ${fmt(total)}</span></div>` +
+    (rows.length ? rows.map((m,i)=>{
+      const x = s.stats[m], rk = s.role[m] || 'dealer', h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0;
+      const pct = total ? Math.round(x.dmg/total*100) : 0;
+      return `<div class="dm-row${down?' down':''}${h>0 && h<=mx*0.4?' low':''}">
+        <span class="dm-rank">${i+1}</span>
+        <span class="dm-name"><span class="role-tag ${rk}">${ROLES[rk].short}</span>${esc(m)}</span>
+        <span class="dm-num">${fmt(x.dmg)}<small>${pct}%</small></span>
+        <span class="dm-bar"><i style="width:${Math.round(x.dmg/top*100)}%"></i></span>
+        <span class="dm-hp">${down ? '<b class="ko">전투불능</b>' : `<span class="dm-hpbar"><i style="width:${Math.max(0, h/mx*100)}%"></i></span><span class="dm-hpv">${h}/${mx}</span>`}<span class="dm-wl">${x.w}승 ${x.l}패</span></span>
+      </div>`;
+    }).join('') : '<div class="dm-empty">참가한 파티원이 없습니다</div>');
+}
