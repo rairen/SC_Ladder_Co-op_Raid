@@ -50,14 +50,17 @@ function renderLadderPanel(s, me){
       : esc((LADDER_GW.find(x=>x[0]===ro.gw)||[0,'한국'])[1]);
     const fresh = snap && snap.id === ro.ladder;
     const rating = fresh && snap.rating ? fmt(snap.rating) : '-';
-    const rec = fresh && (snap.wins || snap.losses) ? `${snap.wins}승 ${snap.losses}패` : '-';
+    // 승패는 보여주지 않고, 자동으로 들어온 마지막 판의 점수 변동과 그 점수로 계산된 딜만 표시
+    const lastAuto = s.log.slice().reverse().find(e=>e.ev.type==='game' && e.ev.auto && e.ev.member===m && !e.undone);
+    const lp = lastAuto ? Number(lastAuto.ev.points)||0 : 0;
+    const recent = lastAuto ? `<span class="num ${lp>0?'d-hp':'d-rage'}">${lp>0?'+':''}${lp}점</span>${lastAuto.dHp < 0 ? `<div class="hint">딜 ${fmt(-lastAuto.dHp)}</div>` : ''}` : '<span class="hint">-</span>';
     let state;
     if(!ro.ladder) state = '<span class="hint">직접 입력</span>';
     else if(!fresh) state = '<span class="hint">조회 대기</span>';
     else if(snap.err) state = `<span class="err">${esc(snap.err)}</span>`;
     else state = `<span class="ok" title="마지막 조회">${agoText(snap.t)}</span>`;
-    return `<tr><td>${esc(m)}</td><td>${idCell}</td><td>${gwCell}</td><td class="r num">${rating}${rec!=='-'?`<div class="hint">${rec}</div>`:''}</td><td>${state}</td></tr>`;
-  }).join('') : `<tr><td colspan="5" class="empty">공략대원이 참가하면 여기서 래더 아이디를 넣을 수 있습니다.</td></tr>`;
+    return `<tr><td>${esc(m)}</td><td>${idCell}</td><td>${gwCell}</td><td class="r num">${rating}</td><td class="r">${recent}</td><td>${state}</td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty">공략대원이 참가하면 여기서 래더 아이디를 넣을 수 있습니다.</td></tr>`;
 }
 
 $('ladderBody').addEventListener('change', e=>{

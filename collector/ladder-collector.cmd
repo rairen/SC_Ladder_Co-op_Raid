@@ -221,7 +221,7 @@ while ($true) {
             if (-not $r.ok) { throw $r.err }
             $snap.rating = $r.rating; $snap.wins = $r.wins; $snap.losses = $r.losses; $snap.season = $r.season; $snap.err = $r.err
             if (-not $prev -or $prev.id -ne $toon -or [int]$prev.gw -ne $gw -or $prev.season -ne $r.season) {
-              if ($r.err) { Log "$m ($toon) : $($r.err)" 'Yellow' } else { Log ("{0} ({1}) 기준점 {2}점 {3}승 {4}패" -f $m, $toon, $r.rating, $r.wins, $r.losses) }
+              if ($r.err) { Log "$m ($toon) : $($r.err)" 'Yellow' } else { Log ("{0} ({1}) 기준 점수 {2}" -f $m, $toon, $r.rating) }
             } else {
               $dw = $r.wins - [int]$prev.wins; $dl = $r.losses - [int]$prev.losses; $n = $dw + $dl
               if ($n -gt 0) {

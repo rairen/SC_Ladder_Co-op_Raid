@@ -85,7 +85,7 @@ $('look').onclick = async ()=>{
   try{
     const x = await BW_LOCAL.ladder(port, toon, +$('gw').value);
     o.className = 'res ' + (x.ok && !x.err ? 'ok' : 'warn');
-    o.innerHTML = x.ok ? `<b>${toon}</b> · 점수 <b>${x.rating}</b> · ${x.wins}승 ${x.losses}패 (시즌 ${x.season})${x.err ? ' · '+x.err : ''}` : `조회 실패: ${x.err}`;
+    o.innerHTML = x.ok ? `<b>${toon}</b> · 점수 <b>${x.rating}</b> (시즌 ${x.season})${x.err ? ' · '+x.err : ''}` : `조회 실패: ${x.err}`;
   }catch(e){ o.className = 'res bad'; o.textContent = '조회 실패: ' + e.message; }
 };
 </script>
