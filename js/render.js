@@ -123,18 +123,14 @@ function render(){
     const id = esc(ev._id);
     const canCtl = !(readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party';
     const ctl = canCtl ? `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>` : '';
-    const wtCur = ev.multi?'multi':ev.same?'same':ev.banned?'banned':'normal';
-    const wtSel = (canCtl && ev.type==='game' && Number(ev.points) > 0 && !ev.undone && s.status==='live')
-      ? `<select class="wtsel" data-wtev="${id}" aria-label="승리 유형">${[['normal','일반 승리'],['multi','운영 승리'],['same','빌드 반복'],['banned','초반 올인']].map(([k,l])=>`<option value="${k}"${k===wtCur?' selected':''}>${l}</option>`).join('')}</select>` : '';
-    if(wtSel) e.wtEdit = true;
     return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span>
-      <div class="what">${whatHtml(e)}${wtSel}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>
+      <div class="what">${whatHtml(e)}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>
       <div class="delta">${deltas.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
   }).join('') : `<li style="display:block" class="empty">결과를 입력하거나 룰렛을 돌리면 기록이 쌓입니다. 잘못 넣은 기록은 여기서 취소할 수 있습니다.</li>`;
 
   // input availability
   const canAct = hasRaid && s.status==='live' && !readOnly && s.members.length>0;
-  ['submitGame','spin','applyManual','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && (id==='spin'||id==='applyManual')); });
+  ['submitGame','spin','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && id==='spin'); });
   document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
   $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || readOnly || s.status!=='live' || !!me || !canOperate();
   $('spinFor').textContent = selected ? `${selected} 룰렛으로 기록됩니다` : '';
@@ -149,7 +145,6 @@ function render(){
   if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);
   if(typeof renderBrowserCollect === 'function') renderBrowserCollect();
   if(typeof renderInvite === 'function') renderInvite(s, me);
-  $('wtMulti').textContent = `멀티 확보 ×${s.S.win.multi}`; $('wtSame').textContent = `같은 빌드 2연속 ×${s.S.win.same}`; $('wtBanned').textContent = `금지 빌드 ×${s.S.win.banned}`;
   renderOdds(s.S);
   renderSkillBoard(s);
   if(typeof renderDmgMeter === 'function') renderDmgMeter(s);
@@ -164,18 +159,13 @@ function topDealer(s){
 
 function updateGamePreview(){
   const s = lastState; const el = $('gamePreview');
-  $('winChecks').hidden = !isWin;
   if(!s || !raid || !selected){ el.innerHTML = '공략대원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
   const p = Math.abs(parseInt($('points').value,10) || 0);
   const pend = s.pending[selected];
   if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}${autoOn(selected)?'<br><b style="color:#ffd34d">이 공략대원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.':''}`; return; }
   if(isWin){
-    if(winType==='banned' && !s.S.win.banned){ el.innerHTML = '초반 올인(금지 빌드) 승리는 <b>데미지 0</b>입니다.'; return; }
     let mult = 1;
     const gw = s.gear[selected]; if(gw && gw.dmg) mult *= 1 + gw.dmg;
-    if(winType==='multi') mult *= s.S.win.multi;
-    if(winType==='same') mult *= s.S.win.same;
-    if(winType==='banned') mult *= s.S.win.banned;
     if(pend==='double') mult *= 2;
     if(pend==='mission') mult *= 3;
     if((s.mhp[selected] ?? 1) <= 0){ el.innerHTML = `<b>${esc(selected)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.`; return; }

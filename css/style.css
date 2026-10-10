@@ -586,3 +586,4 @@ html.overlay .live-feed{display:none}
 .late-note b{color:var(--accent)}
 .late-note.closed{background:#e0464e14;border-color:#e0464e66}
 .late-note.closed b{color:#ff8a8f}
+html.overlay .ticker{display:none!important}

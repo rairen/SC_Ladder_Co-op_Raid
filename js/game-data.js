@@ -191,9 +191,7 @@ const DEFAULT_GEAR_ROLL = {
 
 
 /* ---------- 레이드 설정 기본값 ----------
-   win.multi  : 운영 승리(앞마당 멀티 확보) 배율
-   win.same   : 같은 빌드 2연속 승리 배율
-   win.banned : 초반 올인(금지 빌드) 배율. 0 이면 데미지 없음
+   win        : (사용 안 함) 예전 승리 유형 배율. 예전 기록을 다시 계산할 때만 쓰임
    chain      : 서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지 %
    feeGauge   : 받은 입장료 1개당 줄어드는 역할 스킬 필요 게이지
    gearCost   : 장비 룰렛 1회 비용 (입장료에서 빠짐)
@@ -203,7 +201,6 @@ const DEFAULT_SETTINGS = {
   chain: 2,
   feeGauge: 0.001,
   gearCost: 100,
-  lateCut: 30,   // 중간 합류 마감: 보스 HP 가 이 % 아래로 내려가면 새로 참가할 수 없음 (0 = 끝까지 허용)
   gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))])),

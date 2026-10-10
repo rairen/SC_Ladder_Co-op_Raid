@@ -77,12 +77,6 @@ document.addEventListener('click', e=>{
   openSkillModal('info', b.dataset.openlist === 'gear' ? 'gear' : 'roulette');
 });
 
-$('applyManual').onclick = ()=>{
-  if(!selected) return;
-  const it = ITEM[$('manualItem').value];
-  showReel(it, it.tier + ' · 직접 입력');
-  guard(()=>store.addEvent({raidId:raid.raidId, t:Date.now(), type:'roulette', member:selected, item:it.id, manual:true, undone:false}));
-};
 
 function cleanName(v){ return String(v||'').replace(/\s+/g,' ').trim().slice(0,20); }
 function setMe(name){
@@ -106,7 +100,6 @@ function doJoin(){
   const already = raid.members.includes(name);
   const needCode = authed && !isAdmin(), code = String($('joinCode').value||'').trim().toUpperCase();
   if(needCode && !code){ toast('운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
-  if(!already){ const lj = lateJoinInfo(); if(lj.closed){ toast(`보스 HP가 ${lj.cut}% 아래라 이 공략대는 합류가 마감됐습니다.`); return; } }
   // 한 사람은 공략대 하나에만
   const other = Object.values(raids).find(r=>r.raidId !== raid.raidId && (r.members||[]).includes(name));
   if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return; }
@@ -182,22 +175,18 @@ function addMember(){
 $('joinLadder').addEventListener('input', ()=>{ $('joinLadder').dataset.touched = '1'; });
 document.addEventListener('click', e=>{ if(e.target.id === 'loginBtn2') login(); });
 
-/* 중간 합류 안내: 첫 래더 결과 뒤면 합류로 보고, 보스 HP 가 마감선 아래면 참가 불가 */
+/* 중간 합류 안내: 첫 래더 결과 뒤에 참가하면 보스 HP 가 1인분 늘어남 (HP% 유지) */
 function lateJoinInfo(){
-  const s = lastState; if(!raid || !s) return {late:false, closed:false};
+  const s = lastState; if(!raid || !s) return {late:false};
   const started = events.some(e=>!e.undone && e.type==='game');
-  const pct = s.maxHp ? s.hp / s.maxHp * 100 : 100, cut = Number(s.S.lateCut)||0;
   const inc = (Number(s.cfg.hp)||0) + (Number(s.cfg.bonus)||0);
-  return {late: started, closed: started && cut > 0 && pct < cut, cut, pct, inc, add: s.maxHp ? Math.round(inc * s.hp / s.maxHp) : inc};
+  return {late: started, inc, add: s.maxHp ? Math.round(inc * s.hp / s.maxHp) : inc};
 }
 function renderLateJoin(){
   const el = $('joinLate'); if(!el) return;
   const lj = lateJoinInfo();
   el.hidden = !lj.late;
   if(!lj.late) return;
-  el.className = 'late-note' + (lj.closed ? ' closed' : '');
-  el.innerHTML = lj.closed
-    ? `<b>합류 마감</b> · 보스 HP가 ${lj.cut}% 아래로 내려가 새로 참가할 수 없습니다.`
-    : `<b>레이드 진행 중 · 중간 합류</b> · 참가하면 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.${lj.cut ? ` 보스 HP ${lj.cut}% 아래가 되면 합류 마감.` : ''}`;
-  $('joinBtn').disabled = lj.closed;
+  el.className = 'late-note';
+  el.innerHTML = `<b>레이드 진행 중 · 중간 합류</b> · 참가하면 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.`;
 }

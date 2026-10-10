@@ -6,11 +6,11 @@
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610100518">
+<link rel="stylesheet" href="css/style.css?v=202610100532">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else document.documentElement.classList.add('ovl-hp'); } })();
 </script>
-<script src="firebase-config.js?v=202610100518"></script>
+<script src="firebase-config.js?v=202610100532"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -173,15 +173,6 @@
             <input type="number" id="points" min="0" step="1" placeholder="20" inputmode="numeric">
           </div>
         </div>
-        <div class="field" id="winChecks" style="margin-top:12px">
-          <span class="label">승리 유형</span>
-          <div class="wtypes" role="radiogroup" aria-label="승리 유형">
-            <button type="button" class="wt" data-wt="normal" role="radio" aria-checked="true"><b>일반 승리</b><span>×1</span></button>
-            <button type="button" class="wt good" data-wt="multi" role="radio" aria-checked="false"><b>운영 승리</b><span id="wtMulti">멀티 확보 ×1.5</span></button>
-            <button type="button" class="wt warn" data-wt="same" role="radio" aria-checked="false"><b>빌드 반복</b><span id="wtSame">같은 빌드 2연속 ×0.5</span></button>
-            <button type="button" class="wt bad" data-wt="banned" role="radio" aria-checked="false"><b>초반 올인</b><span id="wtBanned">금지 빌드 ×0</span></button>
-          </div>
-        </div>
         <div class="preview" id="gamePreview">공략대원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.</div>
         <div class="form-actions">
           <button class="btn primary" id="submitGame" type="button">결과 반영</button>
@@ -191,7 +182,7 @@
 
       <section class="panel" id="ladderPanel">
         <div class="panel-head"><h2>래더 자동 수집</h2><span class="col-state" id="collectorState"></span></div>
-        <p class="hint" style="margin:0 0 10px">래더 아이디를 넣어 두면, 래더 한 판이 끝날 때마다 승패와 점수 변동이 자동으로 들어옵니다. 공략대장이 스타크래프트를 켠 PC에서 이 화면을 열고 아래 버튼을 누르면 설치 없이 수집합니다. 승리 유형은 전투 기록에서 고칠 수 있습니다.</p>
+        <p class="hint" style="margin:0 0 10px">래더 아이디를 넣어 두면, 래더 한 판이 끝날 때마다 승패와 점수 변동이 자동으로 들어옵니다. 공략대장이 스타크래프트를 켠 PC에서 이 화면을 열고 아래 버튼을 누르면 설치 없이 수집합니다.</p>
         <div class="bcol" id="browserCol" hidden></div>
         <div class="tbl-wrap">
           <table class="ltable">
@@ -231,14 +222,10 @@
       <!-- Roulette -->
       <section class="panel" id="roulettePanel">
         <div class="panel-head"><h2>룰렛</h2><button class="btn sm" type="button" data-openlist="roulette">목록</button></div>
-        <div class="reel" id="reel"><span class="t">READY</span><span class="n">공략대원을 고르고 룰렛 결과를 반영하세요</span></div>
+        <div class="reel" id="reel"><span class="t">READY</span><span class="n">공략대원을 고르고 룰렛을 돌리세요</span></div>
         <div class="odds" id="odds"></div>
-        <div class="manual-row">
-          <select id="manualItem" aria-label="룰렛 결과"></select>
-          <button class="btn primary" id="applyManual" type="button">결과 반영</button>
-        </div>
         <div class="form-actions">
-          <button class="btn" id="spin" type="button">여기서 룰렛 돌리기</button>
+          <button class="btn primary" id="spin" type="button">룰렛 돌리기</button>
           <span class="hint" id="spinFor"></span>
         </div>
       </section>
@@ -326,7 +313,7 @@
     </div>
     <p class="hint" style="margin:0">OBS에서 <b>소스 추가 &gt; 브라우저</b>를 고르고 아래 주소를 넣으세요. 배경은 투명합니다. 두 가지를 각각 브라우저 소스로 추가해서 함께 써도 됩니다.</p>
     <div class="ovl-cards" role="radiogroup" aria-label="오버레이 종류">
-      <button type="button" class="ovl-card" data-ovlview="hp" role="radio" aria-checked="true"><b>보스 체력</b><span>보스 이름, HP 바, 분노 게이지, 최근 기록 한 줄</span><small>추천 크기 1280 × 220</small></button>
+      <button type="button" class="ovl-card" data-ovlview="hp" role="radio" aria-checked="true"><b>보스 체력</b><span>보스 이름, HP 바, 분노 게이지</span><small>추천 크기 1280 × 220</small></button>
       <button type="button" class="ovl-card" data-ovlview="meter" role="radio" aria-checked="false"><b>공략대 딜 미터기</b><span>공략대원별 데미지 순위와 비율, 체력·전투불능 상태</span><small>추천 크기 440 × 420</small></button>
     </div>
     <label class="check" id="ovlRageWrap"><input type="checkbox" id="ovlNoRage"><span>분노 게이지 숨기기<small>HP 바만 보여줍니다</small></span></label>
@@ -361,25 +348,25 @@
 <div class="live-feed" id="liveFeed" aria-live="polite"></div>
 
 <!-- 게임 수치는 js/game-data.js 에서 바꿉니다. 아래 파일은 이 순서대로 읽혀야 합니다. -->
-<script src="js/game-data.js?v=202610100518"></script>
-<script src="js/state.js?v=202610100518"></script>
-<script src="js/store.js?v=202610100518"></script>
-<script src="js/logic.js?v=202610100518"></script>
-<script src="js/render.js?v=202610100518"></script>
-<script src="js/setup.js?v=202610100518"></script>
-<script src="js/actions.js?v=202610100518"></script>
-<script src="js/gear-roulette.js?v=202610100518"></script>
-<script src="js/overlay.js?v=202610100518"></script>
-<script src="js/role-skill.js?v=202610100518"></script>
-<script src="js/info-window.js?v=202610100518"></script>
-<script src="js/ladder-local.js?v=202610100518"></script>
-<script src="js/ladder.js?v=202610100518"></script>
-<script src="js/party.js?v=202610100518"></script>
-<script src="js/ladder-browser.js?v=202610100518"></script>
-<script src="js/auth.js?v=202610100518"></script>
-<script src="js/history.js?v=202610100518"></script>
-<script src="js/dungeon.js?v=202610100518"></script>
-<script src="js/boot.js?v=202610100518"></script>
+<script src="js/game-data.js?v=202610100532"></script>
+<script src="js/state.js?v=202610100532"></script>
+<script src="js/store.js?v=202610100532"></script>
+<script src="js/logic.js?v=202610100532"></script>
+<script src="js/render.js?v=202610100532"></script>
+<script src="js/setup.js?v=202610100532"></script>
+<script src="js/actions.js?v=202610100532"></script>
+<script src="js/gear-roulette.js?v=202610100532"></script>
+<script src="js/overlay.js?v=202610100532"></script>
+<script src="js/role-skill.js?v=202610100532"></script>
+<script src="js/info-window.js?v=202610100532"></script>
+<script src="js/ladder-local.js?v=202610100532"></script>
+<script src="js/ladder.js?v=202610100532"></script>
+<script src="js/party.js?v=202610100532"></script>
+<script src="js/ladder-browser.js?v=202610100532"></script>
+<script src="js/auth.js?v=202610100532"></script>
+<script src="js/history.js?v=202610100532"></script>
+<script src="js/dungeon.js?v=202610100532"></script>
+<script src="js/boot.js?v=202610100532"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>

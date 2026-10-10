@@ -42,7 +42,6 @@ function settingsOf(r){
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
     feeGauge: x.feeGauge ?? DEFAULT_SETTINGS.feeGauge,
     gearCost: x.gearCost ?? DEFAULT_SETTINGS.gearCost,
-    lateCut: x.lateCut ?? DEFAULT_SETTINGS.lateCut,
     gearRoll: {...DEFAULT_SETTINGS.gearRoll, ...(x.gearRoll || {})},
     roulette: {...DEFAULT_SETTINGS.roulette, ...(x.roulette || {})},
     gear: {}
@@ -331,7 +330,7 @@ function partyText(ev){
 }
 function whatHtml(e){
   const ev = e.ev;
-  if(ev.type==='game'){ const p = Number(ev.points)||0; const wt = ev.multi?'운영 승리':ev.same?'빌드 반복':ev.banned?'초반 올인':''; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${wt && !e.wtEdit?`<span class="wt-tag">${wt}</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
+  if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
   if(ev.type==='party'){ return `<b>${esc(ev.member)}</b> ${partyText(ev)}`; }

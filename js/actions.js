@@ -16,12 +16,6 @@ document.addEventListener('click', e=>{
   const u = e.target.closest('[data-undo]');
   if(u){ guard(()=>store.setUndone(u.dataset.undo, u.dataset.state !== '1')); return; }
 });
-/* 전투 기록에서 승리 유형 고치기 (자동 수집된 판에 유형 붙이기) */
-document.addEventListener('change', e=>{
-  const w = e.target.closest('[data-wtev]'); if(!w) return;
-  const t = w.value;
-  guard(()=>store.updateEvent(w.dataset.wtev, {multi: t==='multi', same: t==='same', banned: t==='banned'}));
-});
 $('cancelSetup').onclick = ()=>openSetup(false);
 ['cHp','cBonus','cRage','cRageRate','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
 $('startRaid').onclick = ()=>{
@@ -44,13 +38,6 @@ function setResult(win){ isWin = win; $('btnWin').setAttribute('aria-pressed', w
 $('btnWin').onclick = ()=>setResult(true);
 $('btnLoss').onclick = ()=>setResult(false);
 $('points').addEventListener('input', updateGamePreview);
-let winType = 'normal';
-function setWinType(t){
-  winType = t;
-  document.querySelectorAll('.wt').forEach(b=>b.setAttribute('aria-checked', b.dataset.wt===t));
-  updateGamePreview();
-}
-$('winChecks').addEventListener('click', e=>{ const b = e.target.closest('.wt'); if(b && !b.disabled) setWinType(b.dataset.wt); });
 $('points').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); submitGame(); } });
 $('submitGame').onclick = submitGame;
 function submitGame(){
@@ -59,10 +46,10 @@ function submitGame(){
   if(!selected){ toast('공략대원을 먼저 고르세요.'); return; }
   if(!p){ toast('래더 결과 화면의 점수 변동값을 입력하세요.'); $('points').focus(); return; }
   const ev = {raidId:raid.raidId, t:Date.now(), type:'game', member:selected, points: isWin ? p : -p,
-    multi: isWin && winType==='multi', same: isWin && winType==='same', banned: isWin && winType==='banned', undone:false};
+    undone:false};
   guard(async()=>{
     await store.addEvent(ev);
-    $('points').value = ''; setWinType('normal');
+    $('points').value = '';
     flash(isWin ? 'hpFill' : 'rageFill');
     toast(`${selected} ${isWin?'승리':'패배'} ${isWin?'+':'−'}${p}점 반영`);
     updateGamePreview();
@@ -78,7 +65,6 @@ function renderOdds(S){
   if($('odds').dataset.h !== html){ $('odds').innerHTML = html; $('odds').dataset.h = html; }
 }
 renderOdds(settingsOf(null));
-$('manualItem').innerHTML = ITEMS.map(i=>`<option value="${i.id}">[${i.tier}] ${esc(i.name)}</option>`).join('');
 function pick(){
   const arr = new Uint32Array(1); crypto.getRandomValues(arr);
   const ws = rouletteWeights(), total = ws.reduce((a,x)=>a+x.w,0);
