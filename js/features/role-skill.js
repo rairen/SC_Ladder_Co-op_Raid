@@ -6,7 +6,6 @@ import { App } from '@app/core/app.js';
 import { ROLES } from '@app/core/game-data.js';
 import { $, esc } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
-import { gearHtml } from '@app/core/logic.js';
 
 function renderRoleBar(s, me, canAct){
   const bar = $('roleBar');
@@ -15,9 +14,8 @@ function renderRoleBar(s, me, canAct){
   const mine = !me || me === App.selected;
   bar.hidden = false;
   bar.innerHTML = `<div class="rb-text"><span class="role-tag ${rk}">${ROLES[rk].short}</span><b>${esc(ROLES[rk].label)} · ${esc(sk.name)}</b>
-      <small>${esc(ROLES[rk].desc(sk.v))}</small>${gearHtml(s, App.selected)}</div>
-    <div class="sk-actions"><span class="gauge-mini${full?' full':''}" style="width:90px"><i style="width:${Math.min(100,g/need*100)}%"></i></span><span class="num">${g}/${need}</span>
-    <button type="button" class="btn skill" id="useRole"${(canAct && mine && full && alive) ? '' : ' disabled'}>스킬 사용</button></div>`;
+      <small>${esc(ROLES[rk].desc(sk.v))}</small></div>
+    <div class="sk-actions"><button type="button" class="btn skill" id="useRole"${(canAct && mine && full && alive) ? '' : ' disabled'}>스킬 사용</button></div>`;
 }
 
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */

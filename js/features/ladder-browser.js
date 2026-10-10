@@ -111,9 +111,9 @@ function renderBrowserCollect(){
   const box = $('browserCol'); if(!box) return;
   const show = !OVERLAY && !!App.raid && canOperate() && !(typeof myName === 'function' && App.lastState && myName(App.lastState));
   box.hidden = !show; if(!show) return;
-  const btn = bc.on ? '<button type="button" class="btn sm" id="bcStop">브라우저 수집 끄기</button>'
-    : `<button type="button" class="btn sm primary" id="bcStart"${bc.finding ? ' disabled' : ''}>이 브라우저로 수집 (프로그램 없이)</button>`;
-  box.innerHTML = `${btn}<span class="hint">${esc(bc.msg || '스타크래프트를 켠 PC에서 누르면 이 탭이 수집기 역할을 합니다.')}</span> <a class="hint" href="ladder-test.html" target="_blank" rel="noopener">되는지 테스트</a>`;
+  const btn = bc.on ? '<button type="button" class="btn sm" id="bcStop">이 PC 수집 끄기</button>'
+    : `<button type="button" class="btn sm primary" id="bcStart"${bc.finding ? ' disabled' : ''} title="스타크래프트를 켠 PC에서 누르면 이 탭이 수집기 역할을 합니다 (설치 없음)">이 PC로 수집</button>`;
+  box.innerHTML = `${btn}${bc.msg ? `<span class="hint">${esc(bc.msg)}</span>` : ''}`;
 }
 
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */

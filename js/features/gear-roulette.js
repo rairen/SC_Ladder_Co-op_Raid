@@ -105,24 +105,16 @@ function doJoin(){
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
   });
 }
-function myLink(){
-  const u = new URL(location.href); u.search = ''; u.hash = '';
-  const q = new URLSearchParams(); q.set('me', App.meName);
-  return u.toString() + '?' + q.toString();
-}
 function renderJoin(s, me){
   const hasRaid = !!App.raid, live = hasRaid && s.status === 'live';
   $('joinPanel').hidden = !(live && !me) || OVERLAY;
-  $('mePanel').hidden = !me;
-  $('meNameView').textContent = me || '';
   if(!$('joinPanel').hidden){ renderJoinGear(); renderLateJoin(); }
-  $('meSelect').parentElement.hidden = !!me || OVERLAY || !canOperate();
+  $('meSelect').parentElement.hidden = (!!me && useAuth()) || OVERLAY || !canOperate();
   $('dangerZone').hidden = !!me || !canOperate();
   // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
   const authed = useAuth(), needLogin = authed && !App.authUser;
   $('joinLogin').hidden = !needLogin; $('joinForm').hidden = needLogin; $('joinIntro').hidden = needLogin;
   $('joinExisting').hidden = authed && !isAdmin();
-  $('leaveMe').hidden = authed && !isAdmin();
   $('joinName').disabled = authed;
   $('joinCodeField').hidden = !(authed && App.authUser && !isAdmin());
   if(authed && App.authUser){
@@ -195,11 +187,6 @@ export function init(){
   $('joinBtn').onclick = doJoin;
   $('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
   $('joinExisting').addEventListener('click', e=>{ const b = e.target.closest('[data-claim]'); if(b) setMe(b.dataset.claim); });
-  $('leaveMe').onclick = ()=>{ setMe(''); toast('운영자 모드로 바꿨습니다. 다른 이름으로 참가하려면 이름을 새로 입력하세요.'); };
-  $('myLinkBtn').onclick = async ()=>{
-    try{ await navigator.clipboard.writeText(myLink()); toast('내 입력 링크를 복사했습니다. 다음 방송부터 이 링크로 들어오면 바로 내 이름으로 열립니다.'); }
-    catch(_){ toast(myLink()); }
-  };
 
   $('addMemberBtn').onclick = addMember;
   $('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addMember(); } });
@@ -209,4 +196,4 @@ export function init(){
 }
 
 
-export { renderGearPanel, renderInventory, pickGrade, pickGear, cleanName, setMe, renderJoinGear, doJoin, myLink, renderJoin, addMember, lateJoinInfo, renderLateJoin };
+export { renderGearPanel, renderInventory, pickGrade, pickGear, cleanName, setMe, renderJoinGear, doJoin, renderJoin, addMember, lateJoinInfo, renderLateJoin };

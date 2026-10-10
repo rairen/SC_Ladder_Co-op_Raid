@@ -36,12 +36,13 @@ function renderLadderPanel(s, me){
 
   // 수집기 상태
   const st = $('collectorState');
-  if(App.local){ st.textContent = 'Firebase 연결 필요'; st.className = 'col-state warn'; }
-  else if(!App.collector){ st.textContent = '수집기 꺼짐'; st.className = 'col-state'; }
-  else if(!collectorAlive()){ st.textContent = `수집기 꺼짐 · 마지막 ${agoText(App.collector.t)}`; st.className = 'col-state'; }
-  else if(App.collector.state === 'ok'){ st.textContent = App.collector.src === 'browser' ? '수집 중 (브라우저)' : '수집 중'; st.className = 'col-state on'; }
-  else { st.textContent = App.collector.msg || '대기 중'; st.className = 'col-state warn'; }
-  st.title = App.collector ? `${App.collector.msg || ''} (${agoText(App.collector.t)})` : '';
+  if(App.local){ st.textContent = '사용 안 함 · Firebase 필요'; st.className = 'col-state warn'; }
+  else if(!App.collector || !collectorAlive()){ st.textContent = '꺼짐'; st.className = 'col-state'; }
+  else if(App.collector.state === 'ok'){ st.textContent = '● 수집 중'; st.className = 'col-state on'; }
+  else { st.textContent = '대기 중'; st.className = 'col-state warn'; }
+  st.title = App.collector ? `${App.collector.src === 'browser' ? '브라우저 수집' : '수집기 프로그램'} · ${App.collector.msg || ''} (${agoText(App.collector.t)})` : '';
+  const reg = s.members.filter(m=>rosterOf(App.raid, m).ladder).length;
+  $('ladderIdsSum').textContent = `래더 아이디 · ${reg}/${s.members.length}명 등록`;
 
   // 공략대원 표 (입력 중인 칸은 다시 그리지 않음)
   const body = $('ladderBody');
@@ -56,18 +57,17 @@ function renderLadderPanel(s, me){
       ? `<select data-lgw="${esc(m)}" aria-label="${esc(m)} 서버">${LADDER_GW.map(([k,l])=>`<option value="${k}"${k===ro.gw?' selected':''}>${l}</option>`).join('')}</select>`
       : esc((LADDER_GW.find(x=>x[0]===ro.gw)||[0,'한국'])[1]);
     const fresh = snap && snap.id === ro.ladder;
-    const rating = fresh && snap.rating ? fmt(snap.rating) : '-';
     // 승패는 보여주지 않고, 자동으로 들어온 마지막 판의 점수 변동과 그 점수로 계산된 딜만 표시
     const lastAuto = s.log.slice().reverse().find(e=>e.ev.type==='game' && e.ev.auto && e.ev.member===m && !e.undone);
     const lp = lastAuto ? Number(lastAuto.ev.points)||0 : 0;
-    const recent = lastAuto ? `<span class="num ${lp>0?'d-hp':'d-rage'}">${lp>0?'+':''}${lp}점</span>${lastAuto.dHp < 0 ? `<div class="hint">딜 ${fmt(-lastAuto.dHp)}</div>` : ''}` : '<span class="hint">-</span>';
+    const recent = lastAuto ? ` · <span class="num ${lp>0?'d-hp':'d-rage'}" title="자동으로 들어온 마지막 판">${lp>0?'+':''}${lp}${lastAuto.dHp < 0 ? ` (딜 ${fmt(-lastAuto.dHp)})` : ''}</span>` : '';
     let state;
     if(!ro.ladder) state = '<span class="hint">직접 입력</span>';
     else if(!fresh) state = '<span class="hint">조회 대기</span>';
     else if(snap.err) state = `<span class="err">${esc(snap.err)}</span>`;
-    else state = `<span class="ok" title="마지막 조회">${agoText(snap.t)}</span>`;
-    return `<tr><td>${esc(m)}</td><td>${idCell}</td><td>${gwCell}</td><td class="r num">${rating}</td><td class="r">${recent}</td><td>${state}</td></tr>`;
-  }).join('') : `<tr><td colspan="6" class="empty">공략대원이 참가하면 여기서 래더 아이디를 넣을 수 있습니다.</td></tr>`;
+    else state = `<span class="ok" title="마지막 조회 ${agoText(snap.t)}">연결됨</span>${recent}`;
+    return `<tr><td>${esc(m)}</td><td>${idCell}</td><td>${gwCell}</td><td>${state}</td></tr>`;
+  }).join('') : `<tr><td colspan="4" class="empty">공략대원이 참가하면 여기서 래더 아이디를 넣을 수 있습니다.</td></tr>`;
 }
 
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */

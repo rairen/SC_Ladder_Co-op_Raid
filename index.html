@@ -6,11 +6,11 @@
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610101350">
+<link rel="stylesheet" href="css/style.css?v=202610101413">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else document.documentElement.classList.add('ovl-hp'); } })();
 </script>
-<script src="firebase-config.js?v=202610101350"></script>
+<script src="firebase-config.js?v=202610101413"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -143,24 +143,23 @@
         <p class="hint" id="joinExisting" style="margin:10px 0 0"></p>
       </section>
 
-      <section class="panel" id="mePanel" hidden>
-        <div class="me-row">
-          <div><span class="label">내 이름</span><div class="me-name" id="meNameView"></div></div>
-          <div class="me-actions">
-            <button class="btn" id="myLinkBtn" type="button">내 입력 링크 복사</button>
-            <button class="btn" id="leaveMe" type="button">다른 이름으로</button>
-          </div>
-        </div>
+      <section class="panel me-panel" id="mePanel" hidden>
+        <div class="panel-head"><h2 id="meTitle">내 정보</h2><span class="hint" id="meSub"></span></div>
+        <div class="me-card" id="meCard"></div>
+        <div class="rolebar" id="roleBar" hidden></div>
+        <div class="formula" id="meFormula"></div>
       </section>
 
+    </div>
+
+    <div class="col col-mid">
       <section class="panel" id="inputPanel">
-        <h2>래더 결과 입력</h2>
+        <div class="panel-head"><h2>데미지 입력</h2></div>
         <div class="field">
           <span class="label">공략대원</span>
           <div class="chips" id="memberChips"></div>
         </div>
-        <div class="rolebar" id="roleBar" hidden></div>
-        <div class="row" style="margin-top:14px">
+        <div class="row" style="margin-top:12px">
           <div class="field">
             <span class="label">결과</span>
             <div class="seg">
@@ -172,39 +171,34 @@
             <label class="label" for="points">래더 점수 변동</label>
             <input type="number" id="points" min="0" step="1" placeholder="20" inputmode="numeric">
           </div>
+          <div class="form-actions" style="margin:0;align-self:flex-end">
+            <button class="btn primary" id="submitGame" type="button">결과 반영</button>
+          </div>
         </div>
         <div class="preview" id="gamePreview">공략대원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.</div>
-        <div class="form-actions">
-          <button class="btn primary" id="submitGame" type="button">결과 반영</button>
-          <span class="hint">Enter로도 반영됩니다</span>
+
+        <div class="autocol" id="ladderPanel">
+          <div class="ac-row"><span class="label" style="margin:0">래더 자동 수집</span><span class="col-state" id="collectorState"></span><span class="bcol" id="browserCol" hidden></span></div>
+          <details class="howto" id="ladderIds">
+            <summary id="ladderIdsSum">래더 아이디</summary>
+            <div class="tbl-wrap">
+              <table class="ltable">
+                <thead><tr><th>공략대원</th><th>래더 아이디</th><th>서버</th><th>상태</th></tr></thead>
+                <tbody id="ladderBody"></tbody>
+              </table>
+            </div>
+            <p class="hint">래더 아이디가 있는 공략대원은 한 판이 끝날 때마다 점수 변동이 자동으로 들어옵니다. 자동으로 들어온 판은 직접 입력하지 마세요. <a href="ladder-test.html" target="_blank" rel="noopener">브라우저 수집 테스트</a></p>
+          </details>
+          <details class="howto" id="collectorHowto">
+            <summary>브라우저 수집이 안 될 때 (수집기 프로그램)</summary>
+            <ol>
+              <li>스타크래프트: 리마스터를 켜고 로그인한 PC 한 대에서 <a href="collector/ladder-collector.cmd" download>수집기 받기</a> 후 더블클릭합니다. ("Windows의 PC 보호" 창이 뜨면 <b>추가 정보 → 실행</b>)</li>
+              <li>검은 창이 열려 있는 동안 모든 공략대원의 점수를 수집합니다. 위 상태가 <b>수집 중</b>이면 됩니다.</li>
+            </ol>
+          </details>
         </div>
       </section>
 
-      <section class="panel" id="ladderPanel">
-        <div class="panel-head"><h2>래더 자동 수집</h2><span class="col-state" id="collectorState"></span></div>
-        <p class="hint" style="margin:0 0 10px">래더 아이디를 넣어 두면, 래더 한 판이 끝날 때마다 승패와 점수 변동이 자동으로 들어옵니다. 공략대장이 스타크래프트를 켠 PC에서 이 화면을 열고 아래 버튼을 누르면 설치 없이 수집합니다.</p>
-        <div class="bcol" id="browserCol" hidden></div>
-        <div class="tbl-wrap">
-          <table class="ltable">
-            <thead><tr><th>공략대원</th><th>래더 아이디</th><th>서버</th><th class="r">점수</th><th class="r">최근 판</th><th>상태</th></tr></thead>
-            <tbody id="ladderBody"></tbody>
-          </table>
-        </div>
-        <details class="howto" id="collectorHowto">
-          <summary>브라우저 수집이 안 될 때 (수집기 프로그램)</summary>
-          <p class="hint">브라우저 수집 버튼이 "보안에 막혀 읽지 못했습니다"라고 나오는 PC에서만 필요합니다.</p>
-          <ol>
-            <li>스타크래프트: 리마스터를 켜고 로그인합니다. 한 PC만 있으면 되고, 그 PC가 모든 공략대원의 점수를 조회합니다.</li>
-            <li><a href="collector/ladder-collector.cmd" download>수집기 받기 (ladder-collector.cmd)</a> 를 같은 PC에서 받아 더블클릭합니다.<br><span class="hint">"Windows의 PC 보호" 창이 뜨면 <b>추가 정보 → 실행</b>을 누르세요.</span></li>
-            <li>검은 창이 열려 있는 동안 자동으로 수집합니다. 위 상태가 <b>수집 중</b>으로 바뀌면 됩니다.</li>
-          </ol>
-          <p class="hint">수집기를 켜기 전에 끝난 판, 배치 게임은 자동으로 들어가지 않으니 직접 입력하세요. 같은 판을 직접 입력까지 하면 두 번 들어가니, 자동으로 들어온 판은 손으로 넣지 마세요.</p>
-        </details>
-      </section>
-
-    </div>
-
-    <div class="col col-mid">
       <section class="panel party-panel" id="partyPanel">
         <div class="panel-head"><h2>공략대 상태</h2><span class="hint" id="partyCount"></span></div>
         <div class="party-list" id="partyBody"></div>
@@ -352,30 +346,31 @@
 <script type="importmap">
 {
   "imports": {
-    "@app/core/app.js": "./js/core/app.js?v=202610101350",
-    "@app/core/game-data.js": "./js/core/game-data.js?v=202610101350",
-    "@app/core/state.js": "./js/core/state.js?v=202610101350",
-    "@app/core/store.js": "./js/core/store.js?v=202610101350",
-    "@app/core/logic.js": "./js/core/logic.js?v=202610101350",
-    "@app/ui/render.js": "./js/ui/render.js?v=202610101350",
-    "@app/ui/setup.js": "./js/ui/setup.js?v=202610101350",
-    "@app/features/actions.js": "./js/features/actions.js?v=202610101350",
-    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610101350",
-    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610101350",
-    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610101350",
-    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610101350",
-    "@app/features/ladder.js": "./js/features/ladder.js?v=202610101350",
-    "@app/features/party.js": "./js/features/party.js?v=202610101350",
-    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610101350",
-    "@app/features/auth.js": "./js/features/auth.js?v=202610101350",
-    "@app/ui/history.js": "./js/ui/history.js?v=202610101350",
-    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610101350",
-    "@app/core/boot.js": "./js/core/boot.js?v=202610101350"
+    "@app/core/app.js": "./js/core/app.js?v=202610101413",
+    "@app/core/game-data.js": "./js/core/game-data.js?v=202610101413",
+    "@app/core/state.js": "./js/core/state.js?v=202610101413",
+    "@app/core/store.js": "./js/core/store.js?v=202610101413",
+    "@app/core/logic.js": "./js/core/logic.js?v=202610101413",
+    "@app/ui/render.js": "./js/ui/render.js?v=202610101413",
+    "@app/ui/me-info.js": "./js/ui/me-info.js?v=202610101413",
+    "@app/ui/setup.js": "./js/ui/setup.js?v=202610101413",
+    "@app/features/actions.js": "./js/features/actions.js?v=202610101413",
+    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610101413",
+    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610101413",
+    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610101413",
+    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610101413",
+    "@app/features/ladder.js": "./js/features/ladder.js?v=202610101413",
+    "@app/features/party.js": "./js/features/party.js?v=202610101413",
+    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610101413",
+    "@app/features/auth.js": "./js/features/auth.js?v=202610101413",
+    "@app/ui/history.js": "./js/ui/history.js?v=202610101413",
+    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610101413",
+    "@app/core/boot.js": "./js/core/boot.js?v=202610101413"
   }
 }
 </script>
-<script src="js/lib/ladder-local.js?v=202610101350"></script>
-<script type="module" src="js/main.js?v=202610101350"></script>
+<script src="js/lib/ladder-local.js?v=202610101413"></script>
+<script type="module" src="js/main.js?v=202610101413"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>

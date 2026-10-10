@@ -322,9 +322,27 @@ html.overlay .danger{display:none!important}
 .log.compact{max-height:300px}
 .log.compact li{padding:6px 2px}
 .join{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
-.me-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.me-name{font-family:var(--f-display);font-size:24px;line-height:1.2}
-.me-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* 내 정보 창 */
+.me-card{display:flex;flex-direction:column;gap:6px}
+.mc-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.mc-name{font-family:var(--f-display);font-weight:400;font-size:22px;line-height:1.2}
+.mc-head .pc-tags{font-size:12px}
+.mc-gl{margin:8px 0 2px}
+.me-card .gear{grid-template-columns:1fr;display:grid;gap:6px}
+.me-panel .rolebar{margin-top:10px}
+.formula{margin-top:12px;padding:10px 12px;border-radius:8px;border:1px dashed var(--line);background:rgba(0,0,0,.18)}
+.fm-title{font-size:12px;color:var(--muted);letter-spacing:.08em;margin-bottom:6px}
+.fm{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;margin:0;font-size:13px;line-height:1.5}
+.fm dt{color:var(--muted);white-space:nowrap}
+.fm dt.w{color:#7ee2a8}.fm dt.l{color:#ff8a8a}
+.fm dd{margin:0}
+.fm small{color:var(--muted);font-size:11px}
+/* 데미지 입력 · 래더 자동 수집 (간략) */
+.autocol{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.ac-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ac-row .bcol{margin:0;padding:0;background:none;margin-left:auto}
+.autocol .howto{margin-top:6px}
+.autocol .howto p.hint{margin:6px 0 0}
 .linkbtn{border:0;background:none;color:var(--accent);text-decoration:underline;padding:0;font-size:12px}
 /* ---- 방송 오버레이 (?overlay) ---- */
 html.overlay,html.overlay body{background:transparent!important}

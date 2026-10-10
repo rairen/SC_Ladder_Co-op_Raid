@@ -11,6 +11,7 @@ import { renderOdds } from '@app/features/actions.js';
 import { renderGearPanel, renderJoin } from '@app/features/gear-roulette.js';
 import { renderDmgMeter, renderTicker } from '@app/ui/overlay.js';
 import { renderRoleBar } from '@app/features/role-skill.js';
+import { renderMeInfo } from '@app/ui/me-info.js';
 import { renderSkillModal } from '@app/ui/info-window.js';
 import { autoOn, renderLadderPanel } from '@app/features/ladder.js';
 import { renderInvite } from '@app/features/party.js';
@@ -159,6 +160,7 @@ function render(){
   renderJoin(s, myName(s));
   renderEndBtn(s, me);
   renderGearPanel(s, canAct, me);
+  renderMeInfo(s, me);
   renderRoleBar(s, me, canAct);
   if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);
   if(typeof renderBrowserCollect === 'function') renderBrowserCollect();
