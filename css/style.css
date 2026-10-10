@@ -635,3 +635,11 @@ html:not(.overlay) .pcard.sel{outline:2px solid color-mix(in srgb,var(--accent) 
 .adm-box .danger{margin-top:6px}
 .adm-box .danger-act input{width:150px}
 .btn.danger.solid:disabled{opacity:.4;cursor:not-allowed}
+.adm-box .danger{flex-direction:column;align-items:stretch}
+.wipe-kinds{display:flex;flex-direction:column;gap:6px}
+.wk{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);cursor:pointer}
+.wk input{margin-top:3px;accent-color:var(--trap)}
+.wk span{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.wk small{color:var(--muted);font-size:12px}
+.wk:has(input:checked){border-color:color-mix(in srgb,var(--trap) 60%,transparent)}
+.adm-box .danger>*{flex:0 0 auto}

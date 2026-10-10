@@ -42,12 +42,29 @@ const store = {
     const uid = App.raid && App.raid.roster && App.raid.roster[rosterKey(name)] && App.raid.roster[rosterKey(name)].uid;
     if(uid) await App.db.ref(rpath()+'/uids/'+uid).remove();
   },
-  async wipe(){
-    if(App.local){ App.raid = null; App.events = []; App.history = []; App.localDB = {raids:{}, events:{}}; commitHistory(); commit(); return; }
-    /* 공략대·기록·래더 수집·초대 코드 모두 삭제. 로그인 프로필(users)과 운영자(admins)는 남김 */
-    await App.db.ref(base()).remove();
-    await App.db.ref('invites/'+ROOM).remove().catch(()=>{});
-    await App.db.ref('joins/'+ROOM).remove().catch(()=>{});
+  /* 데이터 지우기. 로그인 프로필(users)과 운영자(admins)는 어느 경우에도 남김
+     kind 'history' : 레이드 기록(지난 레이드·명예의 전당)만
+     kind 'raids'   : 진행 중인 공략대만 (전투 기록, 래더 수집, 초대 코드 포함 · 레이드 기록에 남기지 않음)
+     kind 'all'     : 전체 */
+  async wipe(kind = 'all'){
+    const hist = kind === 'history' || kind === 'all', raids = kind === 'raids' || kind === 'all';
+    if(App.local){
+      if(hist){ App.history = []; commitHistory(); }
+      if(raids){ App.raid = null; App.events = []; App.localDB = {raids:{}, events:{}}; App.raids = App.localDB.raids; App.allEvents = App.localDB.events; commit(); selectRaid(''); }
+      return;
+    }
+    if(kind === 'all'){ await App.db.ref(base()).remove(); }
+    else if(hist){ await App.db.ref(base()+'/history').remove(); }
+    else {
+      await App.db.ref(base()+'/raids').remove();
+      await App.db.ref(base()+'/events').remove();
+      await App.db.ref(base()+'/ladder').remove();
+    }
+    if(raids){
+      await App.db.ref('invites/'+ROOM).remove().catch(()=>{});
+      await App.db.ref('joins/'+ROOM).remove().catch(()=>{});
+      selectRaid('');
+    }
   },
   async reset(sum){
     const cur = !!(App.raid && App.raid.raidId === sum.raidId);
