@@ -53,16 +53,16 @@ function refreshOvl(){
     : '모든 공략대원의 입력이 오버레이에 실시간으로 반영됩니다.';
 }
 
-/* ---------- 공략대 딜 미터기 오버레이 (?overlay=1&view=meter) ---------- */
+/* ---------- 공략대 정보 오버레이 (?overlay=1&view=meter) ---------- */
 function renderDmgMeter(s){
   const box = $('dmgMeter');
   if(!OVERLAY || !document.documentElement.classList.contains('ovl-meter')){ box.hidden = true; return; }
   box.hidden = false;
-  if(!App.raid){ box.innerHTML = '<div class="dm-head"><b>공략대 딜 미터기</b></div><div class="dm-empty">레이드 대기 중</div>'; return; }
+  if(!App.raid){ box.innerHTML = '<div class="dm-head"><b>공략대 정보</b></div><div class="dm-empty">레이드 대기 중</div>'; return; }
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
   const total = rows.reduce((a,m)=>a + s.stats[m].dmg, 0), top = rows.length ? Math.max(1, s.stats[rows[0]].dmg) : 1;
   const alive = rows.filter(m=>(s.mhp[m] ?? 1) > 0).length;
-  box.innerHTML = `<div class="dm-head"><b>공략대 딜 미터기</b><span>생존 ${alive}/${rows.length} · 총 ${fmt(total)}</span></div>` +
+  box.innerHTML = `<div class="dm-head"><b>공략대 정보</b><span>생존 ${alive}/${rows.length} · 총 ${fmt(total)}</span></div>` +
     (rows.length ? rows.map((m,i)=>{
       const x = s.stats[m], rk = s.role[m] || 'dealer', h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0;
       const pct = total ? Math.round(x.dmg/total*100) : 0;

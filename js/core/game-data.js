@@ -39,7 +39,7 @@ const PRESETS = {
 /* ---------- 룰렛 결과 ----------
    tier : 등급 (아래 TIERS 중 하나)
    w    : 비중
-   next : true 면 "룰렛을 돌린 공략대원의 다음 래더 결과"에 적용, 없으면 즉시 적용
+   next : true 면 살아 있는 공략대원 중 무작위 한 명의 "다음 래더 결과"에 적용, 없으면 즉시 적용
    효과 자체는 js/logic.js 의 roulette 부분에서 id 로 처리합니다. */
 const ITEMS = [
   {id:'none',    tier:'꽝',   w:30,  name:'꽝'},

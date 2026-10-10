@@ -307,7 +307,14 @@ function compute(r, evs){
         case 'heal4': { const h = Math.min(Math.round(maxHp*0.04), maxHp-hp); hp += h; entry.dHp += h; break; }
         case 'rage7': { const d = Math.round(maxRage*0.07); rage += d; entry.dRage += d; break; }
         default:
-          if(it.next){ if(pending[m] && pending[m] !== it.id) entry.notes.push(PENDING_LABEL[pending[m]]+' → 교체'); pending[m] = it.id; }
+          if(it.next){
+            /* 다음 판 효과는 룰렛을 돌릴 때 무작위로 뽑힌 공략대원(target)에게. 예전 기록은 돌린 사람에게 */
+            const tg = ev.target && members.includes(ev.target) ? ev.target : m;
+            st(tg); entry.target = tg;
+            if(pending[tg] && pending[tg] !== it.id) entry.notes.push(`${tg} ${PENDING_LABEL[pending[tg]]} → 교체`);
+            pending[tg] = it.id;
+            if(ev.target) entry.notes.push(`${tg} 다음 판에 적용`);
+          }
       }
     } else if(ev.type === 'gear'){
       st(m);
@@ -445,7 +452,7 @@ function whatHtml(e){
   if(ev.type==='party'){ return `<b>${esc(ev.member)}</b> ${partyText(ev)}`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
   const it = ITEM[ev.item] || ITEM.none;
-  return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}`;
+  return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}${ev.target ? ` → <b>${esc(ev.target)}</b>` : ''}`;
 }
 function skillHtml(e){
   if(!e.skills || !e.skills.length) return '';

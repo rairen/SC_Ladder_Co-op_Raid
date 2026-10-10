@@ -107,9 +107,18 @@ export function init(){
     const steps = reduce ? 0 : 16; let i = 0;
     const tick = ()=>{
       if(i < steps){ showReel(ITEMS[Math.floor(Math.random()*ITEMS.length)]); i++; setTimeout(tick, 50 + i*i*1.6); return; }
-      showReel(result, result.tier + (result.next ? ' · '+who+' 다음 판' : ''));
+      /* 공략대원에게 적용되는 결과(다음 판 효과)는 적용 대상도 무작위: 살아 있는 공략대원 중 하나 */
+      let target = '';
+      if(result.next){
+        const s = App.lastState, pool = s ? s.members.filter(m=>(s.mhp[m] ?? 1) > 0) : [];
+        const list = pool.length ? pool : (s ? s.members : [who]);
+        const r = new Uint32Array(1); crypto.getRandomValues(r);
+        target = list[r[0] % list.length] || who;
+      }
+      showReel(result, result.tier + (target ? ` · ${target} 다음 판` : ''));
       App.spinning = false;
-      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, undone:false}));
+      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, ...(target ? {target} : {}), undone:false}));
+      if(target) toast(`룰렛 대상: ${target} · ${result.name}`);
       render();
     };
     tick();

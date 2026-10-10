@@ -80,7 +80,7 @@ function renderRulesTab(){
 function renderRouletteTab(){
   const box = $('skTabRoulette'); if(box.hidden) return;
   const ws = rouletteWeights(settingsOf(SRC())), tot = ws.reduce((a,x)=>a+x.w,0) || 1;
-  box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 공략대원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
+  box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 살아 있는 공략대원 중 무작위로 한 명이 뽑혀 그 공략대원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>`;

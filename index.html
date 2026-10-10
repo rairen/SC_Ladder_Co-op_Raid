@@ -6,11 +6,11 @@
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610101718">
+<link rel="stylesheet" href="css/style.css?v=202610101723">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else document.documentElement.classList.add('ovl-hp'); } })();
 </script>
-<script src="firebase-config.js?v=202610101718"></script>
+<script src="firebase-config.js?v=202610101723"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -123,7 +123,7 @@
     <div class="banner" id="banner" hidden></div>
   </section>
   <section class="skillboard" id="skillBoard" aria-label="보스 스킬 목록"></section>
-  <section class="dmgmeter" id="dmgMeter" aria-label="공략대 딜 미터기" hidden></section>
+  <section class="dmgmeter" id="dmgMeter" aria-label="공략대 정보" hidden></section>
 
   <div class="grid">
     <div class="col col-left">
@@ -204,7 +204,7 @@
       <!-- Roulette -->
       <section class="panel" id="roulettePanel">
         <div class="panel-head"><h2>룰렛</h2><button class="btn sm" type="button" data-openlist="roulette">목록</button></div>
-        <div class="reel" id="reel"><span class="t">READY</span><span class="n">공략대원을 고르고 룰렛을 돌리세요</span></div>
+        <div class="reel" id="reel"><span class="t">READY</span><span class="n">룰렛을 돌리세요</span></div>
         <div class="odds" id="odds"></div>
         <div class="form-actions">
           <button class="btn primary" id="spin" type="button">룰렛 돌리기</button>
@@ -356,8 +356,8 @@
     </div>
     <p class="hint" style="margin:0">OBS에서 <b>소스 추가 &gt; 브라우저</b>를 고르고 아래 주소를 넣으세요. 배경은 투명합니다. 두 가지를 각각 브라우저 소스로 추가해서 함께 써도 됩니다.</p>
     <div class="ovl-cards" role="radiogroup" aria-label="오버레이 종류">
-      <button type="button" class="ovl-card" data-ovlview="hp" role="radio" aria-checked="true"><b>보스 체력</b><span>보스 이름, HP 바, 분노 게이지</span><small>추천 크기 1280 × 220</small></button>
-      <button type="button" class="ovl-card" data-ovlview="meter" role="radio" aria-checked="false"><b>공략대 딜 미터기</b><span>공략대원별 데미지 순위와 비율, 체력·전투불능 상태</span><small>추천 크기 440 × 420</small></button>
+      <button type="button" class="ovl-card" data-ovlview="hp" role="radio" aria-checked="true"><b>보스 정보</b><span>보스 이름, HP 바, 분노 게이지</span><small>추천 크기 1280 × 220</small></button>
+      <button type="button" class="ovl-card" data-ovlview="meter" role="radio" aria-checked="false"><b>공략대 정보</b><span>공략대원별 데미지 순위와 비율, 체력·전투불능 상태</span><small>추천 크기 440 × 420</small></button>
     </div>
     <label class="check" id="ovlRageWrap"><input type="checkbox" id="ovlNoRage"><span>분노 게이지 숨기기<small>HP 바만 보여줍니다</small></span></label>
     <div class="ovl-copy"><code id="ovlUrl"></code><button class="btn primary" id="ovlCopy" type="button">주소 복사</button></div>
@@ -423,36 +423,36 @@
 <script type="importmap">
 {
   "imports": {
-    "@app/core/app.js": "./js/core/app.js?v=202610101718",
-    "@app/core/game-data.js": "./js/core/game-data.js?v=202610101718",
-    "@app/core/state.js": "./js/core/state.js?v=202610101718",
-    "@app/core/store.js": "./js/core/store.js?v=202610101718",
-    "@app/core/logic.js": "./js/core/logic.js?v=202610101718",
-    "@app/ui/render.js": "./js/ui/render.js?v=202610101718",
-    "@app/ui/me-info.js": "./js/ui/me-info.js?v=202610101718",
-    "@app/ui/admin-tools.js": "./js/ui/admin-tools.js?v=202610101718",
-    "@app/ui/player-raids.js": "./js/ui/player-raids.js?v=202610101718",
-    "@app/ui/ledger.js": "./js/ui/ledger.js?v=202610101718",
-    "@app/core/changelog.js": "./js/core/changelog.js?v=202610101718",
-    "@app/ui/updates.js": "./js/ui/updates.js?v=202610101718",
-    "@app/ui/setup.js": "./js/ui/setup.js?v=202610101718",
-    "@app/features/actions.js": "./js/features/actions.js?v=202610101718",
-    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610101718",
-    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610101718",
-    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610101718",
-    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610101718",
-    "@app/features/ladder.js": "./js/features/ladder.js?v=202610101718",
-    "@app/features/party.js": "./js/features/party.js?v=202610101718",
-    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610101718",
-    "@app/features/auth.js": "./js/features/auth.js?v=202610101718",
-    "@app/ui/history.js": "./js/ui/history.js?v=202610101718",
-    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610101718",
-    "@app/core/boot.js": "./js/core/boot.js?v=202610101718"
+    "@app/core/app.js": "./js/core/app.js?v=202610101723",
+    "@app/core/game-data.js": "./js/core/game-data.js?v=202610101723",
+    "@app/core/state.js": "./js/core/state.js?v=202610101723",
+    "@app/core/store.js": "./js/core/store.js?v=202610101723",
+    "@app/core/logic.js": "./js/core/logic.js?v=202610101723",
+    "@app/ui/render.js": "./js/ui/render.js?v=202610101723",
+    "@app/ui/me-info.js": "./js/ui/me-info.js?v=202610101723",
+    "@app/ui/admin-tools.js": "./js/ui/admin-tools.js?v=202610101723",
+    "@app/ui/player-raids.js": "./js/ui/player-raids.js?v=202610101723",
+    "@app/ui/ledger.js": "./js/ui/ledger.js?v=202610101723",
+    "@app/core/changelog.js": "./js/core/changelog.js?v=202610101723",
+    "@app/ui/updates.js": "./js/ui/updates.js?v=202610101723",
+    "@app/ui/setup.js": "./js/ui/setup.js?v=202610101723",
+    "@app/features/actions.js": "./js/features/actions.js?v=202610101723",
+    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610101723",
+    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610101723",
+    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610101723",
+    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610101723",
+    "@app/features/ladder.js": "./js/features/ladder.js?v=202610101723",
+    "@app/features/party.js": "./js/features/party.js?v=202610101723",
+    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610101723",
+    "@app/features/auth.js": "./js/features/auth.js?v=202610101723",
+    "@app/ui/history.js": "./js/ui/history.js?v=202610101723",
+    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610101723",
+    "@app/core/boot.js": "./js/core/boot.js?v=202610101723"
   }
 }
 </script>
-<script src="js/lib/ladder-local.js?v=202610101718"></script>
-<script type="module" src="js/main.js?v=202610101718"></script>
+<script src="js/lib/ladder-local.js?v=202610101723"></script>
+<script type="module" src="js/main.js?v=202610101723"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>

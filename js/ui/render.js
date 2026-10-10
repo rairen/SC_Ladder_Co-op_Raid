@@ -154,7 +154,7 @@ function render(){
   ['submitGame','spin','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (App.spinning && id==='spin'); });
   document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
   $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || App.readOnly || s.status!=='live' || !!me || !canOperate();
-  $('spinFor').textContent = App.selected ? `${App.selected} 룰렛으로 기록됩니다` : '';
+  $('spinFor').textContent = App.selected ? `${App.selected} 룰렛으로 기록 · 다음 판 효과는 공략대원 중 무작위로 적용` : '';
   $('subline').textContent = hasRaid ? `시작 ${new Date(App.raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
   updateGamePreview();
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
