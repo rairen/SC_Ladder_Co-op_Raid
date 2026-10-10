@@ -7,13 +7,35 @@
    ===================================================================== */
 const DIFF_LABEL = k => (PRESETS[k] && PRESETS[k].label) || '커스텀';
 
+/* 내가 참가해 있는 공략대 (로그인: 내 계정이 uids 에 있음 / 브라우저 저장: 내 이름이 공략대원) */
+function mySquadId(){
+  if(typeof useAuth === 'function' && useAuth()){
+    if(!authUser) return '';
+    const r = Object.values(raids).find(r=>r.uids && r.uids[authUser.uid]);
+    return r ? r.raidId : '';
+  }
+  if(!meName) return '';
+  const r = Object.values(raids).find(r=>(r.members||[]).includes(meName));
+  return r ? r.raidId : '';
+}
 function renderLobby(){
   const box = $('lobby'); if(!box) return;
   box.hidden = OVERLAY;
   if(OVERLAY) return;
   const list = Object.values(raids).sort((a,b)=>(a.squad||0)-(b.squad||0));
-  $('lobbyCount').textContent = list.length ? `진행 중인 공략대 ${list.length}` : '';
   $('newSquadBtn').hidden = !canOperate();
+  // 공략대에 참가 중이면 목록은 숨기고 내 공략대만 보여 줌
+  const mine = mySquadId();
+  box.classList.toggle('joined', !!mine);
+  $('dungeonList').hidden = !!mine;
+  if(mine){
+    if(curRid !== mine){ setTimeout(()=>selectRaid(mine), 0); }
+    $('lobbyCount').textContent = `내 공략대 · ${squadLabel(raids[mine])} ${raids[mine].name || ''}`;
+    ['hud','skillBoard'].forEach(id=>{ const el = $(id); if(el) el.hidden = false; });
+    document.querySelector('.grid').hidden = false; $('logPanel').hidden = false;
+    return;
+  }
+  $('lobbyCount').textContent = list.length ? `진행 중인 공략대 ${list.length}` : '';
   $('dungeonList').innerHTML = list.length ? list.map(r=>{
     const st = compute(r, eventsOf(r.raidId));
     const pct = st.maxHp ? Math.max(0, st.hp/st.maxHp*100) : 100;

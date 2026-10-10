@@ -179,6 +179,7 @@ function updateGamePreview(){
   } else {
     if(pend==='shield'){ el.innerHTML = '패배 보호가 발동해서 <b>보스가 회복하지 않습니다</b>.'; return; }
     const h = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
-    el.innerHTML = h ? `보스 HP가 50% 아래라 <b class="d-heal">+${fmt(h)}</b> 회복합니다. 스킬 게이지 +${s.G.loss}` : `패배는 보스에게 영향이 없습니다. 스킬 게이지 +${s.G.loss}`;
+    const ld = Math.round(p * (Number(s.S.lossDmg)||0));
+    el.innerHTML = `${ld ? `<b>${esc(selected)}</b> 체력 <b class="d-hp">−${fmt(ld)}</b>` : '체력 피해 없음'}${h ? ` · 보스 HP가 50% 아래라 <b class="d-heal">+${fmt(h)}</b> 회복` : ''} · 스킬 게이지 +${s.G.loss}`;
   }
 }

@@ -42,6 +42,7 @@ function settingsOf(r){
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
     feeGauge: x.feeGauge ?? DEFAULT_SETTINGS.feeGauge,
     gearCost: x.gearCost ?? DEFAULT_SETTINGS.gearCost,
+    lossDmg: x.lossDmg ?? DEFAULT_SETTINGS.lossDmg,
     gearRoll: {...DEFAULT_SETTINGS.gearRoll, ...(x.gearRoll || {})},
     roulette: {...DEFAULT_SETTINGS.roulette, ...(x.roulette || {})},
     gear: {}
@@ -235,9 +236,12 @@ function compute(r, evs){
       } else if(p < 0){
         s.l++; chain = [];
         const a0 = Math.abs(p);
-        if(pend === 'shield'){ entry.notes.push('패배 보호 발동 · 보스 회복 없음'); }
+        if(pend === 'shield'){ entry.notes.push('패배 보호 발동 · 피해·보스 회복 없음'); }
         else{
           if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸');
+          /* 패배 = 보스에게 맞음: 잃은 점수 × 패배 피해 배율만큼 그 공략대원 체력 감소 */
+          const ld = Math.round(a0 * (Number(S.lossDmg) || 0));
+          if(ld > 0 && mhp[m] > 0){ hurt(m, ld, entry); entry.notes.push(`패배 피해 ${m} 체력 −${fmt(ld)}`); }
           if(enraged && rec > 0){
             const h = Math.min(Math.round(a0*rec), maxHp-hp);
             if(h > 0){ hp += h; entry.dHp += h; entry.notes.push('보스 회복 '+fmt(h)); }

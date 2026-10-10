@@ -173,10 +173,10 @@ const GEAR_SLOT = {weapon:'무기', armor:'갑옷', accessory:'장신구'};
    stat : 능력치 배율 (일반 = 1). 예: 강철 검 +10% → 전설 +13%
           불사의 목걸이는 버티는 체력(REVIVE_HP)에 곱합니다. */
 const GEAR_GRADES = [
-  {id:'common', label:'일반', w:60, dur:3,  stat:1.00},
-  {id:'rare',   label:'고급', w:28, dur:5,  stat:1.10},
-  {id:'epic',   label:'희귀', w:10, dur:8,  stat:1.20},
-  {id:'legend', label:'전설', w:2,  dur:12, stat:1.30}
+  {id:'common', label:'일반', w:60, dur:5,  stat:1.00},
+  {id:'rare',   label:'고급', w:28, dur:9,  stat:1.10},
+  {id:'epic',   label:'희귀', w:10, dur:15, stat:1.20},
+  {id:'legend', label:'전설', w:2,  dur:24, stat:1.30}
 ];
 
 
@@ -201,6 +201,7 @@ const DEFAULT_SETTINGS = {
   chain: 2,
   feeGauge: 0.001,
   gearCost: 100,
+  lossDmg: 1,    // 패배 피해 배율: 래더에서 진 점수 × 이 값만큼 그 공략대원 체력이 줄어듦 (0 이면 피해 없음)
   gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))])),

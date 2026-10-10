@@ -180,6 +180,8 @@ function renderSkillModal(){
   $('skTabSettings').innerHTML = `<p class="sk-note">${edit ? '이번 레이드에 쓸 값입니다. 적용한 뒤 레이드를 시작하면 고정됩니다.' : (raid ? '이 레이드에 고정된 값입니다. 다음 레이드의 수치 설정에서 바꿀 수 있습니다.' : '기본값입니다. 새 레이드 만들기의 수치 설정에서 바꿀 수 있습니다.')}</p>
     <h3 class="label" style="margin:4px 0 0">체인 보너스</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>서로 다른 3명 연속 승리</b></td><td class="r">${num('chain', SD.chain, 0.5, '체인 보너스')}</td><td class="desc">보스 최대 HP의 % 만큼 추가 데미지</td></tr></tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">패배 피해</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>패배 피해 배율</b></td><td class="r">${num('lossDmg', SD.lossDmg, 0.1, '패배 피해 배율')}</td><td class="desc">래더에서 지면 잃은 점수 × 이 값만큼 그 공략대원 체력이 줄어듭니다. 예: −20점 × ${SD.lossDmg} = 체력 −${Math.round(20*SD.lossDmg)}. 0이면 피해 없음</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">입장료 → 역할 스킬 필요 게이지</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>입장료 1개당 줄어드는 게이지</b></td><td class="r">${num('feeGauge', SD.feeGauge, 0.001, '입장료 게이지 계수')}</td><td class="desc">필요 게이지 = 최대 게이지 − 입장료 × 이 값. 예: ${fmt(1000)}개 × ${SD.feeGauge} = ${Math.round(1000*SD.feeGauge*10)/10} 감소</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
@@ -249,14 +251,14 @@ $('skillModal').addEventListener('click', e=>{
   if(sr){
     setDraft = setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
     const D = JSON.parse(JSON.stringify(settingsOf(null)));
-    if(sr.dataset.setreset === 'gear'){ setDraft.gear = D.gear; setDraft.gearRoll = D.gearRoll; setDraft.gearCost = D.gearCost; setDraft.grades = D.grades; } else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.roulette = D.roulette; }
+    if(sr.dataset.setreset === 'gear'){ setDraft.gear = D.gear; setDraft.gearRoll = D.gearRoll; setDraft.gearCost = D.gearCost; setDraft.grades = D.grades; } else { setDraft.win = D.win; setDraft.chain = D.chain; setDraft.feeGauge = D.feeGauge; setDraft.lossDmg = D.lossDmg; setDraft.roulette = D.roulette; }
     setDirty = true; renderSkillModal(); return;
   }
   if(e.target.closest('[data-setsave]') && setDraft){
     const g = {}; for(const k in setDraft.gear) g[k] = setDraft.gear[k].map(x=>({min: Math.max(0, Math.round(Number(x.min)||0)), v: Math.max(0, Number(x.v)||0)}));
     const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(setDraft.roulette[it.id])||0);
     if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
-    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), gearCost: Math.max(0, Math.round(+setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0)}))};
+    const settings = {win:{multi:+setDraft.win.multi||0, same:+setDraft.win.same||0, banned:+setDraft.win.banned||0}, chain:+setDraft.chain||0, feeGauge: Math.max(0, +setDraft.feeGauge||0), lossDmg: Math.max(0, +setDraft.lossDmg||0), gearCost: Math.max(0, Math.round(+setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0)}))};
     guard(async()=>{ await saveSrc({settings}); setDraft = null; setDirty = false; renderSkillModal(); updateSetupPreview(); toast('수치를 적용했습니다. 레이드 시작 시 반영됩니다.'); });
     return;
   }
