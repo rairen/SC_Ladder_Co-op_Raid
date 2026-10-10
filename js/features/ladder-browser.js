@@ -7,17 +7,25 @@
    - 레이드 화면 탭을 닫거나 PC가 잠들면 멈춥니다. 탭을 숨겨 두면 조회 간격이 길어질 수 있습니다.
    - 수집기 프로그램이 이미 돌고 있으면 중복 기록을 막기 위해 시작하지 않습니다.
    ===================================================================== */
+import { App } from '@app/core/app.js';
+import { $, OVERLAY, base, esc } from '@app/core/state.js';
+import { toast } from '@app/core/store.js';
+import { compute, rosterKey, rosterOf } from '@app/core/logic.js';
+import { cleanLadderId, collectorAlive } from '@app/features/ladder.js';
+import { canOperate } from '@app/features/auth.js';
+import { commit, eventsOf, myName } from '@app/core/boot.js';
+
 const BC_INTERVAL = 20000;
 const BC_AUTO_KEY = 'sc-boss-raid:browsercollect';
 const bc = {on:false, port:null, timer:null, cache:{}, msg:'', busy:false, finding:false};
 
 function bcSetAuto(v){ try{ v ? localStorage.setItem(BC_AUTO_KEY, '1') : localStorage.removeItem(BC_AUTO_KEY); }catch(_){} }
 function bcWantsAuto(){ try{ return localStorage.getItem(BC_AUTO_KEY) === '1'; }catch(_){ return false; } }
-const programCollectorAlive = () => typeof collectorAlive === 'function' && collectorAlive() && collector && collector.src !== 'browser';
+const programCollectorAlive = () => typeof collectorAlive === 'function' && collectorAlive() && App.collector && App.collector.src !== 'browser';
 
 async function bcStart(fromAuto){
   if(bc.on || bc.finding) return;
-  if(!Object.keys(raids).length){ toast('공략대 레이드를 시작한 뒤에 수집할 수 있습니다.'); return; }
+  if(!Object.keys(App.raids).length){ toast('공략대 레이드를 시작한 뒤에 수집할 수 있습니다.'); return; }
   if(programCollectorAlive()){ if(!fromAuto) toast('수집기 프로그램이 이미 수집 중입니다. 중복을 막기 위해 브라우저 수집은 켜지 않습니다.'); return; }
   bc.finding = true; bc.msg = '스타크래프트 래더 서버를 찾는 중…'; renderBrowserCollect();
   let out;
@@ -45,11 +53,11 @@ async function bcTick(){
   bc.busy = true;
   let state = 'ok', count = 0;
   try{
-    const live = Object.values(raids).filter(r=>compute(r, eventsOf(r.raidId)).status === 'live');
+    const live = Object.values(App.raids).filter(r=>compute(r, eventsOf(r.raidId)).status === 'live');
     if(!live.length){ state = 'noraid'; bc.msg = '진행 중인 공략대 없음'; }
     else {
      for(const R of live){
-      const rid = R.raidId, snaps = allLadder[rid] || {};
+      const rid = R.raidId, snaps = App.allLadder[rid] || {};
       if(!bc.cache[rid]) bc.cache[rid] = {};
       const cache = bc.cache[rid];
       for(const m of (R.members || [])){
@@ -72,8 +80,8 @@ async function bcTick(){
                 const win = (dw > 0 && dl === 0) || (dw > 0 && dl > 0 && delta >= 0), pts = Math.abs(delta);
                 const ev = {raidId:rid, t:Date.now(), type:'game', member:m, points: win ? pts : -pts, multi:false, same:false, banned:false, undone:false, auto:true, src:'browser', rating:r.rating};
                 if(n > 1) ev.games = n;
-                if(local){ (localDB.events[rid] = localDB.events[rid] || []).push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); }
-                else await db.ref(base()+'/events/'+rid).push(ev);
+                if(App.local){ (App.localDB.events[rid] = App.localDB.events[rid] || []).push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); }
+                else await App.db.ref(base()+'/events/'+rid).push(ev);
               } else snap.err = '배치 게임 중이라 점수 변동을 알 수 없음 (직접 입력)';
             }
           }
@@ -83,8 +91,8 @@ async function bcTick(){
           if(prev) Object.assign(snap, {rating:prev.rating||0, wins:prev.wins||0, losses:prev.losses||0, season:prev.season});
           if(/Failed to fetch|timeout|NetworkError/i.test(String(e && e.message))){ state = 'nogame'; bc.msg = '스타크래프트 연결이 끊겼습니다. 다시 찾는 중'; bc.on = false; }
         }
-        if(!local) await db.ref(base()+'/ladder/'+rid+'/'+key).set(snap);
-        else { (allLadder[rid] = allLadder[rid] || {})[key] = snap; if(rid === curRid) ladderSnap = allLadder[rid]; }
+        if(!App.local) await App.db.ref(base()+'/ladder/'+rid+'/'+key).set(snap);
+        else { (App.allLadder[rid] = App.allLadder[rid] || {})[key] = snap; if(rid === App.curRid) App.ladderSnap = App.allLadder[rid]; }
         if(!bc.on) break;
       }
       if(!bc.on) break;
@@ -92,7 +100,7 @@ async function bcTick(){
       if(state === 'ok') bc.msg = `수집 중 · 공략대 ${live.length}개 · ${count}명`;
     }
   }catch(e){ state = 'error'; bc.msg = '오류: ' + (e && e.message || e); }
-  if(!local){ try{ await db.ref(base()+'/collector').set({t:Date.now(), state, msg:bc.msg, ver:'browser', src:'browser'}); }catch(_){} }
+  if(!App.local){ try{ await App.db.ref(base()+'/collector').set({t:Date.now(), state, msg:bc.msg, ver:'browser', src:'browser'}); }catch(_){} }
   bc.busy = false;
   renderBrowserCollect();
   if(bc.on) bc.timer = setTimeout(bcTick, BC_INTERVAL);
@@ -101,19 +109,27 @@ async function bcTick(){
 
 function renderBrowserCollect(){
   const box = $('browserCol'); if(!box) return;
-  const show = !OVERLAY && !!raid && canOperate() && !(typeof myName === 'function' && lastState && myName(lastState));
+  const show = !OVERLAY && !!App.raid && canOperate() && !(typeof myName === 'function' && App.lastState && myName(App.lastState));
   box.hidden = !show; if(!show) return;
   const btn = bc.on ? '<button type="button" class="btn sm" id="bcStop">브라우저 수집 끄기</button>'
     : `<button type="button" class="btn sm primary" id="bcStart"${bc.finding ? ' disabled' : ''}>이 브라우저로 수집 (프로그램 없이)</button>`;
   box.innerHTML = `${btn}<span class="hint">${esc(bc.msg || '스타크래프트를 켠 PC에서 누르면 이 탭이 수집기 역할을 합니다.')}</span> <a class="hint" href="ladder-test.html" target="_blank" rel="noopener">되는지 테스트</a>`;
 }
-document.addEventListener('click', e=>{
-  if(e.target.id === 'bcStart') bcStart(false);
-  else if(e.target.id === 'bcStop') bcStop();
-});
-/* 이 PC에서 전에 브라우저 수집을 켰으면, 레이드가 있을 때 자동으로 다시 켭니다 */
-setTimeout(function autoTry(){
-  if(bc.on || bc.finding) return;
-  if(Object.keys(raids).length && canOperate() && bcWantsAuto() && !programCollectorAlive()) bcStart(true);
-  else setTimeout(autoTry, 5000);
-}, 4000);
+
+/* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
+export function init(){
+
+  document.addEventListener('click', e=>{
+    if(e.target.id === 'bcStart') bcStart(false);
+    else if(e.target.id === 'bcStop') bcStop();
+  });
+  /* 이 PC에서 전에 브라우저 수집을 켰으면, 레이드가 있을 때 자동으로 다시 켭니다 */
+  setTimeout(function autoTry(){
+    if(bc.on || bc.finding) return;
+    if(Object.keys(App.raids).length && canOperate() && bcWantsAuto() && !programCollectorAlive()) bcStart(true);
+    else setTimeout(autoTry, 5000);
+  }, 4000);
+}
+
+
+export { bcSetAuto, bcWantsAuto, bcStart, bcStop, bcTick, renderBrowserCollect, BC_INTERVAL, BC_AUTO_KEY, bc, programCollectorAlive };

@@ -2,25 +2,43 @@
    render.js — 메인 화면 그리기 (보스 HUD, 공략대 현황, 전투 기록, 결과 미리보기)
    ===================================================================== */
 /* ---------- Rendering ---------- */
+import { App } from '@app/core/app.js';
+import { PARTY_HP, PENDING_LABEL, PRESETS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
+import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
+import { compute, gearHtml, rosterOf, skillHtml, statusTags, whatHtml } from '@app/core/logic.js';
+import { renderEndBtn } from '@app/ui/setup.js';
+import { renderOdds } from '@app/features/actions.js';
+import { renderGearPanel, renderJoin } from '@app/features/gear-roulette.js';
+import { renderDmgMeter, renderTicker } from '@app/ui/overlay.js';
+import { renderRoleBar } from '@app/features/role-skill.js';
+import { renderSkillModal } from '@app/ui/info-window.js';
+import { autoOn, renderLadderPanel } from '@app/features/ladder.js';
+import { renderInvite } from '@app/features/party.js';
+import { renderBrowserCollect } from '@app/features/ladder-browser.js';
+import { applyAccess, canOperate } from '@app/features/auth.js';
+import { autoArchive, renderSkillBoard } from '@app/ui/history.js';
+import { renderLobby } from '@app/ui/dungeon.js';
+import { myName } from '@app/core/boot.js';
+
 function render(){
   if(typeof applyAccess === 'function') applyAccess();
-  const s = compute(raid, events);
-  lastState = s;
-  const hasRaid = !!raid;
+  const s = compute(App.raid, App.events);
+  App.lastState = s;
+  const hasRaid = !!App.raid;
 
   // connection pill
   const cp = $('connPill');
-  cp.className = 'pill ' + (local ? 'local' : (hasRaid ? s.status : ''));
-  cp.textContent = local ? (hasRaid ? (s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 이 브라우저에 저장') : '레이드 없음') : !online ? '연결 끊김 · 재연결 중' : !hasRaid ? '레이드 없음' : s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 실시간 공유';
-  $('importBtn').hidden = !local;
+  cp.className = 'pill ' + (App.local ? 'local' : (hasRaid ? s.status : ''));
+  cp.textContent = App.local ? (hasRaid ? (s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 이 브라우저에 저장') : '레이드 없음') : !App.online ? '연결 끊김 · 재연결 중' : !hasRaid ? '레이드 없음' : s.status==='clear' ? '레이드 성공' : s.status==='fail' ? '레이드 실패' : '진행 중 · 실시간 공유';
+  $('importBtn').hidden = !App.local;
 
   // HUD
-  $('bossName').textContent = hasRaid ? (raid.name || '이름 없는 보스') : '레이드 대기 중';
-  $('squadTag').textContent = hasRaid ? squadLabel(raid) : 'BOSS';
+  $('bossName').textContent = hasRaid ? (App.raid.name || '이름 없는 보스') : '레이드 대기 중';
+  $('squadTag').textContent = hasRaid ? squadLabel(App.raid) : 'BOSS';
   if(typeof renderLobby === 'function') renderLobby();
   const meta = $('bossMeta');
   if(hasRaid){
-    const p = PRESETS[raid.diff] || PRESETS.custom;
+    const p = PRESETS[App.raid.diff] || PRESETS.custom;
     meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">공략대 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
   } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 공략대원과 난이도를 정하면 시작됩니다</span>`;
   const hpPct = hasRaid && s.maxHp ? s.hp/s.maxHp*100 : 100;
@@ -54,28 +72,28 @@ function render(){
 
   // chips
   const me = myName(s);
-  if(me) selected = me;
-  if(selected && !s.members.includes(selected)) selected = null;
-  if(!selected && s.members.length) selected = s.members[0];
+  if(me) App.selected = me;
+  if(App.selected && !s.members.includes(App.selected)) App.selected = null;
+  if(!App.selected && s.members.length) App.selected = s.members[0];
   const meSel = $('meSelect'), meOpts = ['<option value="">운영자 (전체 입력)</option>'].concat(s.members.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`)).join('');
   if(meSel.dataset.opts !== meOpts){ meSel.innerHTML = meOpts; meSel.dataset.opts = meOpts; }
   meSel.value = me || '';
   $('memberChips').innerHTML = s.members.length ? s.members.map(m=>{
     const pend = s.pending[m];
-    return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${(s.mhp[m] ?? 1) <= 0 ? '<span class="tag">전투불능</span>' : ''}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
+    return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===App.selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${(s.mhp[m] ?? 1) <= 0 ? '<span class="tag">전투불능</span>' : ''}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
   }).join('') : `<span class="empty">참가한 공략대원이 여기에 표시됩니다.</span>`;
 
   // party status cards (공략대 상태)
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
   const top = rows.length ? s.stats[rows[0]].dmg : 0;
   const maxD = Math.max(1, top);
-  const editAll = hasRaid && !readOnly && !OVERLAY && s.status === 'live';
+  const editAll = hasRaid && !App.readOnly && !OVERLAY && s.status === 'live';
   const alive = rows.filter(m=>(s.mhp[m] ?? 1) > 0).length;
   $('partyCount').textContent = rows.length ? `생존 ${alive} / ${rows.length}` : '';
   const pb = $('partyBody');
   if(!(pb.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName))){
   pb.innerHTML = rows.length ? rows.map((m,i)=>{
-    const x = s.stats[m], ro = rosterOf(raid, m), canEdit = editAll && (!me || me === m);
+    const x = s.stats[m], ro = rosterOf(App.raid, m), canEdit = editAll && (!me || me === m);
     const h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0, low = !down && h <= mx*0.4;
     const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
     const rk = s.role[m] || ro.role;
@@ -84,7 +102,7 @@ function render(){
       : `<span>${ROLES[rk].label}</span>`;
     const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0);
     const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 받은 입장료">` : `<b class="num">${fmt(ro.fee)}</b>`) + `<span class="hint num" title="장비 룰렛에 쓰고 남은 입장료">남음 ${fmt(left)}</span>`;
-    const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="공략대에서 내보내기">${kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
+    const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="공략대에서 내보내기">${App.kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
     const mvp = x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>' : '';
     return `<article class="pcard${down?' down':''}${low?' low':''}${m===me?' mine':''}">
       <header class="pc-head"><span class="pc-rank num">${i+1}</span><span class="role-tag ${rk}">${ROLES[rk].short}</span><b class="pc-name">${esc(m)}</b>${mvp}<span class="pc-tags">${statusTags(s, m)}</span>${kick}</header>
@@ -121,7 +139,7 @@ function render(){
     const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">공략대 −${fmt(pd)}</span>`);
     if(e.healed) deltas.push(`<span class="d-heal">공략대 +${fmt(e.healed)}</span>`);
     const id = esc(ev._id);
-    const canCtl = !(readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party';
+    const canCtl = !(App.readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party';
     const ctl = canCtl ? `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>` : '';
     return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span>
       <div class="what">${whatHtml(e)}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>
@@ -129,12 +147,12 @@ function render(){
   }).join('') : `<li style="display:block" class="empty">결과를 입력하거나 룰렛을 돌리면 기록이 쌓입니다. 잘못 넣은 기록은 여기서 취소할 수 있습니다.</li>`;
 
   // input availability
-  const canAct = hasRaid && s.status==='live' && !readOnly && s.members.length>0;
-  ['submitGame','spin','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (spinning && id==='spin'); });
+  const canAct = hasRaid && s.status==='live' && !App.readOnly && s.members.length>0;
+  ['submitGame','spin','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (App.spinning && id==='spin'); });
   document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
-  $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || readOnly || s.status!=='live' || !!me || !canOperate();
-  $('spinFor').textContent = selected ? `${selected} 룰렛으로 기록됩니다` : '';
-  $('subline').textContent = hasRaid ? `시작 ${new Date(raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
+  $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || App.readOnly || s.status!=='live' || !!me || !canOperate();
+  $('spinFor').textContent = App.selected ? `${App.selected} 룰렛으로 기록됩니다` : '';
+  $('subline').textContent = hasRaid ? `시작 ${new Date(App.raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
   updateGamePreview();
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
   renderTicker(s);
@@ -148,7 +166,7 @@ function render(){
   renderOdds(s.S);
   renderSkillBoard(s);
   if(typeof renderDmgMeter === 'function') renderDmgMeter(s);
-  if(!$('skillModal').hidden && !skDirty && !setDirty) renderSkillModal();
+  if(!$('skillModal').hidden && !App.skDirty && !App.setDirty) renderSkillModal();
 }
 
 function topDealer(s){
@@ -158,28 +176,30 @@ function topDealer(s){
 }
 
 function updateGamePreview(){
-  const s = lastState; const el = $('gamePreview');
-  if(!s || !raid || !selected){ el.innerHTML = '공략대원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
+  const s = App.lastState; const el = $('gamePreview');
+  if(!s || !App.raid || !App.selected){ el.innerHTML = '공략대원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
   const p = Math.abs(parseInt($('points').value,10) || 0);
-  const pend = s.pending[selected];
-  if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}${autoOn(selected)?'<br><b style="color:#ffd34d">이 공략대원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.':''}`; return; }
-  if(isWin){
+  const pend = s.pending[App.selected];
+  if(!p){ el.innerHTML = `<b>${esc(App.selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}${autoOn(App.selected)?'<br><b style="color:#ffd34d">이 공략대원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.':''}`; return; }
+  if(App.isWin){
     let mult = 1;
-    const gw = s.gear[selected]; if(gw && gw.dmg) mult *= 1 + gw.dmg;
+    const gw = s.gear[App.selected]; if(gw && gw.dmg) mult *= 1 + gw.dmg;
     if(pend==='double') mult *= 2;
     if(pend==='mission') mult *= 3;
-    if((s.mhp[selected] ?? 1) <= 0){ el.innerHTML = `<b>${esc(selected)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.`; return; }
-    if(s.curse[selected]) mult *= s.curse[selected];
+    if((s.mhp[App.selected] ?? 1) <= 0){ el.innerHTML = `<b>${esc(App.selected)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.`; return; }
+    if(s.curse[App.selected]) mult *= s.curse[App.selected];
     if(s.barrier) mult *= 0.5;
     if(s.rally) mult *= 1.5;
     mult = Math.round(mult*100)/100;
-    const chainNext = !s.chain.includes(selected) && s.chain.length===2;
-    const dmgP = Math.round(p*mult), rr = Math.round(dmgP * (s.cfg.rageRate ?? 0.5) * (1 - ((s.gear[selected]||{}).rageCut||0)) * 10)/10, boomW = s.maxRage && s.rage + rr >= s.maxRage;
+    const chainNext = !s.chain.includes(App.selected) && s.chain.length===2;
+    const dmgP = Math.round(p*mult), rr = Math.round(dmgP * (s.cfg.rageRate ?? 0.5) * (1 - ((s.gear[App.selected]||{}).rageCut||0)) * 10)/10, boomW = s.maxRage && s.rage + rr >= s.maxRage;
     el.innerHTML = `보스 HP <b class="d-hp">−${fmt(dmgP)}</b>${mult!==1?` (×${mult})`:''} · 분노 <b class="d-rage">+${fmt(rr)}</b>${boomW?' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>':''}${chainNext?` + 체인 보너스 <b class="d-hp">−${fmt(Math.round(s.maxHp*s.S.chain/100))}</b>`:''}`;
   } else {
     if(pend==='shield'){ el.innerHTML = '패배 보호가 발동해서 <b>보스가 회복하지 않습니다</b>.'; return; }
     const h = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
     const ld = Math.round(p * (Number(s.S.lossDmg)||0));
-    el.innerHTML = `${ld ? `<b>${esc(selected)}</b> 체력 <b class="d-hp">−${fmt(ld)}</b>` : '체력 피해 없음'}${h ? ` · 보스 HP가 50% 아래라 <b class="d-heal">+${fmt(h)}</b> 회복` : ''} · 스킬 게이지 +${s.G.loss}`;
+    el.innerHTML = `${ld ? `<b>${esc(App.selected)}</b> 체력 <b class="d-hp">−${fmt(ld)}</b>` : '체력 피해 없음'}${h ? ` · 보스 HP가 50% 아래라 <b class="d-heal">+${fmt(h)}</b> 회복` : ''} · 스킬 게이지 +${s.G.loss}`;
   }
 }
+
+export { render, topDealer, updateGamePreview };

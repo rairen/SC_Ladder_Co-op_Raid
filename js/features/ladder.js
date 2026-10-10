@@ -8,14 +8,21 @@
      coop/ladder/<raidId>/<이름>   공략대원별 마지막 조회 {id, gw, rating, wins, losses, t, err}
      coop/events/<raidId>         래더 한 판마다 type:'game', auto:true 기록 추가
    ===================================================================== */
+import { App } from '@app/core/app.js';
+import { $, OVERLAY, esc, fmt } from '@app/core/state.js';
+import { guard, store } from '@app/core/store.js';
+import { rosterKey, rosterOf } from '@app/core/logic.js';
+import { render } from '@app/ui/render.js';
+import { myName } from '@app/core/boot.js';
+
 const LADDER_GW = [[30,'한국'], [45,'아시아'], [10,'미국 서부'], [11,'미국 동부'], [20,'유럽']];
 const COLLECTOR_ALIVE_MS = 90 * 1000;   // 이 시간 안에 신호가 있으면 "수집 중"
 
 const cleanLadderId = v => String(v||'').trim().replace(/\s+/g,'').slice(0,24);
-function collectorAlive(){ return !local && collector && (Date.now() - Number(collector.t||0)) < COLLECTOR_ALIVE_MS; }
-function ladderOf(name){ return ladderSnap[rosterKey(name)] || null; }
+function collectorAlive(){ return !App.local && App.collector && (Date.now() - Number(App.collector.t||0)) < COLLECTOR_ALIVE_MS; }
+function ladderOf(name){ return App.ladderSnap[rosterKey(name)] || null; }
 /* 이 공략대원의 결과가 자동으로 들어오는 중인가 */
-function autoOn(name){ return !!(raid && collectorAlive() && rosterOf(raid, name).ladder); }
+function autoOn(name){ return !!(App.raid && collectorAlive() && rosterOf(App.raid, name).ladder); }
 
 function agoText(t){
   const s = Math.max(0, Math.round((Date.now() - Number(t||0))/1000));
@@ -24,24 +31,24 @@ function agoText(t){
 
 function renderLadderPanel(s, me){
   const panel = $('ladderPanel');
-  panel.hidden = OVERLAY || !raid;
+  panel.hidden = OVERLAY || !App.raid;
   if(panel.hidden) return;
 
   // 수집기 상태
   const st = $('collectorState');
-  if(local){ st.textContent = 'Firebase 연결 필요'; st.className = 'col-state warn'; }
-  else if(!collector){ st.textContent = '수집기 꺼짐'; st.className = 'col-state'; }
-  else if(!collectorAlive()){ st.textContent = `수집기 꺼짐 · 마지막 ${agoText(collector.t)}`; st.className = 'col-state'; }
-  else if(collector.state === 'ok'){ st.textContent = collector.src === 'browser' ? '수집 중 (브라우저)' : '수집 중'; st.className = 'col-state on'; }
-  else { st.textContent = collector.msg || '대기 중'; st.className = 'col-state warn'; }
-  st.title = collector ? `${collector.msg || ''} (${agoText(collector.t)})` : '';
+  if(App.local){ st.textContent = 'Firebase 연결 필요'; st.className = 'col-state warn'; }
+  else if(!App.collector){ st.textContent = '수집기 꺼짐'; st.className = 'col-state'; }
+  else if(!collectorAlive()){ st.textContent = `수집기 꺼짐 · 마지막 ${agoText(App.collector.t)}`; st.className = 'col-state'; }
+  else if(App.collector.state === 'ok'){ st.textContent = App.collector.src === 'browser' ? '수집 중 (브라우저)' : '수집 중'; st.className = 'col-state on'; }
+  else { st.textContent = App.collector.msg || '대기 중'; st.className = 'col-state warn'; }
+  st.title = App.collector ? `${App.collector.msg || ''} (${agoText(App.collector.t)})` : '';
 
   // 공략대원 표 (입력 중인 칸은 다시 그리지 않음)
   const body = $('ladderBody');
   if(body.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
-  const live = s.status === 'live' && !readOnly;
+  const live = s.status === 'live' && !App.readOnly;
   body.innerHTML = s.members.length ? s.members.map(m=>{
-    const ro = rosterOf(raid, m), snap = ladderOf(m), canEdit = live && (!me || me === m);
+    const ro = rosterOf(App.raid, m), snap = ladderOf(m), canEdit = live && (!me || me === m);
     const idCell = canEdit
       ? `<input type="text" value="${esc(ro.ladder)}" data-lid="${esc(m)}" placeholder="게임 아이디" maxlength="24" autocomplete="off" spellcheck="false" aria-label="${esc(m)} 래더 아이디">`
       : (ro.ladder ? esc(ro.ladder) : '<span class="hint">-</span>');
@@ -63,11 +70,19 @@ function renderLadderPanel(s, me){
   }).join('') : `<tr><td colspan="6" class="empty">공략대원이 참가하면 여기서 래더 아이디를 넣을 수 있습니다.</td></tr>`;
 }
 
-$('ladderBody').addEventListener('change', e=>{
-  const i = e.target.closest('[data-lid]'), g = e.target.closest('[data-lgw]');
-  if(i){ const v = cleanLadderId(i.value); i.value = v; guard(()=>store.setRoster(i.dataset.lid, {ladder: v})).then(()=>{ i.blur(); render(); }); }
-  if(g) guard(()=>store.setRoster(g.dataset.lgw, {gw: Number(g.value)||30}));
-});
-$('ladderBody').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('[data-lid]')) e.target.blur(); });
-// "몇 초 전" 표시를 갱신
-setInterval(()=>{ if(raid && !OVERLAY && !$('ladderPanel').hidden && lastState) renderLadderPanel(lastState, myName(lastState)); }, 15000);
+/* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
+export function init(){
+
+
+  $('ladderBody').addEventListener('change', e=>{
+    const i = e.target.closest('[data-lid]'), g = e.target.closest('[data-lgw]');
+    if(i){ const v = cleanLadderId(i.value); i.value = v; guard(()=>store.setRoster(i.dataset.lid, {ladder: v})).then(()=>{ i.blur(); render(); }); }
+    if(g) guard(()=>store.setRoster(g.dataset.lgw, {gw: Number(g.value)||30}));
+  });
+  $('ladderBody').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('[data-lid]')) e.target.blur(); });
+  // "몇 초 전" 표시를 갱신
+  setInterval(()=>{ if(App.raid && !OVERLAY && !$('ladderPanel').hidden && App.lastState) renderLadderPanel(App.lastState, myName(App.lastState)); }, 15000);
+}
+
+
+export { collectorAlive, ladderOf, autoOn, agoText, renderLadderPanel, LADDER_GW, COLLECTOR_ALIVE_MS, cleanLadderId };

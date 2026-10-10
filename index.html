@@ -6,11 +6,11 @@
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610101323">
+<link rel="stylesheet" href="css/style.css?v=202610101350">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else document.documentElement.classList.add('ovl-hp'); } })();
 </script>
-<script src="firebase-config.js?v=202610101323"></script>
+<script src="firebase-config.js?v=202610101350"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -347,26 +347,35 @@
 <div class="toast" id="toast" hidden></div>
 <div class="live-feed" id="liveFeed" aria-live="polite"></div>
 
-<!-- 게임 수치는 js/game-data.js 에서 바꿉니다. 아래 파일은 이 순서대로 읽혀야 합니다. -->
-<script src="js/game-data.js?v=202610101323"></script>
-<script src="js/state.js?v=202610101323"></script>
-<script src="js/store.js?v=202610101323"></script>
-<script src="js/logic.js?v=202610101323"></script>
-<script src="js/render.js?v=202610101323"></script>
-<script src="js/setup.js?v=202610101323"></script>
-<script src="js/actions.js?v=202610101323"></script>
-<script src="js/gear-roulette.js?v=202610101323"></script>
-<script src="js/overlay.js?v=202610101323"></script>
-<script src="js/role-skill.js?v=202610101323"></script>
-<script src="js/info-window.js?v=202610101323"></script>
-<script src="js/ladder-local.js?v=202610101323"></script>
-<script src="js/ladder.js?v=202610101323"></script>
-<script src="js/party.js?v=202610101323"></script>
-<script src="js/ladder-browser.js?v=202610101323"></script>
-<script src="js/auth.js?v=202610101323"></script>
-<script src="js/history.js?v=202610101323"></script>
-<script src="js/dungeon.js?v=202610101323"></script>
-<script src="js/boot.js?v=202610101323"></script>
+<!-- 게임 수치는 js/core/game-data.js 에서 바꿉니다. 코드 구조는 docs/개발가이드.md 참고.
+     아래 import map 은 모듈 이름(@app/...)을 실제 파일로 연결합니다. 파일을 고친 뒤 ?v= 숫자를 바꾸면 브라우저가 새 파일을 받습니다. -->
+<script type="importmap">
+{
+  "imports": {
+    "@app/core/app.js": "./js/core/app.js?v=202610101350",
+    "@app/core/game-data.js": "./js/core/game-data.js?v=202610101350",
+    "@app/core/state.js": "./js/core/state.js?v=202610101350",
+    "@app/core/store.js": "./js/core/store.js?v=202610101350",
+    "@app/core/logic.js": "./js/core/logic.js?v=202610101350",
+    "@app/ui/render.js": "./js/ui/render.js?v=202610101350",
+    "@app/ui/setup.js": "./js/ui/setup.js?v=202610101350",
+    "@app/features/actions.js": "./js/features/actions.js?v=202610101350",
+    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610101350",
+    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610101350",
+    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610101350",
+    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610101350",
+    "@app/features/ladder.js": "./js/features/ladder.js?v=202610101350",
+    "@app/features/party.js": "./js/features/party.js?v=202610101350",
+    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610101350",
+    "@app/features/auth.js": "./js/features/auth.js?v=202610101350",
+    "@app/ui/history.js": "./js/ui/history.js?v=202610101350",
+    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610101350",
+    "@app/core/boot.js": "./js/core/boot.js?v=202610101350"
+  }
+}
+</script>
+<script src="js/lib/ladder-local.js?v=202610101350"></script>
+<script type="module" src="js/main.js?v=202610101350"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>

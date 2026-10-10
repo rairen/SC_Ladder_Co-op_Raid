@@ -26,6 +26,8 @@
    rage     : 분노 최대치 (인원과 무관). 가득 차면 보스 스킬 1회
    rageRate : 보스가 받은 데미지 1당 오르는 분노 (0.5 = 20 데미지에 분노 +10)
    rec      : 보스 HP 50% 이하일 때 패배하면, 잃은 점수의 rec% 만큼 보스 회복 */
+import { App } from '@app/core/app.js';
+
 const PRESETS = {
   light: {label:'라이트', hp:120, bonus:10, rage:100, rageRate:0.5, rec:25, desc:'가볍게'},
   normal:{label:'노멀',   hp:220, bonus:20, rage:80,  rageRate:0.5, rec:40, desc:'보통'},
@@ -201,7 +203,7 @@ const DEFAULT_SETTINGS = {
   chain: 2,
   feeGauge: 0.001,
   gearCost: 100,
-  lossDmg: 1,    // 패배 피해 배율: 래더에서 진 점수 × 이 값만큼 그 공략대원 체력이 줄어듦 (0 이면 피해 없음)
+  lossDmg: 0.5,  // 패배 피해 배율: 래더에서 진 점수 × 이 값만큼 그 공략대원 체력이 줄어듦 (0.5 = 잃은 점수의 50%, 0 이면 피해 없음)
   gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))])),
@@ -222,3 +224,5 @@ const PARTY_SKILL_PLAN = [
   {tier:'전설', name:'전체 치유',   desc:'공략대원 전원 체력 +30 (전투불능도 부활)'},
   {tier:'전설', name:'보호막 파괴', desc:'보스 보호막 제거, 분노 게이지 비우기'}
 ];
+
+export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, ROULETTE_PLAN, PARTY_SKILL_PLAN };

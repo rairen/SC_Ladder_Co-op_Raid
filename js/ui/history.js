@@ -2,11 +2,21 @@
    history.js — 오버레이 스킬 목록, 레이드 기록, 명예의 전당
    ===================================================================== */
 /* ---------- Skill board (overlay) ---------- */
+import { App } from '@app/core/app.js';
+import { PARTY_HP, PRESETS, ROLES, SKILL_TYPES } from '@app/core/game-data.js';
+import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
+import { guard, store, toast } from '@app/core/store.js';
+import { bossSkillsOf, compute, rosterOf, skillHtml, whatHtml } from '@app/core/logic.js';
+import { render, topDealer } from '@app/ui/render.js';
+import { openSetup } from '@app/ui/setup.js';
+import { pct } from '@app/ui/info-window.js';
+import { canOperate } from '@app/features/auth.js';
+
 function renderSkillBoard(s){
   if(!OVERLAY || !document.documentElement.classList.contains('ovl-skills')) return;
   const list = s.BS;
   const ready = s.members.filter(m=>(s.gauge[m]??0) >= (s.needG[m] ?? s.G.max) && (s.mhp[m]??1) > 0);
-  $('skillBoard').innerHTML = `<div class="sb-title">${raid ? esc(raid.name) : '보스 대기 중'}<small>보스 스킬 · 분노 ${fmt(s.rage)}/${fmt(s.maxRage)}</small></div>
+  $('skillBoard').innerHTML = `<div class="sb-title">${App.raid ? esc(App.raid.name) : '보스 대기 중'}<small>보스 스킬 · 분노 ${fmt(s.rage)}/${fmt(s.maxRage)}</small></div>
     <ul class="sb-list">${list.map(x=>`<li class="${x.name===s.lastSkill?'last':''}"><span class="sn">${esc(x.name)}</span><span class="sd">${esc((SKILL_TYPES[x.type]||SKILL_TYPES.smash).desc(x.v))}</span><span class="sw">${pct(x.w, list)}%</span></li>`).join('')}</ul>
     ${ready.length ? `<div class="sb-ready">공략대 스킬 준비: ${ready.map(m=>`<b>${esc(m)}</b> (${esc(s.RS[s.role[m]].name)})`).join(', ')}</div>` : ''}`;
 }
@@ -16,38 +26,37 @@ function summarize(r, s, stopped){
   const members = {};
   for(const m of s.members){
     const x = s.stats[m] || {w:0,l:0,dmg:0,rage:0,best:0}, ro = rosterOf(r, m), g = s.gear[m];
-    const join = events.find(e=>e.type==='party' && e.action==='join' && e.member===m && !e.undone);
+    const join = App.events.find(e=>e.type==='party' && e.action==='join' && e.member===m && !e.undone);
     const itemName = it => it && !it.base ? it.name + (it.gradeLabel ? `[${it.gradeLabel}]` : '') : '';
     members[m] = {w:x.w, l:x.l, dmg:x.dmg, rage:x.rage, best:x.best||0, taken:x.skills||0, hp:s.mhp[m] ?? PARTY_HP, maxHp:s.maxH[m] ?? PARTY_HP,
       role: s.role[m] || ro.role, fee: s.fee[m] ?? ro.fee, spent: s.spent[m] || 0, ladder: ro.ladder || '', joinedAt: join ? join.t : (r.startedAt||0),
       gear: g ? [itemName(g.weapon), itemName(g.armor), itemName(g.accessory)].filter(Boolean) : [],
       items: ((s.inv && s.inv[m]) || []).length};
   }
-  const left = [...new Set(events.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
+  const left = [...new Set(App.events.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
   const tot = Object.values(members).reduce((a,x)=>({w:a.w+x.w, l:a.l+x.l}), {w:0,l:0});
-  const lastT = events.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
+  const lastT = App.events.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
   return {raidId:r.raidId, squad:r.squad||0, squadLabel: squadLabel(r), name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
-    evCount: events.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
-    events: events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
+    evCount: App.events.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
+    events: App.events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
 }
-let archiveTimer = null;
 function autoArchive(s){
-  if(!raid || s.status === 'live' || readOnly || !canOperate()) return;
-  const sum = summarize(raid, s, false);
-  const prev = history.find(h=>h.raidId===sum.raidId);
+  if(!App.raid || s.status === 'live' || App.readOnly || !canOperate()) return;
+  const sum = summarize(App.raid, s, false);
+  const prev = App.history.find(h=>h.raidId===sum.raidId);
   const same = prev && prev.status===sum.status && prev.hpLeft===sum.hpLeft && prev.rage===sum.rage && prev.wins===sum.wins && prev.losses===sum.losses && prev.evCount===sum.evCount && Object.keys(prev.members||{}).length===Object.keys(sum.members).length;
   if(same) return;
-  clearTimeout(archiveTimer);
-  archiveTimer = setTimeout(()=>guard(()=>store.archive(sum)), 600);
+  clearTimeout(App.archiveTimer);
+  App.archiveTimer = setTimeout(()=>guard(()=>store.archive(sum)), 600);
 }
 const RES_LABEL = {clear:'성공', fail:'실패', stopped:'중단'};
 function fmtDate(t){ if(!t) return '-'; const d = new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
 function fame(){
   const P = {};
   let bestHit = null, bestRaid = null;
-  for(const h of history){
+  for(const h of App.history){
     if(h.status==='live') continue;
     for(const [m,x] of Object.entries(h.members||{})){
       const p = P[m] || (P[m] = {raids:0, clears:0, w:0, l:0, dmg:0, rage:0, best:0, mvp:0});
@@ -62,7 +71,7 @@ function fame(){
   return {P, bestHit, bestRaid};
 }
 function renderHistory(){
-  const done = history.filter(h=>h.status!=='live').sort((a,b)=>(b.endedAt||b.startedAt)-(a.endedAt||a.startedAt));
+  const done = App.history.filter(h=>h.status!=='live').sort((a,b)=>(b.endedAt||b.startedAt)-(a.endedAt||a.startedAt));
   const {P, bestHit, bestRaid} = fame();
   const names = Object.keys(P).sort((a,b)=>P[b].dmg-P[a].dmg);
   const clears = done.filter(h=>h.status==='clear').length, fails = done.filter(h=>h.status==='fail').length;
@@ -75,7 +84,7 @@ function renderHistory(){
   $('histView').innerHTML = done.length ? `<div class="tbl-wrap"><table>
     <thead><tr><th>날짜</th><th>보스</th><th>난이도</th><th class="r">인원</th><th>결과</th><th class="r">전적</th><th class="r">남은 HP</th><th>MVP</th></tr></thead>
     <tbody>${done.map(h=>{
-      const open = openHist === h.raidId;
+      const open = App.openHist === h.raidId;
       const mem = Object.entries(h.members||{}).sort((a,b)=>b[1].dmg-a[1].dmg);
       const detail = open ? `<tr class="hdetail"><td colspan="8">${histDetail(h, mem)}</td></tr>` : '';
       return `<tr class="hrow" data-h="${esc(h.raidId)}" tabindex="0" aria-expanded="${open}"><td class="num">${fmtDate(h.endedAt||h.startedAt)}</td><td>${esc(h.name)}</td><td>${esc((PRESETS[h.diff]||PRESETS.custom).label)}</td>
@@ -88,8 +97,8 @@ function renderHistory(){
     <thead><tr><th>순위</th><th>공략대원</th><th class="r">참여</th><th class="r">클리어</th><th class="r">MVP</th><th class="r">승</th><th class="r">패</th><th class="r">누적 데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th></tr></thead>
     <tbody>${names.map((m,i)=>{ const p = P[m]; return `<tr><td class="num">${i+1}</td><td>${esc(m)}</td><td class="r num">${p.raids}</td><td class="r num">${p.clears}</td><td class="r num">${p.mvp}</td><td class="r num">${p.w}</td><td class="r num">${p.l}</td><td class="r num">${fmt(p.dmg)}</td><td class="r num">${fmt(p.best)}</td><td class="r num">${fmt(p.rage)}</td></tr>`; }).join('')}</tbody>
   </table></div>` : `<p class="empty">끝난 레이드가 쌓이면 공략대원별 누적 기록이 표시됩니다.</p>`;
-  $('histView').hidden = histTab !== 'hist';
-  $('fameView').hidden = histTab !== 'fame';
+  $('histView').hidden = App.histTab !== 'hist';
+  $('fameView').hidden = App.histTab !== 'fame';
 }
 function histDetail(h, mem){
   const cfg = h.cfg || {hp:0, rage:0, rec:0};
@@ -128,27 +137,36 @@ function histDetail(h, mem){
 function wipeIdle(){
   $('wipeAct').innerHTML = '<button type="button" class="btn danger" id="wipeBtn">데이터 초기화</button>';
 }
-$('dangerZone').addEventListener('click', e=>{
-  const id = e.target.id;
-  if((id === 'wipeBtn' || id === 'wipeYes') && !canOperate()){ wipeIdle(); toast('데이터 초기화는 운영자만 할 수 있습니다.'); return; }
-  if(id === 'wipeBtn'){
-    $('wipeAct').innerHTML = `<span class="warn">모든 기록을 지울까요?</span>
-      <button type="button" class="btn danger solid" id="wipeYes">모두 지우기</button>
-      <button type="button" class="btn" id="wipeNo">취소</button>`;
-    $('wipeNo').focus();
-  } else if(id === 'wipeNo'){
-    wipeIdle();
-  } else if(id === 'wipeYes'){
-    guard(async()=>{
-      await store.wipe();
-      openHist = null; wipeIdle(); renderHistory(); render();
-      openSetup(true);
-      toast('모든 데이터를 초기화했습니다.');
-    });
-  }
-});
-function setHistTab(t){ histTab = t; $('tabHist').setAttribute('aria-pressed', t==='hist'); $('tabFame').setAttribute('aria-pressed', t==='fame'); renderHistory(); }
-$('tabHist').onclick = ()=>setHistTab('hist');
-$('tabFame').onclick = ()=>setHistTab('fame');
-$('histView').addEventListener('click', e=>{ const r = e.target.closest('tr.hrow'); if(!r) return; openHist = openHist === r.dataset.h ? null : r.dataset.h; renderHistory(); });
-$('histView').addEventListener('keydown', e=>{ if(e.key!=='Enter') return; const r = e.target.closest('tr.hrow'); if(r){ openHist = openHist === r.dataset.h ? null : r.dataset.h; renderHistory(); } });
+function setHistTab(t){ App.histTab = t; $('tabHist').setAttribute('aria-pressed', t==='hist'); $('tabFame').setAttribute('aria-pressed', t==='fame'); renderHistory(); }
+
+/* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
+export function init(){
+
+  App.archiveTimer = null;
+  $('dangerZone').addEventListener('click', e=>{
+    const id = e.target.id;
+    if((id === 'wipeBtn' || id === 'wipeYes') && !canOperate()){ wipeIdle(); toast('데이터 초기화는 운영자만 할 수 있습니다.'); return; }
+    if(id === 'wipeBtn'){
+      $('wipeAct').innerHTML = `<span class="warn">모든 기록을 지울까요?</span>
+        <button type="button" class="btn danger solid" id="wipeYes">모두 지우기</button>
+        <button type="button" class="btn" id="wipeNo">취소</button>`;
+      $('wipeNo').focus();
+    } else if(id === 'wipeNo'){
+      wipeIdle();
+    } else if(id === 'wipeYes'){
+      guard(async()=>{
+        await store.wipe();
+        App.openHist = null; wipeIdle(); renderHistory(); render();
+        openSetup(true);
+        toast('모든 데이터를 초기화했습니다.');
+      });
+    }
+  });
+  $('tabHist').onclick = ()=>setHistTab('hist');
+  $('tabFame').onclick = ()=>setHistTab('fame');
+  $('histView').addEventListener('click', e=>{ const r = e.target.closest('tr.hrow'); if(!r) return; App.openHist = App.openHist === r.dataset.h ? null : r.dataset.h; renderHistory(); });
+  $('histView').addEventListener('keydown', e=>{ if(e.key!=='Enter') return; const r = e.target.closest('tr.hrow'); if(r){ App.openHist = App.openHist === r.dataset.h ? null : r.dataset.h; renderHistory(); } });
+}
+
+
+export { renderSkillBoard, summarize, autoArchive, fmtDate, fame, renderHistory, histDetail, wipeIdle, setHistTab, RES_LABEL };

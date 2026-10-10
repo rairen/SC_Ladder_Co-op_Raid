@@ -2,6 +2,10 @@
    logic.js — 게임 규칙 계산: 기록(events)을 처음부터 다시 계산해 보스 HP, 분노, 공략대 상태를 만듦
    ===================================================================== */
 /* ---------- Game logic ---------- */
+import { App } from '@app/core/app.js';
+import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, ITEM, PARTY_HP, PENDING_LABEL, REVIVE_HP, ROLES } from '@app/core/game-data.js';
+import { esc, fmt } from '@app/core/state.js';
+
 function cfgOf(r){ return r && r.cfg ? {bonus:0, rageRate:0.5, ...r.cfg} : {hp:220, bonus:20, rage:80, rageRate:0.5, rec:40}; }
 /* 보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1) */
 function bossHpOf(cfg, n){ return n > 0 ? n*cfg.hp + (Number(cfg.bonus)||0)*(n-1) : 0; }
@@ -374,3 +378,5 @@ function statusTags(s, m){
   if(s.pending[m]) t.push(esc(PENDING_LABEL[s.pending[m]]));
   return t.join(' · ');
 }
+
+export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON };
