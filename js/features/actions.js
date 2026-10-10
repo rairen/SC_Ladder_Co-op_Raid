@@ -58,8 +58,9 @@ function showReel(it, label){
 export function init(){
 
   document.addEventListener('click', e=>{
-    const chip = e.target.closest('.chip[data-m]');
-    if(chip){ App.selected = chip.dataset.m; render(); return; }
+    /* 운영자: 공략대 상태 카드를 누르면 그 공략대원이 데미지 입력 대상이 됨 */
+    const pk = e.target.closest('[data-pick]');
+    if(pk && !e.target.closest('input,select,button,a') && App.selected !== pk.dataset.pick){ App.selected = pk.dataset.pick; render(); return; }
     const d = e.target.closest('.diff[data-d]');
     if(d){ App.diff = d.dataset.d; renderDiffs(); return; }
     const rs = e.target.closest('[data-act="reset"]');
@@ -71,6 +72,7 @@ export function init(){
     const u = e.target.closest('[data-undo]');
     if(u){ guard(()=>store.setUndone(u.dataset.undo, u.dataset.state !== '1')); return; }
   });
+  $('inputWho').addEventListener('change', e=>{ App.selected = e.target.value || null; render(); });
   $('cancelSetup').onclick = ()=>openSetup(false);
   ['cHp','cBonus','cRage','cRageRate','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
   $('startRaid').onclick = ()=>{

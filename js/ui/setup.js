@@ -65,7 +65,7 @@ function openSetup(open){
 /* ---------- 레이드 종료 / 새 레이드 ---------- */
 function renderEndBtn(s, me){
   const b = $('endRaidBtn');
-  const can = !OVERLAY && !App.readOnly && !me && canOperate();
+  const can = !OVERLAY && !App.readOnly && canOperate();
   b.hidden = !can;
   if(!can){ $('endConfirm').hidden = true; return; }
   if(!App.raid){ b.hidden = true; $('endConfirm').hidden = true; return; }

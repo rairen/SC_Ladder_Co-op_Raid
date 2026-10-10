@@ -25,8 +25,9 @@ import * as m15 from '@app/ui/history.js';
 import * as m16 from '@app/ui/dungeon.js';
 import * as m17 from '@app/core/boot.js';
 import * as m18 from '@app/ui/me-info.js';
+import * as m19 from '@app/ui/admin-tools.js';
 
-const modules = [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m18, m17];
+const modules = [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10, m11, m12, m13, m14, m15, m16, m18, m19, m17];
 
 /* 개발용: 내 PC(localhost)에서 열면 브라우저 콘솔에서 raid, events, compute() 등을 바로 쓸 수 있게 전역으로 꺼내 둡니다.
    실제 사이트(github.io)에서는 하지 않습니다. */

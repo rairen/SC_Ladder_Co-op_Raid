@@ -66,7 +66,7 @@ function renderRulesTab(){
       <tr><td><b>부활 체력</b></td><td class="r num">${REVIVE_HP}</td><td class="desc">전투불능 상태에서 승리하거나 불사의 목걸이 발동 시</td></tr>
       <tr><td><b>보스 회복 시작</b></td><td class="r num">50%</td><td class="desc">보스 HP가 이 아래면 패배 점수 × 회복률만큼 보스 회복</td></tr>
       <tr><td><b>체인 보너스</b></td><td class="r num">${S.chain}%</td><td class="desc">서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지</td></tr>
-      <tr><td><b>역할 스킬 게이지</b></td><td class="r num">${G.max}</td><td class="desc">시작 ${G.start}, 승리 +${G.win}, 패배 +${G.loss}. 필요 게이지 = ${G.max} − 입장료 × ${S.feeGauge}</td></tr>
+      <tr><td><b>역할 스킬 게이지</b></td><td class="r num">${G.max}</td><td class="desc">시작 ${G.start}, 승리 +${G.win}, 패배 +${G.loss}. 필요 게이지 = ${G.max} − 지참금 × ${S.feeGauge}</td></tr>
       <tr><td><b>성공 / 실패</b></td><td class="r">-</td><td class="desc">보스 HP 0 / 공략대 전원 전투불능</td></tr>
     </tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">보스 이름과 종족</h3>
@@ -122,7 +122,7 @@ function renderSkillModal(){
       : '<p class="lock-note">수치는 새 레이드 만들기의 <b>수치 설정</b>에서 시작 전에만 바꿀 수 있습니다.</p>'}`;
   // 역할 스킬
   const rs = App.rsDraft || roleSkillsOf(SRC()), G = App.gDraft || gaugeOf(SRC());
-  $('skTabRole').innerHTML = `<p class="sk-note">공략대원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 찹니다. 입장료를 많이 받을수록 필요 게이지가 줄어듭니다 (필요 게이지 = 최대 − 입장료 × 계수, 계수는 레이드 설정 탭).</p>
+  $('skTabRole').innerHTML = `<p class="sk-note">공략대원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 찹니다. 지참금을 많이 받을수록 필요 게이지가 줄어듭니다 (필요 게이지 = 최대 − 지참금 × 계수, 계수는 레이드 설정 탭).</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>역할</th><th>스킬 이름</th><th class="r">수치</th><th>효과</th></tr></thead><tbody>
     ${Object.entries(ROLES).map(([k,R])=> edit
       ? `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><input type="text" maxlength="16" value="${esc(rs[k].name)}" data-rs="${k}" data-k="name" aria-label="${R.label} 스킬 이름"></td>
@@ -134,16 +134,16 @@ function renderSkillModal(){
     ${['max','start','win','loss'].map(k=> edit ? `<td><input type="number" min="0" step="5" value="${G[k]}" data-g="${k}" aria-label="게이지 ${k}"></td>` : `<td class="num">${G[k]}</td>`).join('')}
     </tr></tbody></table></div>
     ${edit ? `<div class="sk-actions"><button type="button" class="btn" id="rsReset">기본값으로 되돌리기</button><span style="flex:1"></span><button type="button" class="btn primary" id="rsSave"${App.skDirty?'':' disabled'}>적용</button></div>` : ''}`;
-  // 입장료·장비
-  // 입장료·장비 (설정값 사용, 운영자는 수정)
+  // 지참금·장비
+  // 지참금·장비 (설정값 사용, 운영자는 수정)
   const SD = App.setDraft || settingsOf(SRC());
   const gearInfo = {
     weapon:   {title:'무기',   unit:'%', show:v=> v ? `승리 데미지 +${Math.round(v*100)}%` : '기본', pctv:true},
     armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
     accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `1회용, 쓰러질 때 체력 ${REVIVE_HP}(등급 배율 적용)으로 버팀` : '-', pctv:true}
   };
-  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 공략대원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 공략대 현황에서 고칠 수 있습니다. 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 입장료에서 비용을 내고, 아래 확률로 장비 하나와 <b>등급</b>이 나옵니다. 얻은 장비는 인벤토리에 쌓이고, 지금 것보다 좋으면 바로 장착합니다. 등급이 높을수록 능력치가 조금 높고 내구도가 깁니다. 무기·평온의 부적은 내 승리 공격마다, 갑옷은 보스에게 맞을 때마다 내구도가 1씩 줄고, 불사의 목걸이는 한 번 발동하면 부서집니다. 부서지면 인벤토리의 다음 장비를 자동으로 착용합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
-    ${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,x)=>a+x.w,0) || 1; return `<div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>장비 룰렛 1회 비용</b></td><td class="r">${edit ? `<input type="number" min="0" step="10" value="${SD.gearCost}" data-sp="gearCost" aria-label="장비 룰렛 비용">` : `<span class="num">${fmt(SD.gearCost)}개</span>`}</td><td class="desc">남은 입장료에서 빠집니다</td></tr><tr><td><b>꽝</b></td><td class="r">${edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll.none}" data-gr="none" aria-label="꽝 비중">` : `<span class="num">${SD.gearRoll.none}</span>`}</td><td class="desc" data-grp="none">${Math.round((gl.find(x=>x.key==='none').w)/gt*1000)/10}%</td></tr></tbody></table></div>`; })()}
+  $('skTabGear').innerHTML = `<p class="sk-note"><b>초기 지참금</b>은 참가할 때 가져온 별풍선이고, 역할 스킬 필요 게이지를 줄여 줍니다. 레이드 중에 받은 별풍선은 장비 룰렛 패널의 <b>추가 지원금</b>으로 넣으면 지참금에 더해집니다(게이지에는 영향 없음). 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 지참금에서 비용을 내고, 아래 확률로 장비 하나와 <b>등급</b>이 나옵니다. 얻은 장비는 인벤토리에 쌓이고, 지금 것보다 좋으면 바로 장착합니다. 등급이 높을수록 능력치가 조금 높고 내구도가 깁니다. 무기·평온의 부적은 내 승리 공격마다, 갑옷은 보스에게 맞을 때마다 내구도가 1씩 줄고, 불사의 목걸이는 한 번 발동하면 부서집니다. 부서지면 인벤토리의 다음 장비를 자동으로 착용합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
+    ${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,x)=>a+x.w,0) || 1; return `<div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>장비 룰렛 1회 비용</b></td><td class="r">${edit ? `<input type="number" min="0" step="10" value="${SD.gearCost}" data-sp="gearCost" aria-label="장비 룰렛 비용">` : `<span class="num">${fmt(SD.gearCost)}개</span>`}</td><td class="desc">남은 지참금에서 빠집니다</td></tr><tr><td><b>꽝</b></td><td class="r">${edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll.none}" data-gr="none" aria-label="꽝 비중">` : `<span class="num">${SD.gearRoll.none}</span>`}</td><td class="desc" data-grp="none">${Math.round((gl.find(x=>x.key==='none').w)/gt*1000)/10}%</td></tr></tbody></table></div>`; })()}
     ${(()=>{ const gs = GEAR_GRADES.map((g,i)=>({...g, ...SD.grades[i]})), gt = gs.reduce((a,x)=>a+(Number(x.w)||0),0) || 1;
       const inp = (i,k,val,step,label) => edit ? `<input type="number" min="0" step="${step}" value="${val}" data-gd="${i}" data-gk="${k}" aria-label="${label}">` : `<span class="num">${val}</span>`;
       return `<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th class="r">확률 비중</th><th class="r">내구도</th><th class="r">능력치 (%)</th><th>예시</th></tr></thead><tbody>
@@ -159,7 +159,7 @@ function renderSkillModal(){
           <td class="desc">${esc(info.show(x.v, i))}</td></tr>`; }).join('')}
     </tbody></table></div>`).join('')}
     ${edit ? `<div class="sk-actions"><button type="button" class="btn" data-setreset="gear">기본값으로 되돌리기</button><span style="flex:1"></span><button type="button" class="btn primary" data-setsave="1"${App.setDirty?'':' disabled'}>적용</button></div>` : ''}`;
-  // 레이드 설정: 체인 보너스, 입장료 게이지, 룰렛 비중
+  // 레이드 설정: 체인 보너스, 지참금 게이지, 룰렛 비중
   const ws = ITEMS.map(it=>({it, w: Math.max(0, Number(SD.roulette[it.id])||0)})), wt = ws.reduce((a,x)=>a+x.w,0) || 1;
   const num = (path, val, step, label) => edit ? `<input type="number" min="0" step="${step}" value="${val}" data-sp="${path}" aria-label="${label}">` : `<span class="num">${val}</span>`;
   $('skTabSettings').innerHTML = `<p class="sk-note">${edit ? '이번 레이드에 쓸 값입니다. 적용한 뒤 레이드를 시작하면 고정됩니다.' : (App.raid ? '이 레이드에 고정된 값입니다. 다음 레이드의 수치 설정에서 바꿀 수 있습니다.' : '기본값입니다. 새 레이드 만들기의 수치 설정에서 바꿀 수 있습니다.')}</p>
@@ -167,8 +167,8 @@ function renderSkillModal(){
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>서로 다른 3명 연속 승리</b></td><td class="r">${num('chain', SD.chain, 0.5, '체인 보너스')}</td><td class="desc">보스 최대 HP의 % 만큼 추가 데미지</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">패배 피해</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>패배 피해 배율</b></td><td class="r">${num('lossDmg', SD.lossDmg, 0.1, '패배 피해 배율')}</td><td class="desc">래더에서 지면 잃은 점수 × 이 값만큼 그 공략대원 체력이 줄어듭니다. 예: −20점 × ${SD.lossDmg} = 체력 −${Math.round(20*SD.lossDmg)}. 0이면 피해 없음</td></tr></tbody></table></div>
-    <h3 class="label" style="margin:4px 0 0">입장료 → 역할 스킬 필요 게이지</h3>
-    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>입장료 1개당 줄어드는 게이지</b></td><td class="r">${num('feeGauge', SD.feeGauge, 0.001, '입장료 게이지 계수')}</td><td class="desc">필요 게이지 = 최대 게이지 − 입장료 × 이 값. 예: ${fmt(1000)}개 × ${SD.feeGauge} = ${Math.round(1000*SD.feeGauge*10)/10} 감소</td></tr></tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">지참금 → 역할 스킬 필요 게이지</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>지참금 1개당 줄어드는 게이지</b></td><td class="r">${num('feeGauge', SD.feeGauge, 0.001, '지참금 게이지 계수')}</td><td class="desc">필요 게이지 = 최대 게이지 − 지참금 × 이 값. 예: ${fmt(1000)}개 × ${SD.feeGauge} = ${Math.round(1000*SD.feeGauge*10)/10} 감소</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}

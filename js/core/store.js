@@ -44,16 +44,20 @@ const store = {
   },
   async wipe(){
     if(App.local){ App.raid = null; App.events = []; App.history = []; App.localDB = {raids:{}, events:{}}; commitHistory(); commit(); return; }
+    /* 공략대·기록·래더 수집·초대 코드 모두 삭제. 로그인 프로필(users)과 운영자(admins)는 남김 */
     await App.db.ref(base()).remove();
+    await App.db.ref('invites/'+ROOM).remove().catch(()=>{});
+    await App.db.ref('joins/'+ROOM).remove().catch(()=>{});
   },
   async reset(sum){
-    if(App.local){ App.history = App.history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); delete App.localDB.raids[sum.raidId]; delete App.localDB.events[sum.raidId]; App.raid = null; App.events = []; selectRaid(''); commit(); return; }
+    const cur = !!(App.raid && App.raid.raidId === sum.raidId);
+    if(App.local){ App.history = App.history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); delete App.localDB.raids[sum.raidId]; delete App.localDB.events[sum.raidId]; if(cur){ App.raid = null; App.events = []; selectRaid(''); } commit(); return; }
     await App.db.ref(base()+'/history/'+sum.raidId).set(sum);
     await App.db.ref(base()+'/events/'+sum.raidId).remove();
     await App.db.ref(base()+'/ladder/'+sum.raidId).remove();
     await App.db.ref('invites/'+ROOM+'/'+sum.raidId).remove().catch(()=>{});
     await App.db.ref(rpath(sum.raidId)).remove();
-    selectRaid('');
+    if(cur) selectRaid('');
   },
   async archive(sum){
     if(App.local){ App.history = App.history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); return; }
@@ -63,7 +67,7 @@ const store = {
     if(App.local){ const e = App.events.find(x=>x._id===id); if(e) Object.assign(e, patch); commit(); return; }
     await App.db.ref(base()+'/events/'+App.raid.raidId+'/'+id).update(patch);
   },
-  /* 공략대 구성 변화 기록 (참가, 내보내기, 역할·입장료 변경). 계산에는 영향 없음 */
+  /* 공략대 구성 변화 기록 (참가, 내보내기, 역할·지참금 변경). 계산에는 영향 없음 */
   async partyLog(member, action, extra){
     if(!App.raid) return;
     await this.addEvent({raidId: App.raid.raidId, t: Date.now(), type:'party', member, action, ...(extra||{}), undone:false});

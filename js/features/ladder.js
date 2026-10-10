@@ -9,7 +9,7 @@
      coop/events/<raidId>         래더 한 판마다 type:'game', auto:true 기록 추가
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, esc, fmt } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, bindModal, openModal } from '@app/core/state.js';
 import { guard, store } from '@app/core/store.js';
 import { rosterKey, rosterOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
@@ -30,17 +30,19 @@ function agoText(t){
 }
 
 function renderLadderPanel(s, me){
-  const panel = $('ladderPanel');
-  panel.hidden = OVERLAY || !App.raid;
-  if(panel.hidden) return;
+  const btn = $('ladderOpen');
+  btn.hidden = OVERLAY || !App.raid;
+  if(btn.hidden){ $('ladderModal').hidden = true; return; }
 
-  // 수집기 상태
-  const st = $('collectorState');
-  if(App.local){ st.textContent = '사용 안 함 · Firebase 필요'; st.className = 'col-state warn'; }
-  else if(!App.collector || !collectorAlive()){ st.textContent = '꺼짐'; st.className = 'col-state'; }
-  else if(App.collector.state === 'ok'){ st.textContent = '● 수집 중'; st.className = 'col-state on'; }
-  else { st.textContent = '대기 중'; st.className = 'col-state warn'; }
-  st.title = App.collector ? `${App.collector.src === 'browser' ? '브라우저 수집' : '수집기 프로그램'} · ${App.collector.msg || ''} (${agoText(App.collector.t)})` : '';
+  // 수집기 상태 (버튼에는 짧게, 팝업에는 자세히)
+  let tx, cls;
+  if(App.local){ tx = 'Firebase 필요'; cls = 'warn'; }
+  else if(!App.collector || !collectorAlive()){ tx = '꺼짐'; cls = ''; }
+  else if(App.collector.state === 'ok'){ tx = '● 수집 중'; cls = 'on'; }
+  else { tx = '대기 중'; cls = 'warn'; }
+  for(const id of ['collectorState', 'collectorState2']){ const st = $(id); st.textContent = tx; st.className = 'col-state ' + cls; }
+  $('collectorMsg').textContent = App.local ? '브라우저 저장 모드에서는 자동 수집을 쓸 수 없습니다.'
+    : App.collector ? `${App.collector.src === 'browser' ? '브라우저 수집' : '수집기 프로그램'} · ${App.collector.msg || ''} · ${agoText(App.collector.t)}` : '아직 수집기를 켠 적이 없습니다.';
   const reg = s.members.filter(m=>rosterOf(App.raid, m).ladder).length;
   $('ladderIdsSum').textContent = `래더 아이디 · ${reg}/${s.members.length}명 등록`;
 
@@ -81,7 +83,9 @@ export function init(){
   });
   $('ladderBody').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('[data-lid]')) e.target.blur(); });
   // "몇 초 전" 표시를 갱신
-  setInterval(()=>{ if(App.raid && !OVERLAY && !$('ladderPanel').hidden && App.lastState) renderLadderPanel(App.lastState, myName(App.lastState)); }, 15000);
+  $('ladderOpen').onclick = ()=>{ if(App.lastState) renderLadderPanel(App.lastState, myName(App.lastState)); openModal('ladderModal', '#ladderClose'); };
+  bindModal('ladderModal', 'ladderClose');
+  setInterval(()=>{ if(App.raid && !OVERLAY && App.lastState) renderLadderPanel(App.lastState, myName(App.lastState)); }, 15000);
 }
 
 

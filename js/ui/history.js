@@ -22,25 +22,25 @@ function renderSkillBoard(s){
 }
 
 /* ---------- Raid history ---------- */
-function summarize(r, s, stopped){
+function summarize(r, s, stopped, evs = App.events){
   const members = {};
   for(const m of s.members){
     const x = s.stats[m] || {w:0,l:0,dmg:0,rage:0,best:0}, ro = rosterOf(r, m), g = s.gear[m];
-    const join = App.events.find(e=>e.type==='party' && e.action==='join' && e.member===m && !e.undone);
+    const join = evs.find(e=>e.type==='party' && e.action==='join' && e.member===m && !e.undone);
     const itemName = it => it && !it.base ? it.name + (it.gradeLabel ? `[${it.gradeLabel}]` : '') : '';
     members[m] = {w:x.w, l:x.l, dmg:x.dmg, rage:x.rage, best:x.best||0, taken:x.skills||0, hp:s.mhp[m] ?? PARTY_HP, maxHp:s.maxH[m] ?? PARTY_HP,
       role: s.role[m] || ro.role, fee: s.fee[m] ?? ro.fee, spent: s.spent[m] || 0, ladder: ro.ladder || '', joinedAt: join ? join.t : (r.startedAt||0),
       gear: g ? [itemName(g.weapon), itemName(g.armor), itemName(g.accessory)].filter(Boolean) : [],
       items: ((s.inv && s.inv[m]) || []).length};
   }
-  const left = [...new Set(App.events.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
+  const left = [...new Set(evs.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
   const tot = Object.values(members).reduce((a,x)=>({w:a.w+x.w, l:a.l+x.l}), {w:0,l:0});
-  const lastT = App.events.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
+  const lastT = evs.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
   return {raidId:r.raidId, squad:r.squad||0, squadLabel: squadLabel(r), name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
-    evCount: App.events.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
-    events: App.events.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
+    evCount: evs.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
+    events: evs.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette') o.item = e.item; else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='fund') o.amount = e.amount; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
 }
 function autoArchive(s){
   if(!App.raid || s.status === 'live' || App.readOnly || !canOperate()) return;
@@ -108,7 +108,7 @@ function histDetail(h, mem){
     <span>1인당 HP <b>${fmt(cfg.hp)}</b> · 분노 최대 <b>${fmt(cfg.rage)}</b> · 회복 <b>${cfg.rec}%</b></span>
     <span>보스 HP <b>${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</b></span><span>분노 <b>${fmt(h.rage)} / ${fmt(h.maxRage)}</b></span></div>`;
   const table = `<div class="tbl-wrap"><table class="mini">
-    <thead><tr><th>공략대원</th><th>역할</th><th class="r">입장료</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th><th class="r">최종 체력</th><th>장비</th></tr></thead>
+    <thead><tr><th>공략대원</th><th>역할</th><th class="r">지참금</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th><th class="r">최종 체력</th><th>장비</th></tr></thead>
     <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${h.mvp===m?'<span class="mvp">MVP</span>':''}${x.ladder?`<div class="hint">${esc(x.ladder)}</div>`:''}</td>
       <td>${x.role && ROLES[x.role] ? `<span class="role-tag ${x.role}">${ROLES[x.role].short}</span>${ROLES[x.role].label}` : '-'}</td>
       <td class="r num">${x.fee != null ? fmt(x.fee) + (x.spent ? `<div class="hint">사용 ${fmt(x.spent)}</div>` : '') : '-'}</td>
@@ -134,34 +134,12 @@ function histDetail(h, mem){
   }
   return meta + `<div class="hd-grid"><div><h3>공략대원 기록</h3>${table}</div><div><h3>전투 기록</h3>${logHtml}</div></div>`;
 }
-function wipeIdle(){
-  $('wipeAct').innerHTML = '<button type="button" class="btn danger" id="wipeBtn">데이터 초기화</button>';
-}
 function setHistTab(t){ App.histTab = t; $('tabHist').setAttribute('aria-pressed', t==='hist'); $('tabFame').setAttribute('aria-pressed', t==='fame'); renderHistory(); }
 
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
 
   App.archiveTimer = null;
-  $('dangerZone').addEventListener('click', e=>{
-    const id = e.target.id;
-    if((id === 'wipeBtn' || id === 'wipeYes') && !canOperate()){ wipeIdle(); toast('데이터 초기화는 운영자만 할 수 있습니다.'); return; }
-    if(id === 'wipeBtn'){
-      $('wipeAct').innerHTML = `<span class="warn">모든 기록을 지울까요?</span>
-        <button type="button" class="btn danger solid" id="wipeYes">모두 지우기</button>
-        <button type="button" class="btn" id="wipeNo">취소</button>`;
-      $('wipeNo').focus();
-    } else if(id === 'wipeNo'){
-      wipeIdle();
-    } else if(id === 'wipeYes'){
-      guard(async()=>{
-        await store.wipe();
-        App.openHist = null; wipeIdle(); renderHistory(); render();
-        openSetup(true);
-        toast('모든 데이터를 초기화했습니다.');
-      });
-    }
-  });
   $('tabHist').onclick = ()=>setHistTab('hist');
   $('tabFame').onclick = ()=>setHistTab('fame');
   $('histView').addEventListener('click', e=>{ const r = e.target.closest('tr.hrow'); if(!r) return; App.openHist = App.openHist === r.dataset.h ? null : r.dataset.h; renderHistory(); });
@@ -169,4 +147,4 @@ export function init(){
 }
 
 
-export { renderSkillBoard, summarize, autoArchive, fmtDate, fame, renderHistory, histDetail, wipeIdle, setHistTab, RES_LABEL };
+export { renderSkillBoard, summarize, autoArchive, fmtDate, fame, renderHistory, histDetail, setHistTab, RES_LABEL };

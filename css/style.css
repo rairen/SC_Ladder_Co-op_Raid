@@ -607,3 +607,31 @@ html.overlay .live-feed{display:none}
 html.overlay .ticker{display:none!important}
 .lobby.joined{padding:10px 18px}
 .lobby.joined .lobby-head{margin-bottom:0}
+
+/* ---------- 데미지 입력 · 래더 수집 버튼 ---------- */
+.input-me{font-family:var(--f-body,inherit);font-size:14px;color:var(--accent);margin-left:6px;font-weight:700}
+.col-btn{display:inline-flex;align-items:center;gap:6px}
+.col-btn .col-state{padding:1px 7px}
+.ladder-box{max-width:640px}
+.ladder-box .ac-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ladder-box .bcol{margin:0}
+/* 추가 지원금 */
+.fund-row{display:flex;align-items:flex-end;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+.fund-row .label{width:100%;margin:0}
+.fund-row input{width:140px;font-size:15px;padding:8px 10px}
+/* 운영자 선택 표시 */
+.pcard[data-pick]{cursor:default}
+html:not(.overlay) .pcard.sel{outline:2px solid color-mix(in srgb,var(--accent) 70%,transparent);outline-offset:-1px}
+/* 참가 확인 */
+.jc-box{max-width:460px}
+.jc-box select{width:100%}
+.warn-note{margin:0;padding:8px 10px;border-radius:8px;font-size:13px;color:#ffd34d;background:rgba(255,211,77,.07);border:1px solid #8a7020}
+/* 운영자 도구 */
+.admin-btn{border-color:color-mix(in srgb,var(--accent) 55%,transparent);color:var(--accent)}
+.adm-box{max-width:560px}
+.adm-raids{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.adm-raids li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+.adm-raids li.empty{justify-content:flex-start;color:var(--muted)}
+.adm-box .danger{margin-top:6px}
+.adm-box .danger-act input{width:150px}
+.btn.danger.solid:disabled{opacity:.4;cursor:not-allowed}

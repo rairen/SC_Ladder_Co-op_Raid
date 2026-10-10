@@ -4,9 +4,9 @@
 /* ---------- 장비 룰렛 ---------- */
 import { App } from '@app/core/app.js';
 import { DEFAULT_GEAR_ROLL, GEAR_GRADES, GEAR_SLOT, PARTY_HP, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, ROOM, esc, fmt, squadLabel } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
 import { guard, rpath, store, toast } from '@app/core/store.js';
-import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
+import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { openSkillModal } from '@app/ui/info-window.js';
@@ -16,14 +16,17 @@ import { ME_KEY } from '@app/core/boot.js';
 
 function renderGearPanel(s, canAct, me){
   const S = s.S, m = App.selected;
-  if(!App.raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">공략대원을 고르면 남은 입장료와 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; $('invList').innerHTML = ''; $('invCount').textContent = ''; return; }
+  if(!App.raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">공략대원을 고르면 남은 지참금과 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; $('invList').innerHTML = ''; $('invCount').textContent = ''; return; }
   const left = (s.fee[m]||0) - (s.spent[m]||0), cost = S.gearCost, times = cost > 0 ? Math.floor(left / cost) : 0;
-  $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 입장료 <b>${fmt(left)}</b> / 받은 ${fmt(s.fee[m]||0)}</span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
-  renderInventory(s, m, canAct && (!me || me === m));
+  const fund = (s.fund && s.fund[m]) || 0, init0 = (s.fee[m]||0) - fund;
   const mine = !me || me === m;
+  $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 지참금 <b>${fmt(left)}</b> <span class="hint">/ 초기 ${fmt(init0)}${fund ? ` + 지원 ${fmt(fund)}` : ''}</span></span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
+  const fr = $('fundRow'); fr.hidden = !(canAct && mine);
+  $('fundFor').textContent = `${m} 추가 지원금`;
+  renderInventory(s, m, canAct && mine);
   $('gearSpin').disabled = !(canAct && mine && left >= cost);
   $('gearSpin').textContent = `장비 뽑기 (−${fmt(cost)})`;
-  $('gearFor').textContent = left < cost ? '입장료가 부족합니다. 공략대 현황에서 받은 입장료를 늘려 주세요.' : '';
+  $('gearFor').textContent = left < cost ? '지참금이 부족합니다. 방송에서 받은 별풍선을 추가 지원금으로 넣어 주세요.' : '';
 }
 /* 인벤토리: 얻은 장비 목록, 착용·해제 */
 function renderInventory(s, m, canEdit){
@@ -85,7 +88,12 @@ function doJoin(){
   const other = Object.values(App.raids).find(r=>r.raidId !== App.raid.raidId && (r.members||[]).includes(name));
   if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return; }
   if(authed){ const ro0 = App.raid.roster && App.raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== App.authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 방송 닉네임을 바꿔 주세요.'); return; } }
-  const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(App.profile && App.profile.gw)||30) : 30;
+  const fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(App.profile && App.profile.gw)||30) : 30;
+  /* 다시 들어오는 이름은 원래 역할 그대로. 새로 참가하면 역할 확인 팝업을 거침 */
+  if(already) joinNow(name, rosterOf(App.raid, name).role, fee, ladder, gw, already, needCode, code, authed);
+  else confirmJoin(name, $('joinRole').value, fee, role=>joinNow(name, role, fee, ladder, gw, already, needCode, code, authed));
+}
+function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
   guard(async()=>{
     if(authed){
       if(needCode){
@@ -96,7 +104,7 @@ function doJoin(){
     }
     if(!already) await store.partyLog(name, 'join', {role, fee});
     await store.join(name);
-    if(!already || role !== rosterOf(App.raid, name).role || fee !== rosterOf(App.raid, name).fee) await store.setRoster(name, {role, fee});
+    if(!already) await store.setRoster(name, {role, fee});
     if(authed) await store.setRoster(name, {uid: App.authUser.uid, ladder, gw});
     else if(ladder) await store.setRoster(name, {ladder});
     if(authed && App.profile && ladder !== (App.profile.ladder||'')) await App.db.ref('users/'+App.authUser.uid).update({ladder});
@@ -110,7 +118,6 @@ function renderJoin(s, me){
   $('joinPanel').hidden = !(live && !me) || OVERLAY;
   if(!$('joinPanel').hidden){ renderJoinGear(); renderLateJoin(); }
   $('meSelect').parentElement.hidden = (!!me && useAuth()) || OVERLAY || !canOperate();
-  $('dangerZone').hidden = !!me || !canOperate();
   // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
   const authed = useAuth(), needLogin = authed && !App.authUser;
   $('joinLogin').hidden = !needLogin; $('joinForm').hidden = needLogin; $('joinIntro').hidden = needLogin;
@@ -128,11 +135,29 @@ function renderJoin(s, me){
     : '아직 참가한 공략대원이 없습니다. 첫 번째로 참가해 보세요.';
   $('addHint').textContent = me ? '공략대원 추가는 운영자 모드에서만 할 수 있습니다.' : '공략대원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼 늘어납니다.';
 }
+/* 참가 확인 팝업: 역할을 정하고 확인해야 참가. 레이드 시작 후에는 역할을 바꿀 수 없음 */
+let joinOk = null;
+function renderJoinRole(){
+  const rk = $('jcRole').value, sk = roleSkillsOf(App.raid)[rk];
+  $('jcRoleDesc').innerHTML = sk ? `<span class="role-tag ${rk}">${ROLES[rk].short}</span><b>${esc(sk.name)}</b> · ${esc(ROLES[rk].desc(sk.v))}` : '';
+}
+function confirmJoin(name, role, fee, onOk){
+  $('jcRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===role?' selected':''}>${v.label}</option>`).join('');
+  renderJoinRole();
+  $('jcWho').innerHTML = `<b>${esc(name)}</b> 님이 ${esc(squadLabel(App.raid))} "${esc(App.raid.name || '')}" 레이드에 참가합니다.${fee ? ` 초기 지참금 <b>${fmt(fee)}</b>.` : ''}`;
+  const lj = lateJoinInfo();
+  $('jcLate').hidden = !lj.late;
+  if(lj.late) $('jcLate').innerHTML = `<b>중간 합류</b> · 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.`;
+  joinOk = onOk;
+  openModal('joinModal', '#jcRole');
+}
 function addMember(){
   const name = $('addMember').value.trim().slice(0,20);
   if(!name || !App.raid) return;
   if(App.raid.members.includes(name)){ toast('이미 공략대에 있는 이름입니다.'); return; }
-  const role = $('addMemberRole').value;
+  confirmJoin(name, $('addMemberRole').value, 0, role=>addMemberNow(name, role));
+}
+function addMemberNow(name, role){
   guard(async()=>{ await store.partyLog(name, 'join', {role, fee:0}); await store.join(name); await store.setRoster(name, {role}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
 }
 
@@ -188,6 +213,18 @@ export function init(){
   $('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
   $('joinExisting').addEventListener('click', e=>{ const b = e.target.closest('[data-claim]'); if(b) setMe(b.dataset.claim); });
 
+  const addFund = ()=>{
+    const a = Math.round(Number($('fundAmt').value) || 0), who = App.selected;
+    if(!App.raid || !who) return;
+    if(a <= 0){ toast('추가 지원금은 1 이상 넣어 주세요.'); $('fundAmt').focus(); return; }
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'fund', member:who, amount:a, undone:false}); $('fundAmt').value = ''; toast(`${who} 추가 지원금 +${fmt(a)}`); });
+  };
+  $('fundBtn').onclick = addFund;
+  $('fundAmt').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addFund(); } });
+  $('jcRole').addEventListener('change', renderJoinRole);
+  const closeJoin = bindModal('joinModal', 'jcClose', ()=>{ joinOk = null; });
+  $('jcNo').onclick = closeJoin;
+  $('jcOk').onclick = ()=>{ const f = joinOk, role = $('jcRole').value; joinOk = null; $('joinModal').hidden = true; if(f) f(role); };
   $('addMemberBtn').onclick = addMember;
   $('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addMember(); } });
 

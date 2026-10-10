@@ -143,7 +143,7 @@ const DEFAULT_ROLE_SKILLS = {
 
 
 /* ---------- 역할 스킬 게이지 ----------
-   max   : 최대 게이지. 필요 게이지 = max − 받은 입장료 × feeGauge(아래 레이드 설정)
+   max   : 최대 게이지. 필요 게이지 = max − 초기 지참금 × feeGauge(아래 레이드 설정)
    start : 레이드 시작 시 게이지
    win   : 승리할 때 충전량
    loss  : 패배할 때 충전량 */
@@ -195,8 +195,8 @@ const DEFAULT_GEAR_ROLL = {
 /* ---------- 레이드 설정 기본값 ----------
    win        : (사용 안 함) 예전 승리 유형 배율. 예전 기록을 다시 계산할 때만 쓰임
    chain      : 서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지 %
-   feeGauge   : 받은 입장료 1개당 줄어드는 역할 스킬 필요 게이지
-   gearCost   : 장비 룰렛 1회 비용 (입장료에서 빠짐)
+   feeGauge   : 초기 지참금 1개당 줄어드는 역할 스킬 필요 게이지
+   gearCost   : 장비 룰렛 1회 비용 (지참금에서 빠짐)
    roulette / gearRoll / gear : 위 목록의 값을 그대로 가져옴 */
 const DEFAULT_SETTINGS = {
   win: {multi:1.5, same:0.5, banned:0},

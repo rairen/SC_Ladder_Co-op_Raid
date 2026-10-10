@@ -82,7 +82,7 @@ function compute(r, evs){
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
   let maxHp = bossHpOf(cfg, n0); const maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
-  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, spent = {};
+  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, fund = {}, spent = {};
   const inv = {}, eq = {};   // 인벤토리(얻은 장비 전부)와 슬롯별 착용 장비
   const itemOf = (m, id) => id ? inv[m].find(x=>x.id===id) : null;
   /* 착용 장비로 능력치 계산 (빈 슬롯은 기본 장비) */
@@ -118,7 +118,7 @@ function compute(r, evs){
       inv[m] = []; eq[m] = {weapon:null, armor:null, accessory:null};
       const g = gear[m] = buildGear(m); role[m] = ro.role; fee[m] = ro.fee; spent[m] = 0;
       maxH[m] = PARTY_HP + g.hp; mhp[m] = maxH[m];
-      /* 필요 게이지 = 최대 게이지 − 입장료 × 계수 (예: 100 − 1000 × 0.001 = 99) */
+      /* 필요 게이지 = 최대 게이지 − 지참금 × 계수 (예: 100 − 1000 × 0.001 = 99) */
       needG[m] = Math.max(1, Math.round((G.max - ro.fee * (Number(S.feeGauge)||0)) * 10) / 10);
       gauge[m] = Math.min(needG[m], G.start);
     }
@@ -272,18 +272,18 @@ function compute(r, evs){
     } else if(ev.type === 'gear'){
       st(m);
       const cost = Math.max(0, Number(ev.cost ?? S.gearCost) || 0);
-      if(fee[m] - spent[m] < cost){ entry.ignored = true; entry.notes.push(`입장료 부족 (남은 ${fmt(fee[m]-spent[m])} / 필요 ${fmt(cost)}) · 반영 안 됨`); continue; }
+      if(fee[m] - spent[m] < cost){ entry.ignored = true; entry.notes.push(`지참금 부족 (남은 ${fmt(fee[m]-spent[m])} / 필요 ${fmt(cost)}) · 반영 안 됨`); continue; }
       spent[m] += cost;
       entry.gear = {key: ev.item, name: gearItemName(S, ev.item || 'none', ev.grade), grade: ev.grade || '', cost};
-      if(!ev.item || ev.item === 'none'){ entry.notes.push(`입장료 −${fmt(cost)} · 꽝`); }
+      if(!ev.item || ev.item === 'none'){ entry.notes.push(`지참금 −${fmt(cost)} · 꽝`); }
       else {
         const it = makeItem(S, ev._id || seedBase, ev.item, ev.grade);
         inv[m].push(it);
         const cur = itemOf(m, eq[m][it.slot]);
         if(itemScore(it) > itemScore(cur)){
           equip(m, it.slot, it);
-          entry.notes.push(`입장료 −${fmt(cost)} · ${GEAR_SLOT[it.slot]} ${entry.gear.name} 장착`);
-        } else entry.notes.push(`입장료 −${fmt(cost)} · ${entry.gear.name} 인벤토리에 보관`);
+          entry.notes.push(`지참금 −${fmt(cost)} · ${GEAR_SLOT[it.slot]} ${entry.gear.name} 장착`);
+        } else entry.notes.push(`지참금 −${fmt(cost)} · ${entry.gear.name} 인벤토리에 보관`);
       }
     } else if(ev.type === 'equip'){
       st(m);
@@ -297,6 +297,12 @@ function compute(r, evs){
         else { equip(m, it.slot, it); entry.notes.push(`${GEAR_SLOT[it.slot]} ${it.name}${it.gradeLabel?`[${it.gradeLabel}]`:''} 장착 (내구 ${it.dur === Infinity ? '∞' : it.dur+'/'+it.maxDur})`); }
       }
       entry.equip = true;
+    } else if(ev.type === 'fund'){
+      /* 추가 지원금: 장비 룰렛에 쓸 지참금만 늘어남 (역할 스킬 필요 게이지는 초기 지참금 기준 그대로) */
+      st(m);
+      const a = Math.max(0, Math.round(Number(ev.amount) || 0));
+      fee[m] += a; fund[m] = (fund[m] || 0) + a;
+      entry.notes.push(`남은 지참금 ${fmt(fee[m] - spent[m])}`);
     } else if(ev.type === 'role'){
       st(m);
       const rk = role[m], sk = RS[rk], v = Number(sk.v)||0;
@@ -323,17 +329,17 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('공략대 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, spent, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
 /* 공략대 구성 기록 문구 */
 function partyText(ev){
   const rl = ROLES[ev.role] ? ROLES[ev.role].label : '';
-  if(ev.action === 'join') return `공략대 참가${rl ? ' · '+rl : ''}${ev.fee ? ' · 입장료 '+fmt(ev.fee) : ''}`;
+  if(ev.action === 'join') return `공략대 참가${rl ? ' · '+rl : ''}${ev.fee ? ' · 지참금 '+fmt(ev.fee) : ''}`;
   if(ev.action === 'kick') return '공략대에서 내보냄';
   if(ev.action === 'role') return `역할 변경 → ${rl}`;
-  if(ev.action === 'fee') return `입장료 ${fmt(ev.fee||0)}(으)로 변경`;
+  if(ev.action === 'fee') return `지참금 ${fmt(ev.fee||0)}(으)로 변경`;
   return '공략대 변경';
 }
 function whatHtml(e){
@@ -341,6 +347,7 @@ function whatHtml(e){
   if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
+  if(ev.type==='fund'){ return `<b>${esc(ev.member)}</b> 추가 지원금 <b class="d-heal">+${fmt(Number(ev.amount)||0)}</b>`; }
   if(ev.type==='party'){ return `<b>${esc(ev.member)}</b> ${partyText(ev)}`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
   const it = ITEM[ev.item] || ITEM.none;

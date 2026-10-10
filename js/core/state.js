@@ -39,4 +39,18 @@ export function init(){
 }
 
 
-export { $, esc, fmt, CUR_KEY, squadLabel, OVERLAY, MODE, ROOM, base };
+/* 팝업(모달) 공통: 바깥 클릭·Esc·닫기 버튼으로 닫힘. bindModal('ladderModal', 'ladderClose') */
+function bindModal(id, closeId, onClose){
+  const el = document.getElementById(id), close = ()=>{ el.hidden = true; if(onClose) onClose(); };
+  if(closeId) document.getElementById(closeId).addEventListener('click', close);
+  el.addEventListener('click', e=>{ if(e.target === el) close(); });
+  el.addEventListener('keydown', e=>{ if(e.key === 'Escape') close(); });
+  return close;
+}
+function openModal(id, focusSel){
+  const el = document.getElementById(id); el.hidden = false;
+  const f = focusSel ? el.querySelector(focusSel) : el.querySelector('button, input, select');
+  if(f) setTimeout(()=>f.focus(), 0);
+}
+
+export { $, esc, fmt, CUR_KEY, squadLabel, OVERLAY, MODE, ROOM, base, bindModal, openModal };

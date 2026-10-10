@@ -1,5 +1,5 @@
 /* =====================================================================
-   role-skill.js — 역할 스킬 사용 바, 공략대 현황에서 역할·입장료 수정
+   role-skill.js — 역할 스킬 사용 바, 공략대 현황에서 역할·지참금 수정
    ===================================================================== */
 /* ---------- Role skill bar ---------- */
 import { App } from '@app/core/app.js';
@@ -26,7 +26,7 @@ export function init(){
     const who = App.selected;
     guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'role', member:who, undone:false}); toast(`${who} 역할 스킬 사용`); });
   });
-  /* 공략대 현황에서 역할·입장료 고치기 */
+  /* 공략대 현황에서 역할·지참금 고치기 */
   $('partyBody').addEventListener('change', e=>{
     const r = e.target.closest('[data-rrole]'), f = e.target.closest('[data-rfee]');
     if(r) guard(async()=>{ await store.setRoster(r.dataset.rrole, {role:r.value}); await store.partyLog(r.dataset.rrole, 'role', {role:r.value}); });

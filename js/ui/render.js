@@ -12,6 +12,7 @@ import { renderGearPanel, renderJoin } from '@app/features/gear-roulette.js';
 import { renderDmgMeter, renderTicker } from '@app/ui/overlay.js';
 import { renderRoleBar } from '@app/features/role-skill.js';
 import { renderMeInfo } from '@app/ui/me-info.js';
+import { renderAdminBtn } from '@app/ui/admin-tools.js';
 import { renderSkillModal } from '@app/ui/info-window.js';
 import { autoOn, renderLadderPanel } from '@app/features/ladder.js';
 import { renderInvite } from '@app/features/party.js';
@@ -63,9 +64,9 @@ function render(){
     bn.hidden = false; bn.className = 'banner ' + s.status;
     const mvp = topDealer(s);
     const meNow = myName(s);
-    const act = OVERLAY ? '' : meNow
-      ? '<span>운영자가 정리하면 이 공략대는 기록으로 넘어갑니다.</span>'
-      : (canOperate() ? '<button type="button" class="btn primary" data-act="reset">레이드 정리</button><span>이번 레이드는 아래 레이드 기록에 보관됩니다.</span>' : '');
+    const act = OVERLAY ? '' : canOperate()
+      ? '<button type="button" class="btn primary" data-act="reset">레이드 정리</button><span>이번 레이드는 아래 레이드 기록에 보관됩니다.</span>'
+      : (meNow ? '<span>운영자가 정리하면 이 공략대는 기록으로 넘어갑니다.</span>' : '');
     bn.innerHTML = (s.status==='clear'
       ? `<strong>레이드 성공</strong><span>${wins}승 ${losses}패${mvp ? ' · MVP '+esc(mvp) : ''}</span>`
       : `<strong>레이드 실패</strong><span>공략대 전멸 · 남은 보스 HP ${fmt(s.hp)}</span>`) + act;
@@ -79,10 +80,12 @@ function render(){
   const meSel = $('meSelect'), meOpts = ['<option value="">운영자 (전체 입력)</option>'].concat(s.members.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`)).join('');
   if(meSel.dataset.opts !== meOpts){ meSel.innerHTML = meOpts; meSel.dataset.opts = meOpts; }
   meSel.value = me || '';
-  $('memberChips').innerHTML = s.members.length ? s.members.map(m=>{
-    const pend = s.pending[m];
-    return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===App.selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${(s.mhp[m] ?? 1) <= 0 ? '<span class="tag">전투불능</span>' : ''}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
-  }).join('') : `<span class="empty">참가한 공략대원이 여기에 표시됩니다.</span>`;
+  /* 데미지 입력 대상: 내 이름으로 들어왔으면 나 자신(선택 칸 없음), 운영자면 작은 선택 칸 */
+  const who = $('inputWho'), whoOpts = s.members.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  if(who.dataset.opts !== whoOpts){ who.innerHTML = whoOpts; who.dataset.opts = whoOpts; }
+  who.value = App.selected || '';
+  $('inputWhoWrap').hidden = !!me || !s.members.length;
+  $('inputMe').textContent = me ? me : '';
 
   // party status cards (공략대 상태)
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
@@ -98,14 +101,13 @@ function render(){
     const h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0, low = !down && h <= mx*0.4;
     const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
     const rk = s.role[m] || ro.role;
-    const roleCell = canEdit
-      ? `<select data-rrole="${esc(m)}" aria-label="${esc(m)} 역할">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===ro.role?' selected':''}>${v.label}</option>`).join('')}</select>`
-      : `<span>${ROLES[rk].label}</span>`;
-    const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0);
-    const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 받은 입장료">` : `<b class="num">${fmt(ro.fee)}</b>`) + `<span class="hint num" title="장비 룰렛에 쓰고 남은 입장료">남음 ${fmt(left)}</span>`;
+    /* 역할은 레이드 시작 후 바꿀 수 없음 (참가할 때 정함) */
+    const roleCell = `<span title="레이드 시작 후에는 역할을 바꿀 수 없습니다">${ROLES[rk].label}</span>`;
+    const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0), fund = (s.fund && s.fund[m]) || 0;
+    const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 초기 지참금" title="초기 지참금">` : `<b class="num" title="초기 지참금">${fmt(ro.fee)}</b>`) + (fund ? `<span class="hint num" title="추가 지원금">+지원 ${fmt(fund)}</span>` : '') + `<span class="hint num" title="장비 룰렛에 쓰고 남은 지참금">남음 ${fmt(left)}</span>`;
     const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="공략대에서 내보내기">${App.kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
     const mvp = x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>' : '';
-    return `<article class="pcard${down?' down':''}${low?' low':''}${m===me?' mine':''}">
+    return `<article class="pcard${down?' down':''}${low?' low':''}${m===me?' mine':''}${!me && m===App.selected?' sel':''}" data-pick="${esc(m)}">
       <header class="pc-head"><span class="pc-rank num">${i+1}</span><span class="role-tag ${rk}">${ROLES[rk].short}</span><b class="pc-name">${esc(m)}</b>${mvp}<span class="pc-tags">${statusTags(s, m)}</span>${kick}</header>
       <div class="rbar hp${low?' low':''}${down?' ko':''}"><i style="width:${Math.max(0, h/mx*100)}%"></i><span class="rb-l">HP</span><span class="rb-v num">${down ? '전투불능' : `${fmt(h)} / ${fmt(mx)}`}</span></div>
       <div class="rbar sp${full?' full':''}"><i style="width:${Math.min(100, g/need*100)}%"></i><span class="rb-l">스킬</span><span class="rb-v num">${full ? '사용 가능' : `${g} / ${need}`}</span></div>
@@ -114,7 +116,7 @@ function render(){
         <span class="pc-stat"><span class="hint">전적</span><b class="num">${x.w}승 ${x.l}패</b></span>
         <span class="pc-stat"><span class="hint">데미지</span><b class="num">${fmt(x.dmg)}</b><span class="share" style="width:${Math.round(x.dmg/maxD*48)}px"></span></span>
         <span class="pc-stat"><span class="hint">역할</span>${roleCell}</span>
-        <span class="pc-stat"><span class="hint">입장료</span>${feeCell}</span>
+        <span class="pc-stat"><span class="hint">지참금</span>${feeCell}</span>
       </footer>
     </article>`;
   }).join('') : `<p class="empty">아직 공략대원이 없습니다. 초대 코드로 참가하면 여기에 나타납니다.</p>`;
@@ -161,6 +163,7 @@ function render(){
   renderEndBtn(s, me);
   renderGearPanel(s, canAct, me);
   renderMeInfo(s, me);
+  renderAdminBtn();
   renderRoleBar(s, me, canAct);
   if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);
   if(typeof renderBrowserCollect === 'function') renderBrowserCollect();
