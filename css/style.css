@@ -707,3 +707,20 @@ button.linkbtn.num{font-variant-numeric:tabular-nums;font-size:inherit;cursor:po
 .inv-head{gap:8px}
 .inv-head #invCount{margin-left:auto}
 .inv-sort{font-size:12px;padding:3px 6px}
+/* 맨 위 업데이트 줄 */
+.upd-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px;padding:6px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--panel));font-size:13px}
+.upd-tag{font-size:11px;font-weight:700;color:var(--accent-ink);background:linear-gradient(180deg,#f0d38f,var(--accent));padding:1px 7px;border-radius:4px}
+.upd-new{font-size:10px;font-weight:800;color:#fff;background:#d0453f;padding:1px 5px;border-radius:4px;letter-spacing:.04em}
+.upd-date{color:var(--accent);font-weight:700}
+.upd-text{flex:1;min-width:0;color:var(--fg)}
+.upd-text i{font-style:normal;color:var(--muted);margin:0 6px}
+.upd-more{font-size:12px;white-space:nowrap;margin-left:auto}
+html.overlay .upd-bar{display:none!important}
+.upd-box{max-width:620px}
+.upd-list{display:flex;flex-direction:column;gap:14px;max-height:min(70vh,640px);overflow-y:auto}
+.upd-day{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font-family:var(--f-display);font-weight:400;font-size:18px}
+.upd-day .hint{font-size:12px}
+.upd-group ul{margin:0;padding-left:18px;line-height:1.7;font-size:14px}
+@media (max-width:520px){ .upd-text{flex-basis:100%} .upd-more{margin-left:0} }
+.upd-mo{display:none}
+@media (max-width:520px){ .upd-it + .upd-it, .upd-d{display:none} .upd-mo{display:inline} }
