@@ -7,7 +7,7 @@
    권한
      로그인 안 함   보기만 가능
      로그인        참가하기, 내 결과·룰렛·장비·역할 스킬 입력
-     운영자        레이드 열기·종료, 파티원 추가, 모든 파티원 입력, 데이터 초기화 (콘솔에서 지정)
+     운영자        레이드 열기·종료, 공략대원 추가, 모든 공략대원 입력, 데이터 초기화 (콘솔에서 지정)
    ===================================================================== */
 let auth = null, authUser = null, profile = null, admins = {}, adminsLoaded = false, unsubProfile = null;
 
@@ -44,7 +44,7 @@ function joinedAs(nm){ return !!(authUser && raid && nm && (raid.members||[]).in
 function applyAccess(){
   if(!useAuth()) return;
   const nm = profileName();
-  // 초대 코드로 참가해서 uids 에 내 계정이 이 이름으로 올라가 있어야 파티원
+  // 초대 코드로 참가해서 uids 에 내 계정이 이 이름으로 올라가 있어야 공략대원
   const member = joinedAs(nm);
   readOnly = !(isAdmin() || (authUser && member));
 }
@@ -95,7 +95,7 @@ function renderProfile(){
   $('pfEmail').textContent = authUser ? (authUser.email || '') : '';
   const idHtml = `내 계정 ID: <code class="uid">${esc(authUser ? authUser.uid : '')}</code> <button class="btn sm" type="button" id="copyUid">복사</button>`;
   $('pfAdmin').innerHTML = isAdmin()
-    ? '<b class="ok">운영자</b> · 레이드 열기·종료, 파티원 추가, 데이터 초기화를 할 수 있습니다.'
+    ? '<b class="ok">운영자</b> · 레이드 열기·종료, 공략대원 추가, 데이터 초기화를 할 수 있습니다.'
     : `스트리머 계정입니다. 운영자 권한은 Firebase 콘솔에서만 줄 수 있습니다.<br>${idHtml}`;
 }
 async function saveProfile(){
@@ -133,7 +133,7 @@ async function deleteAccount(btn){
   const uid = authUser.uid;
   await guard(async()=>{
     await db.ref('users/'+uid).remove();
-    await db.ref('joins/'+ROOM+'/'+uid).remove().catch(()=>{});
+    if(raid) await db.ref('joins/'+ROOM+'/'+raid.raidId+'/'+uid).remove().catch(()=>{});
     const u = auth.currentUser;
     try{ await u.delete(); }
     catch(e){

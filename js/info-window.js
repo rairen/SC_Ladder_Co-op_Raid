@@ -65,17 +65,17 @@ function renderRulesTab(){
   const perHr = 60/Math.max(1,calcIn.min), avgG = (G.win*calcIn.wr + G.loss*(100-calcIn.wr))/100;
   box.innerHTML = `<p class="sk-note">보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1). 분노는 보스가 받은 데미지 × 상승률만큼 오르고, 최대치에 닿으면 보스 스킬이 나갑니다.</p>
     <h3 class="label" style="margin:4px 0 0">클리어 시간 계산 가정 (이 화면에서만 쓰는 값)</h3>
-    <div class="calc-in">${inp('n','파티 인원',1,'')}${inp('min','한 판 시간(분)',1,'')}${inp('wr','승률(%)',5,'')}${inp('pts','평균 승리 점수',1,'')}${inp('loss','평균 패배 점수',1,'')}${inp('mult','승리 보너스 배율',0.1,'')}</div>
+    <div class="calc-in">${inp('n','공략대 인원',1,'')}${inp('min','한 판 시간(분)',1,'')}${inp('wr','승률(%)',5,'')}${inp('pts','평균 승리 점수',1,'')}${inp('loss','평균 패배 점수',1,'')}${inp('mult','승리 보너스 배율',0.1,'')}</div>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>난이도</th><th class="r">1인당 HP</th><th class="r">인원당 추가</th><th class="r">분노 최대</th><th class="r">분노 상승률</th><th class="r">보스 회복률</th><th class="r">보스 총 HP</th><th class="r">예상 클리어</th><th class="r">예상 보스 스킬</th></tr></thead><tbody>${rows}</tbody></table></div>
     <p class="sk-note">룰렛, 체인 보너스, 역할 스킬 때문에 실제로는 조금 더 빨리 끝납니다. 역할 스킬은 평균 ${Math.round(G.max / Math.max(1,avgG) * 10)/10}판(약 ${fmtHours(G.max/Math.max(1,avgG)/perHr)})에 한 번 쓸 수 있습니다.</p>
     <h3 class="label" style="margin:4px 0 0">기본 규칙 수치</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody>
-      <tr><td><b>파티원 기본 체력</b></td><td class="r num">${PARTY_HP}</td><td class="desc">갑옷 보너스가 더해짐. 0이 되면 전투불능</td></tr>
+      <tr><td><b>공략대원 기본 체력</b></td><td class="r num">${PARTY_HP}</td><td class="desc">갑옷 보너스가 더해짐. 0이 되면 전투불능</td></tr>
       <tr><td><b>부활 체력</b></td><td class="r num">${REVIVE_HP}</td><td class="desc">전투불능 상태에서 승리하거나 불사의 목걸이 발동 시</td></tr>
       <tr><td><b>보스 회복 시작</b></td><td class="r num">50%</td><td class="desc">보스 HP가 이 아래면 패배 점수 × 회복률만큼 보스 회복</td></tr>
       <tr><td><b>체인 보너스</b></td><td class="r num">${S.chain}%</td><td class="desc">서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지</td></tr>
       <tr><td><b>역할 스킬 게이지</b></td><td class="r num">${G.max}</td><td class="desc">시작 ${G.start}, 승리 +${G.win}, 패배 +${G.loss}. 필요 게이지 = ${G.max} − 입장료 × ${S.feeGauge}</td></tr>
-      <tr><td><b>성공 / 실패</b></td><td class="r">-</td><td class="desc">보스 HP 0 / 파티 전원 전투불능</td></tr>
+      <tr><td><b>성공 / 실패</b></td><td class="r">-</td><td class="desc">보스 HP 0 / 공략대 전원 전투불능</td></tr>
     </tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">보스 이름과 종족</h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>종족</th><th>보스 이름</th><th>스킬 세트</th></tr></thead><tbody>
@@ -95,7 +95,7 @@ $('skillModal').addEventListener('input', e=>{
 function renderRouletteTab(){
   const box = $('skTabRoulette'); if(box.hidden) return;
   const ws = rouletteWeights(settingsOf(SRC())), tot = ws.reduce((a,x)=>a+x.w,0) || 1;
-  box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 파티원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
+  box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 공략대원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>
@@ -103,7 +103,7 @@ function renderRouletteTab(){
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>룰렛</th><th class="r">필요 별풍선</th>${TIERS.map(t=>`<th class="r tier-${t}" style="color:var(--tc)">${t}</th>`).join('')}</tr></thead><tbody>
       ${ROULETTE_PLAN.map(r=>`<tr><td><b>${r.name}</b></td><td class="r num">${fmt(r.cost)}개</td>${r.p.map(v=>`<td class="r num">${v}%</td>`).join('')}</tr>`).join('')}
     </tbody></table></div>
-    <h3 class="label" style="margin:4px 0 0">추가 파티 스킬 (룰렛 결과) <span class="plan-tag">기획안 · 미적용</span></h3>
+    <h3 class="label" style="margin:4px 0 0">추가 공략대 스킬 (룰렛 결과) <span class="plan-tag">기획안 · 미적용</span></h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>스킬</th><th>효과</th></tr></thead><tbody>
       ${PARTY_SKILL_PLAN.map(x=>`<tr><td class="tier-${x.tier}" style="color:var(--tc)"><b>${x.tier}</b></td><td>${esc(x.name)}</td><td class="desc">${esc(x.desc)}</td></tr>`).join('')}
     </tbody></table></div>`;
@@ -137,7 +137,7 @@ function renderSkillModal(){
       : '<p class="lock-note">수치는 새 레이드 만들기의 <b>수치 설정</b>에서 시작 전에만 바꿀 수 있습니다.</p>'}`;
   // 역할 스킬
   const rs = rsDraft || roleSkillsOf(SRC()), G = gDraft || gaugeOf(SRC());
-  $('skTabRole').innerHTML = `<p class="sk-note">파티원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 찹니다. 입장료를 많이 받을수록 필요 게이지가 줄어듭니다 (필요 게이지 = 최대 − 입장료 × 계수, 계수는 레이드 설정 탭).</p>
+  $('skTabRole').innerHTML = `<p class="sk-note">공략대원은 역할마다 스킬 하나를 가집니다. 스킬 게이지가 가득 차면 <b>스킬 사용</b>으로 씁니다. 게이지는 승리·패배할 때마다 찹니다. 입장료를 많이 받을수록 필요 게이지가 줄어듭니다 (필요 게이지 = 최대 − 입장료 × 계수, 계수는 레이드 설정 탭).</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>역할</th><th>스킬 이름</th><th class="r">수치</th><th>효과</th></tr></thead><tbody>
     ${Object.entries(ROLES).map(([k,R])=> edit
       ? `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><input type="text" maxlength="16" value="${esc(rs[k].name)}" data-rs="${k}" data-k="name" aria-label="${R.label} 스킬 이름"></td>
@@ -157,7 +157,7 @@ function renderSkillModal(){
     armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
     accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `1회용, 쓰러질 때 체력 ${REVIVE_HP}(등급 배율 적용)으로 버팀` : '-', pctv:true}
   };
-  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 파티원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 파티 현황에서 고칠 수 있습니다. 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 입장료에서 비용을 내고, 아래 확률로 장비 하나와 <b>등급</b>이 나옵니다. 얻은 장비는 인벤토리에 쌓이고, 지금 것보다 좋으면 바로 장착합니다. 등급이 높을수록 능력치가 조금 높고 내구도가 깁니다. 무기·평온의 부적은 내 승리 공격마다, 갑옷은 보스에게 맞을 때마다 내구도가 1씩 줄고, 불사의 목걸이는 한 번 발동하면 부서집니다. 부서지면 인벤토리의 다음 장비를 자동으로 착용합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
+  $('skTabGear').innerHTML = `<p class="sk-note">입장료는 그 공략대원 방송에서 받은 레이드 입장 별풍선입니다. 참가할 때 넣거나, 공략대 현황에서 고칠 수 있습니다. 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 입장료에서 비용을 내고, 아래 확률로 장비 하나와 <b>등급</b>이 나옵니다. 얻은 장비는 인벤토리에 쌓이고, 지금 것보다 좋으면 바로 장착합니다. 등급이 높을수록 능력치가 조금 높고 내구도가 깁니다. 무기·평온의 부적은 내 승리 공격마다, 갑옷은 보스에게 맞을 때마다 내구도가 1씩 줄고, 불사의 목걸이는 한 번 발동하면 부서집니다. 부서지면 인벤토리의 다음 장비를 자동으로 착용합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
     ${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,x)=>a+x.w,0) || 1; return `<div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>장비 룰렛 1회 비용</b></td><td class="r">${edit ? `<input type="number" min="0" step="10" value="${SD.gearCost}" data-sp="gearCost" aria-label="장비 룰렛 비용">` : `<span class="num">${fmt(SD.gearCost)}개</span>`}</td><td class="desc">남은 입장료에서 빠집니다</td></tr><tr><td><b>꽝</b></td><td class="r">${edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll.none}" data-gr="none" aria-label="꽝 비중">` : `<span class="num">${SD.gearRoll.none}</span>`}</td><td class="desc" data-grp="none">${Math.round((gl.find(x=>x.key==='none').w)/gt*1000)/10}%</td></tr></tbody></table></div>`; })()}
     ${(()=>{ const gs = GEAR_GRADES.map((g,i)=>({...g, ...SD.grades[i]})), gt = gs.reduce((a,x)=>a+(Number(x.w)||0),0) || 1;
       const inp = (i,k,val,step,label) => edit ? `<input type="number" min="0" step="${step}" value="${val}" data-gd="${i}" data-gk="${k}" aria-label="${label}">` : `<span class="num">${val}</span>`;

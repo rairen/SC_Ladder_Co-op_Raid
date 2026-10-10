@@ -16,7 +16,7 @@ function parseMembers(){ return setupList.slice(); }
 function renderSetupMembers(){
   $('setupMembers').innerHTML = setupList.length
     ? setupList.map((m,i)=>{ const rk = setupRoles[m] || 'dealer'; return `<span class="chip"><select data-srole="${esc(m)}" aria-label="${esc(m)} 역할" style="padding:2px 4px;font-size:12px">${roleOptions(rk)}</select>${esc(m)}<button type="button" class="x" data-rm="${i}" aria-label="${esc(m)} 빼기">×</button></span>`; }).join('')
-    : '<span class="hint">아직 넣은 파티원이 없습니다.</span>';
+    : '<span class="hint">아직 넣은 공략대원이 없습니다.</span>';
   updateSetupPreview();
 }
 $('setupMembers').addEventListener('change', e=>{ const sl = e.target.closest('[data-srole]'); if(sl) setupRoles[sl.dataset.srole] = sl.value; });
@@ -36,26 +36,26 @@ function setupCfg(){
 function updateSetupPreview(){
   const ms = parseMembers(), c = setupCfg(), n = ms.length;
   $('setupPreview').innerHTML = n
-    ? `파티 <b>${n}명</b> → 보스 HP <b>${fmt(bossHpOf(c, n))}</b> (${fmt(c.hp)}×${n}${n>1?` + ${fmt(c.bonus)}×${n-1}`:''}) · 분노 최대치 <b>${fmt(c.rage)}</b> (데미지 × ${c.rageRate}) · 회복률 <b>${c.rec}%</b>`
-    : `파티원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 첫 참가자는 보스 HP <b>${fmt(c.hp)}</b>, 이후 한 명마다 <b>+${fmt(c.hp + c.bonus)}</b>. 분노 최대치는 인원과 상관없이 <b>${fmt(c.rage)}</b>`;
+    ? `공략대 <b>${n}명</b> → 보스 HP <b>${fmt(bossHpOf(c, n))}</b> (${fmt(c.hp)}×${n}${n>1?` + ${fmt(c.bonus)}×${n-1}`:''}) · 분노 최대치 <b>${fmt(c.rage)}</b> (데미지 × ${c.rageRate}) · 회복률 <b>${c.rec}%</b>`
+    : `공략대원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 첫 참가자는 보스 HP <b>${fmt(c.hp)}</b>, 이후 한 명마다 <b>+${fmt(c.hp + c.bonus)}</b>. 분노 최대치는 인원과 상관없이 <b>${fmt(c.rage)}</b>`;
   confirmArm = false; $('startRaid').textContent = '레이드 시작'; $('setupHint').textContent = '';
 }
 function openSetup(open){
   $('setup').hidden = !open;
-  // 로그인 모드에서는 파티원을 미리 넣지 않고, 초대 코드로 각자 참가
+  // 로그인 모드에서는 공략대원을 미리 넣지 않고, 초대 코드로 각자 참가
   const invite = typeof useAuth === 'function' && useAuth();
   $('setupMembersBox').hidden = invite; $('setupInviteHint').hidden = !invite;
   if(invite){ setupList = []; setupRoles = {}; }
-  if(open && !raid){ setupList = []; setupRoles = {}; setupSrc = null; }
+  if(open){ setupList = []; setupRoles = {}; setupSrc = null; }
   if(open){
-    if(raid){
+    if(false){
       $('raidName').value = raid.name || '';
       setupList = (raid.members||[]).slice(); setupRoles = Object.fromEntries(setupList.map(m=>[m, rosterOf(raid, m).role]));
       diff = raid.diff || 'normal';
       if(diff==='custom' && raid.cfg){ $('cHp').value = raid.cfg.hp; $('cBonus').value = raid.cfg.bonus || 0; $('cRage').value = raid.cfg.rage; $('cRageRate').value = raid.cfg.rageRate ?? 0.5; $('cRec').value = raid.cfg.rec; }
     }
     else { $('raidName').value = randomBossName(); }
-    $('bossRace').value = (raid && raid.race) || raceOfName($('raidName').value.trim()); renderRaceSkills();
+    $('bossRace').value = raceOfName($('raidName').value.trim()); renderRaceSkills();
     renderDiffs(); renderSetupMembers();
     $('raidName').focus();
   }
@@ -67,9 +67,9 @@ function renderEndBtn(s, me){
   const can = !OVERLAY && !readOnly && !me && canOperate();
   b.hidden = !can;
   if(!can){ $('endConfirm').hidden = true; return; }
-  if(!raid){ b.textContent = '새 레이드'; b.classList.remove('danger'); }
-  else if(s.status === 'live'){ b.textContent = '레이드 종료'; b.classList.add('danger'); }
-  else { b.textContent = '새 레이드 시작'; b.classList.remove('danger'); }
+  if(!raid){ b.hidden = true; $('endConfirm').hidden = true; return; }
+  if(s.status === 'live'){ b.textContent = '레이드 종료'; b.classList.add('danger'); }
+  else { b.textContent = '레이드 정리'; b.classList.remove('danger'); }
 }
 function finishAndReset(){
   if(!raid){ openSetup(true); return; }
@@ -78,15 +78,14 @@ function finishAndReset(){
     await store.reset(sum);
     $('endConfirm').hidden = true;
     openHist = sum.raidId; setHistTab('hist');
-    toast(sum.status === 'stopped' ? '레이드를 중단하고 기록에 보관했습니다. 새 레이드를 열 수 있습니다.' : '레이드를 초기화했습니다. 새 레이드를 열 수 있습니다.');
-    openSetup(true);
+    toast(sum.status === 'stopped' ? `${sum.squadLabel || '공략대'} 레이드를 중단하고 기록에 보관했습니다.` : `${sum.squadLabel || '공략대'} 레이드를 정리하고 기록에 보관했습니다.`);
   });
 }
 $('endRaidBtn').onclick = ()=>{
   if(!raid){ openSetup(true); return; }
   const s = lastState;
   if(s && s.status === 'live' && events.some(e=>!e.undone)){
-    $('endConfirmText').textContent = `진행 중인 "${raid.name}" 레이드를 중단할까요? 지금까지의 기록은 레이드 기록에 "중단"으로 보관됩니다.`;
+    $('endConfirmText').textContent = `${squadLabel(raid)} "${raid.name}" 레이드를 중단할까요? 지금까지의 기록은 레이드 기록에 "중단"으로 보관됩니다.`;
     $('endConfirm').hidden = false; $('endNo').focus(); return;
   }
   finishAndReset();

@@ -9,6 +9,11 @@ let db = null, local = false, readOnly = false, online = false;
 let history = [], histTab = 'hist', openHist = null;
 let raid = null, events = [], unsubEvents = null, subRaidId = null;
 let ladderSnap = {}, collector = null, unsubLadder = null;   // 래더 자동 수집 (Firebase 연결 때만)
+/* 던전: 공략대 여럿이 동시에 레이드. raids = 진행 중인 모든 공략대, raid/events/ladderSnap = 지금 보고 있는 공략대 */
+let raids = {}, allEvents = {}, allLadder = {}, curRid = '';
+const CUR_KEY = 'sc-boss-raid:cur:coop';
+try{ curRid = new URLSearchParams(location.search).get('raid') || localStorage.getItem(CUR_KEY) || ''; }catch(_){}
+const squadLabel = r => r && r.squad ? `${r.squad}공략대` : '공략대';
 // 방 코드: 주소 끝에 ?room=코드 를 붙이면 그룹별로 레이드가 분리됩니다.
 const OVERLAY = document.documentElement.classList.contains('overlay');
 /* 게임 모드. 나중에 '래더 보스 레이드 대전' 버전을 추가하면 'versus'처럼 다른 값을 써서 데이터가 섞이지 않게 합니다. */

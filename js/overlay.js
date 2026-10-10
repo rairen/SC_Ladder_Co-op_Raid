@@ -43,15 +43,16 @@ function renderTicker(s){
 /* 오버레이 주소 (OBS 브라우저 소스용) */
 function overlayUrl(){
   const u = new URL(location.href); u.search = ''; u.hash = '';
-  const q = new URLSearchParams(); q.set('overlay', '1');
+  const q = new URLSearchParams(); q.set('overlay', '1'); if(raid) q.set('raid', raid.raidId);
   if(ovlView === 'meter') q.set('view', 'meter'); else if($('ovlNoRage').checked) q.set('rage', '0');
   return u.toString() + '?' + q.toString();
 }
 function refreshOvl(){
   $('ovlUrl').textContent = overlayUrl();
+  $('ovlTitle').textContent = raid ? `방송 오버레이 · ${squadLabel(raid)}` : '방송 오버레이';
   $('ovlNote').textContent = local
     ? '지금은 Firebase가 연결되지 않아 기록이 이 브라우저에만 있습니다. OBS 브라우저 소스는 별도 브라우저라서, 공유 연결 전에는 오버레이에 기록이 보이지 않습니다. 미리보기는 같은 브라우저라 정상으로 보입니다.'
-    : '모든 파티원의 입력이 오버레이에 실시간으로 반영됩니다.';
+    : '모든 공략대원의 입력이 오버레이에 실시간으로 반영됩니다.';
 }
 $('ovlBtn').onclick = ()=>{ $('ovlModal').hidden = false; refreshOvl(); };
 $('ovlClose').onclick = ()=>{ $('ovlModal').hidden = true; };
@@ -73,16 +74,16 @@ $('ovlCopy').onclick = async ()=>{
   catch(_){ const r = document.createRange(); r.selectNodeContents($('ovlUrl')); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); toast('주소를 선택해 두었습니다. Ctrl+C로 복사하세요.'); }
 };
 
-/* ---------- 파티 딜 미터기 오버레이 (?overlay=1&view=meter) ---------- */
+/* ---------- 공략대 딜 미터기 오버레이 (?overlay=1&view=meter) ---------- */
 function renderDmgMeter(s){
   const box = $('dmgMeter');
   if(!OVERLAY || !document.documentElement.classList.contains('ovl-meter')){ box.hidden = true; return; }
   box.hidden = false;
-  if(!raid){ box.innerHTML = '<div class="dm-head"><b>파티 딜 미터기</b></div><div class="dm-empty">레이드 대기 중</div>'; return; }
+  if(!raid){ box.innerHTML = '<div class="dm-head"><b>공략대 딜 미터기</b></div><div class="dm-empty">레이드 대기 중</div>'; return; }
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
   const total = rows.reduce((a,m)=>a + s.stats[m].dmg, 0), top = rows.length ? Math.max(1, s.stats[rows[0]].dmg) : 1;
   const alive = rows.filter(m=>(s.mhp[m] ?? 1) > 0).length;
-  box.innerHTML = `<div class="dm-head"><b>파티 딜 미터기</b><span>생존 ${alive}/${rows.length} · 총 ${fmt(total)}</span></div>` +
+  box.innerHTML = `<div class="dm-head"><b>공략대 딜 미터기</b><span>생존 ${alive}/${rows.length} · 총 ${fmt(total)}</span></div>` +
     (rows.length ? rows.map((m,i)=>{
       const x = s.stats[m], rk = s.role[m] || 'dealer', h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0;
       const pct = total ? Math.round(x.dmg/total*100) : 0;
@@ -93,5 +94,5 @@ function renderDmgMeter(s){
         <span class="dm-bar"><i style="width:${Math.round(x.dmg/top*100)}%"></i></span>
         <span class="dm-hp">${down ? '<b class="ko">전투불능</b>' : `<span class="dm-hpbar"><i style="width:${Math.max(0, h/mx*100)}%"></i></span><span class="dm-hpv">${h}/${mx}</span>`}<span class="dm-wl">${x.w}승 ${x.l}패</span></span>
       </div>`;
-    }).join('') : '<div class="dm-empty">참가한 파티원이 없습니다</div>');
+    }).join('') : '<div class="dm-empty">참가한 공략대원이 없습니다</div>');
 }

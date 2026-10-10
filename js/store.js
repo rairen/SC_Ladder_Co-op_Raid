@@ -2,14 +2,16 @@
    store.js — 저장소: 이 브라우저(로컬) 또는 Firebase 에 레이드·기록을 저장
    ===================================================================== */
 /* ---------- Store ---------- */
+/* 공략대(레이드) 경로: 지정이 없으면 지금 보고 있는 공략대 */
+const rpath = rid => base()+'/raids/'+(rid || (raid && raid.raidId));
 const store = {
   async setRaid(data){
-    if(local){ raid = data; events = []; commit(); return; }
-    await db.ref(base()+'/raid').set(data);
+    if(local){ raid = data; events = []; curRid = data.raidId; commit(); return; }
+    await db.ref(rpath(data.raidId)).set(data);
   },
   async updateRaid(patch){
     if(local){ raid = {...raid, ...patch}; commit(); return; }
-    await db.ref(base()+'/raid').update(patch);
+    await db.ref(rpath()).update(patch);
   },
   async addEvent(ev){
     if(local){ events.push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); return; }
@@ -18,32 +20,34 @@ const store = {
   async setRoster(name, patch){
     const k = rosterKey(name);
     if(local){ const ro = {...(raid.roster||{})}; ro[k] = {...(ro[k]||{}), ...patch}; raid = {...raid, roster:ro}; commit(); return; }
-    await db.ref(base()+'/raid/roster/'+k).update(patch);
+    await db.ref(rpath()+'/roster/'+k).update(patch);
   },
   async join(name){
     if(local){ if(!raid.members.includes(name)){ raid = {...raid, members:[...raid.members, name]}; commit(); } return; }
-    await db.ref(base()+'/raid/members').transaction(list=>{
+    await db.ref(rpath()+'/members').transaction(list=>{
       const arr = Array.isArray(list) ? list : Object.values(list || {});
       return arr.includes(name) ? arr : arr.concat([name]);
     });
   },
-  /* 파티에서 내보내기 (운영자). 그 파티원의 기록은 계산에서 빠집니다. */
+  /* 공략대에서 내보내기 (운영자). 그 공략대원의 기록은 계산에서 빠집니다. */
   async kick(name){
     if(local){ raid = {...raid, members: raid.members.filter(x=>x!==name)}; commit(); return; }
-    await db.ref(base()+'/raid/members').transaction(list=>{ const arr = Array.isArray(list) ? list : Object.values(list || {}); return arr.filter(x=>x!==name); });
+    await db.ref(rpath()+'/members').transaction(list=>{ const arr = Array.isArray(list) ? list : Object.values(list || {}); return arr.filter(x=>x!==name); });
     const uid = raid && raid.roster && raid.roster[rosterKey(name)] && raid.roster[rosterKey(name)].uid;
-    if(uid) await db.ref(base()+'/raid/uids/'+uid).remove();
+    if(uid) await db.ref(rpath()+'/uids/'+uid).remove();
   },
   async wipe(){
-    if(local){ raid = null; events = []; history = []; commitHistory(); commit(); return; }
+    if(local){ raid = null; events = []; history = []; localDB = {raids:{}, events:{}}; commitHistory(); commit(); return; }
     await db.ref(base()).remove();
   },
   async reset(sum){
-    if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); raid = null; events = []; commit(); return; }
+    if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); delete localDB.raids[sum.raidId]; delete localDB.events[sum.raidId]; raid = null; events = []; selectRaid(''); commit(); return; }
     await db.ref(base()+'/history/'+sum.raidId).set(sum);
     await db.ref(base()+'/events/'+sum.raidId).remove();
     await db.ref(base()+'/ladder/'+sum.raidId).remove();
-    await db.ref(base()+'/raid').remove();
+    await db.ref('invites/'+ROOM+'/'+sum.raidId).remove().catch(()=>{});
+    await db.ref(rpath(sum.raidId)).remove();
+    selectRaid('');
   },
   async archive(sum){
     if(local){ history = history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); return; }
@@ -53,7 +57,7 @@ const store = {
     if(local){ const e = events.find(x=>x._id===id); if(e) Object.assign(e, patch); commit(); return; }
     await db.ref(base()+'/events/'+raid.raidId+'/'+id).update(patch);
   },
-  /* 파티 구성 변화 기록 (참가, 내보내기, 역할·입장료 변경). 계산에는 영향 없음 */
+  /* 공략대 구성 변화 기록 (참가, 내보내기, 역할·입장료 변경). 계산에는 영향 없음 */
   async partyLog(member, action, extra){
     if(!raid) return;
     await this.addEvent({raidId: raid.raidId, t: Date.now(), type:'party', member, action, ...(extra||{}), undone:false});

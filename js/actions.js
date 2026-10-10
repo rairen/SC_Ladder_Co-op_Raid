@@ -1,5 +1,5 @@
 /* =====================================================================
-   actions.js — 버튼 동작: 결과 반영, 룰렛, 참가, 파티원 추가
+   actions.js — 버튼 동작: 결과 반영, 룰렛, 참가, 공략대원 추가
    ===================================================================== */
 /* ---------- Events ---------- */
 document.addEventListener('click', e=>{
@@ -10,7 +10,7 @@ document.addEventListener('click', e=>{
   const rs = e.target.closest('[data-act="reset"]');
   if(rs && raid){
     const sum = summarize(raid, compute(raid, events), true);
-    guard(async()=>{ await store.reset(sum); openHist = sum.raidId; setHistTab('hist'); toast('레이드를 초기화했습니다. 새 레이드를 열 수 있습니다.'); openSetup(true); });
+    guard(async()=>{ await store.reset(sum); openHist = sum.raidId; setHistTab('hist'); toast(`${sum.squadLabel} 레이드를 정리하고 기록에 보관했습니다.`); });
     return;
   }
   const u = e.target.closest('[data-undo]');
@@ -26,21 +26,17 @@ $('cancelSetup').onclick = ()=>openSetup(false);
 ['cHp','cBonus','cRage','cRageRate','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
 $('startRaid').onclick = ()=>{
   const ms = parseMembers();
-  const live = raid && lastState && lastState.status==='live' && events.length>0;
-  if(live && !confirmArm){
-    confirmArm = true; $('startRaid').textContent = '진행 중 레이드를 끝내고 새로 시작';
-    $('setupHint').textContent = '진행 중인 레이드 기록은 화면에서 사라집니다. 한 번 더 누르면 시작합니다.'; return;
-  }
+  // 새 공략대 번호: 진행 중인 공략대가 쓰지 않는 가장 작은 번호
+  const used = Object.values(raids).map(r=>r.squad||0); let squad = 1; while(used.includes(squad)) squad++;
   const nm = $('raidName').value.trim().slice(0,40) || randomBossName();
   const race = $('bossRace').value || raceOfName(nm);
   const ss = (setupSrc && setupSrc.race === race) ? setupSrc : null;
   const extra = {}; if(ss){ if(ss.roleSkills) extra.roleSkills = ss.roleSkills; if(ss.gauge) extra.gauge = ss.gauge; if(ss.settings) extra.settings = ss.settings; }
-  const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: setupRoles[m] || 'dealer', fee:0}])), diff, cfg:setupCfg(), startedAt:Date.now()};
+  const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof authUser !== 'undefined' && authUser) ? authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: setupRoles[m] || 'dealer', fee:0}])), diff, cfg:setupCfg(), startedAt:Date.now()};
   guard(async()=>{
-    if(raid && events.some(e=>!e.undone)) await store.archive(summarize(raid, compute(raid, events), true));
-    await store.setRaid(data); setupSrc = null; openSetup(false);
-    if(useAuth()){ await newInvite(data.raidId); toast('레이드를 시작했습니다. 파티 현황의 초대 코드를 파티원에게 알려 주세요.'); }
-    else toast('레이드를 시작했습니다. 수치는 이제 고정됩니다.');
+    await store.setRaid(data); setupSrc = null; openSetup(false); selectRaid(data.raidId);
+    if(useAuth()){ await newInvite(data.raidId); toast(`${squad}공략대 레이드를 시작했습니다. 공략대 현황의 초대 코드를 공략대원에게 알려 주세요.`); }
+    else toast(`${squad}공략대 레이드를 시작했습니다. 수치는 이제 고정됩니다.`);
   });
 };
 
@@ -60,7 +56,7 @@ $('submitGame').onclick = submitGame;
 function submitGame(){
   if($('submitGame').disabled) return;
   const p = Math.abs(parseInt($('points').value,10) || 0);
-  if(!selected){ toast('파티원을 먼저 고르세요.'); return; }
+  if(!selected){ toast('공략대원을 먼저 고르세요.'); return; }
   if(!p){ toast('래더 결과 화면의 점수 변동값을 입력하세요.'); $('points').focus(); return; }
   const ev = {raidId:raid.raidId, t:Date.now(), type:'game', member:selected, points: isWin ? p : -p,
     multi: isWin && winType==='multi', same: isWin && winType==='same', banned: isWin && winType==='banned', undone:false};

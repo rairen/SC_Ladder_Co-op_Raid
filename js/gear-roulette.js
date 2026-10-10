@@ -4,14 +4,14 @@
 /* ---------- 장비 룰렛 ---------- */
 function renderGearPanel(s, canAct, me){
   const S = s.S, m = selected;
-  if(!raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">파티원을 고르면 남은 입장료와 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; $('invList').innerHTML = ''; $('invCount').textContent = ''; return; }
+  if(!raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">공략대원을 고르면 남은 입장료와 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; $('invList').innerHTML = ''; $('invCount').textContent = ''; return; }
   const left = (s.fee[m]||0) - (s.spent[m]||0), cost = S.gearCost, times = cost > 0 ? Math.floor(left / cost) : 0;
   $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 입장료 <b>${fmt(left)}</b> / 받은 ${fmt(s.fee[m]||0)}</span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
   renderInventory(s, m, canAct && (!me || me === m));
   const mine = !me || me === m;
   $('gearSpin').disabled = !(canAct && mine && left >= cost);
   $('gearSpin').textContent = `장비 뽑기 (−${fmt(cost)})`;
-  $('gearFor').textContent = left < cost ? '입장료가 부족합니다. 파티 현황에서 받은 입장료를 늘려 주세요.' : '';
+  $('gearFor').textContent = left < cost ? '입장료가 부족합니다. 공략대 현황에서 받은 입장료를 늘려 주세요.' : '';
 }
 /* 인벤토리: 얻은 장비 목록, 착용·해제 */
 function renderInventory(s, m, canEdit){
@@ -106,15 +106,18 @@ function doJoin(){
   const already = raid.members.includes(name);
   const needCode = authed && !isAdmin(), code = String($('joinCode').value||'').trim().toUpperCase();
   if(needCode && !code){ toast('운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
-  if(authed){ const ro0 = raid.roster && raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== authUser.uid){ toast('같은 이름의 파티원이 이미 있습니다. 프로필에서 방송 닉네임을 바꿔 주세요.'); return; } }
+  // 한 사람은 공략대 하나에만
+  const other = Object.values(raids).find(r=>r.raidId !== raid.raidId && (r.members||[]).includes(name));
+  if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return; }
+  if(authed){ const ro0 = raid.roster && raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 방송 닉네임을 바꿔 주세요.'); return; } }
   const role = $('joinRole').value, fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(profile && profile.gw)||30) : 30;
   guard(async()=>{
     if(authed){
       if(needCode){
-        try{ await db.ref('joins/'+ROOM+'/'+authUser.uid).set(code); }
+        try{ await db.ref('joins/'+ROOM+'/'+raid.raidId+'/'+authUser.uid).set(code); }
         catch(_){ toast('초대 코드가 맞지 않습니다. 운영자에게 지금 코드를 다시 확인하세요.'); return; }
       }
-      await db.ref(base()+'/raid/uids/'+authUser.uid).set(name);
+      await db.ref(rpath()+'/uids/'+authUser.uid).set(name);
     }
     await store.join(name);
     if(!already || role !== rosterOf(raid, name).role || fee !== rosterOf(raid, name).fee) await store.setRoster(name, {role, fee});
@@ -161,8 +164,8 @@ function renderJoin(s, me){
   const others = s.members;
   $('joinExisting').innerHTML = others.length
     ? '이미 참가한 이름이면 눌러서 들어가세요: ' + others.map(m=>`<button type="button" class="linkbtn" data-claim="${esc(m)}">${esc(m)}</button>`).join(' · ')
-    : '아직 참가한 파티원이 없습니다. 첫 번째로 참가해 보세요.';
-  $('addHint').textContent = me ? '파티원 추가는 운영자 모드에서만 할 수 있습니다.' : '파티원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼 늘어납니다.';
+    : '아직 참가한 공략대원이 없습니다. 첫 번째로 참가해 보세요.';
+  $('addHint').textContent = me ? '공략대원 추가는 운영자 모드에서만 할 수 있습니다.' : '공략대원이 한 명 늘면 보스 HP가 1인당 HP + 인원당 추가 HP만큼 늘어납니다.';
 }
 
 $('addMemberBtn').onclick = addMember;
@@ -170,7 +173,7 @@ $('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDe
 function addMember(){
   const name = $('addMember').value.trim().slice(0,20);
   if(!name || !raid) return;
-  if(raid.members.includes(name)){ toast('이미 파티에 있는 이름입니다.'); return; }
+  if(raid.members.includes(name)){ toast('이미 공략대에 있는 이름입니다.'); return; }
   const role = $('addMemberRole').value;
   guard(async()=>{ await store.join(name); await store.setRoster(name, {role}); await store.partyLog(name, 'join', {role, fee:0}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
 }

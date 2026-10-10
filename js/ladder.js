@@ -1,11 +1,11 @@
 /* =====================================================================
    ladder.js — 래더 자동 수집 패널
    ---------------------------------------------------------------------
-   파티원마다 래더 아이디(roster.ladder)와 서버(roster.gw)를 저장합니다.
+   공략대원마다 래더 아이디(roster.ladder)와 서버(roster.gw)를 저장합니다.
    실제 조회는 스타크래프트가 켜진 PC에서 collector/ladder-collector.cmd 가 하고,
    결과를 Firebase 에 씁니다.
      coop/collector               수집기 상태 {t, state, msg}
-     coop/ladder/<raidId>/<이름>   파티원별 마지막 조회 {id, gw, rating, wins, losses, t, err}
+     coop/ladder/<raidId>/<이름>   공략대원별 마지막 조회 {id, gw, rating, wins, losses, t, err}
      coop/events/<raidId>         래더 한 판마다 type:'game', auto:true 기록 추가
    ===================================================================== */
 const LADDER_GW = [[30,'한국'], [45,'아시아'], [10,'미국 서부'], [11,'미국 동부'], [20,'유럽']];
@@ -14,7 +14,7 @@ const COLLECTOR_ALIVE_MS = 90 * 1000;   // 이 시간 안에 신호가 있으면
 const cleanLadderId = v => String(v||'').trim().replace(/\s+/g,'').slice(0,24);
 function collectorAlive(){ return !local && collector && (Date.now() - Number(collector.t||0)) < COLLECTOR_ALIVE_MS; }
 function ladderOf(name){ return ladderSnap[rosterKey(name)] || null; }
-/* 이 파티원의 결과가 자동으로 들어오는 중인가 */
+/* 이 공략대원의 결과가 자동으로 들어오는 중인가 */
 function autoOn(name){ return !!(raid && collectorAlive() && rosterOf(raid, name).ladder); }
 
 function agoText(t){
@@ -36,7 +36,7 @@ function renderLadderPanel(s, me){
   else { st.textContent = collector.msg || '대기 중'; st.className = 'col-state warn'; }
   st.title = collector ? `${collector.msg || ''} (${agoText(collector.t)})` : '';
 
-  // 파티원 표 (입력 중인 칸은 다시 그리지 않음)
+  // 공략대원 표 (입력 중인 칸은 다시 그리지 않음)
   const body = $('ladderBody');
   if(body.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
   const live = s.status === 'live' && !readOnly;
@@ -57,7 +57,7 @@ function renderLadderPanel(s, me){
     else if(snap.err) state = `<span class="err">${esc(snap.err)}</span>`;
     else state = `<span class="ok" title="마지막 조회">${agoText(snap.t)}</span>`;
     return `<tr><td>${esc(m)}</td><td>${idCell}</td><td>${gwCell}</td><td class="r num">${rating}${rec!=='-'?`<div class="hint">${rec}</div>`:''}</td><td>${state}</td></tr>`;
-  }).join('') : `<tr><td colspan="5" class="empty">파티원이 참가하면 여기서 래더 아이디를 넣을 수 있습니다.</td></tr>`;
+  }).join('') : `<tr><td colspan="5" class="empty">공략대원이 참가하면 여기서 래더 아이디를 넣을 수 있습니다.</td></tr>`;
 }
 
 $('ladderBody').addEventListener('change', e=>{

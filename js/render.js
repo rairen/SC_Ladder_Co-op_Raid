@@ -1,5 +1,5 @@
 /* =====================================================================
-   render.js — 메인 화면 그리기 (보스 HUD, 파티 현황, 전투 기록, 결과 미리보기)
+   render.js — 메인 화면 그리기 (보스 HUD, 공략대 현황, 전투 기록, 결과 미리보기)
    ===================================================================== */
 /* ---------- Rendering ---------- */
 function render(){
@@ -16,11 +16,13 @@ function render(){
 
   // HUD
   $('bossName').textContent = hasRaid ? (raid.name || '이름 없는 보스') : '레이드 대기 중';
+  $('squadTag').textContent = hasRaid ? squadLabel(raid) : 'BOSS';
+  if(typeof renderLobby === 'function') renderLobby();
   const meta = $('bossMeta');
   if(hasRaid){
     const p = PRESETS[raid.diff] || PRESETS.custom;
-    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">파티 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
-  } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 파티원과 난이도를 정하면 시작됩니다</span>`;
+    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">공략대 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
+  } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 공략대원과 난이도를 정하면 시작됩니다</span>`;
   const hpPct = hasRaid && s.maxHp ? s.hp/s.maxHp*100 : 100;
   const ragePct = hasRaid && s.maxRage ? Math.min(100, s.rage/s.maxRage*100) : 0;
   $('hpFill').style.width = hpPct+'%';
@@ -43,11 +45,11 @@ function render(){
     const mvp = topDealer(s);
     const meNow = myName(s);
     const act = OVERLAY ? '' : meNow
-      ? '<span>운영자가 초기화하면 새 레이드에 참가할 수 있습니다.</span>'
-      : '<button type="button" class="btn primary" data-act="reset">새 레이드 시작</button><span>이번 레이드는 아래 레이드 기록에 보관됩니다.</span>';
+      ? '<span>운영자가 정리하면 이 공략대는 기록으로 넘어갑니다.</span>'
+      : (canOperate() ? '<button type="button" class="btn primary" data-act="reset">레이드 정리</button><span>이번 레이드는 아래 레이드 기록에 보관됩니다.</span>' : '');
     bn.innerHTML = (s.status==='clear'
       ? `<strong>레이드 성공</strong><span>${wins}승 ${losses}패${mvp ? ' · MVP '+esc(mvp) : ''}</span>`
-      : `<strong>레이드 실패</strong><span>파티 전멸 · 남은 보스 HP ${fmt(s.hp)}</span>`) + act;
+      : `<strong>레이드 실패</strong><span>공략대 전멸 · 남은 보스 HP ${fmt(s.hp)}</span>`) + act;
   } else bn.hidden = true;
 
   // chips
@@ -61,9 +63,9 @@ function render(){
   $('memberChips').innerHTML = s.members.length ? s.members.map(m=>{
     const pend = s.pending[m];
     return `<button type="button" class="chip" data-m="${esc(m)}" aria-pressed="${m===selected}"${me && m!==me ? ' disabled' : ''}>${esc(m)}${(s.mhp[m] ?? 1) <= 0 ? '<span class="tag">전투불능</span>' : ''}${pend?`<span class="tag fx">${esc(PENDING_LABEL[pend])}</span>`:''}</button>`;
-  }).join('') : `<span class="empty">참가한 파티원이 여기에 표시됩니다.</span>`;
+  }).join('') : `<span class="empty">참가한 공략대원이 여기에 표시됩니다.</span>`;
 
-  // party status cards (파티 상태)
+  // party status cards (공략대 상태)
   const rows = s.members.slice().sort((a,b)=>s.stats[b].dmg - s.stats[a].dmg);
   const top = rows.length ? s.stats[rows[0]].dmg : 0;
   const maxD = Math.max(1, top);
@@ -82,7 +84,7 @@ function render(){
       : `<span>${ROLES[rk].label}</span>`;
     const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0);
     const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 받은 입장료">` : `<b class="num">${fmt(ro.fee)}</b>`) + `<span class="hint num" title="장비 룰렛에 쓰고 남은 입장료">남음 ${fmt(left)}</span>`;
-    const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="파티에서 내보내기">${kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
+    const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="공략대에서 내보내기">${kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
     const mvp = x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>' : '';
     return `<article class="pcard${down?' down':''}${low?' low':''}${m===me?' mine':''}">
       <header class="pc-head"><span class="pc-rank num">${i+1}</span><span class="role-tag ${rk}">${ROLES[rk].short}</span><b class="pc-name">${esc(m)}</b>${mvp}<span class="pc-tags">${statusTags(s, m)}</span>${kick}</header>
@@ -96,7 +98,7 @@ function render(){
         <span class="pc-stat"><span class="hint">입장료</span>${feeCell}</span>
       </footer>
     </article>`;
-  }).join('') : `<p class="empty">아직 파티원이 없습니다. 초대 코드로 참가하면 여기에 나타납니다.</p>`;
+  }).join('') : `<p class="empty">아직 공략대원이 없습니다. 초대 코드로 참가하면 여기에 나타납니다.</p>`;
   }
 
   // party HP strip (HUD & overlay)
@@ -116,8 +118,8 @@ function render(){
     if(e.dHp > 0) deltas.push(`<span class="d-heal">HP +${fmt(e.dHp)}</span>`);
     if(e.dRage > 0) deltas.push(`<span class="d-rage">분노 +${fmt(e.dRage)}</span>`);
     if(e.dRage < 0) deltas.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
-    const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">파티 −${fmt(pd)}</span>`);
-    if(e.healed) deltas.push(`<span class="d-heal">파티 +${fmt(e.healed)}</span>`);
+    const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">공략대 −${fmt(pd)}</span>`);
+    if(e.healed) deltas.push(`<span class="d-heal">공략대 +${fmt(e.healed)}</span>`);
     const id = esc(ev._id);
     const canCtl = !(readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party';
     const ctl = canCtl ? `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>` : '';
@@ -163,10 +165,10 @@ function topDealer(s){
 function updateGamePreview(){
   const s = lastState; const el = $('gamePreview');
   $('winChecks').hidden = !isWin;
-  if(!s || !raid || !selected){ el.innerHTML = '파티원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
+  if(!s || !raid || !selected){ el.innerHTML = '공략대원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
   const p = Math.abs(parseInt($('points').value,10) || 0);
   const pend = s.pending[selected];
-  if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}${autoOn(selected)?'<br><b style="color:#ffd34d">이 파티원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.':''}`; return; }
+  if(!p){ el.innerHTML = `<b>${esc(selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}${autoOn(selected)?'<br><b style="color:#ffd34d">이 공략대원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.':''}`; return; }
   if(isWin){
     if(winType==='banned' && !s.S.win.banned){ el.innerHTML = '초반 올인(금지 빌드) 승리는 <b>데미지 0</b>입니다.'; return; }
     let mult = 1;

@@ -37,7 +37,7 @@ const PRESETS = {
 /* ---------- 룰렛 결과 ----------
    tier : 등급 (아래 TIERS 중 하나)
    w    : 비중
-   next : true 면 "룰렛을 돌린 파티원의 다음 래더 결과"에 적용, 없으면 즉시 적용
+   next : true 면 "룰렛을 돌린 공략대원의 다음 래더 결과"에 적용, 없으면 즉시 적용
    효과 자체는 js/logic.js 의 roulette 부분에서 id 로 처리합니다. */
 const ITEMS = [
   {id:'none',    tier:'꽝',   w:30,  name:'꽝'},
@@ -57,7 +57,7 @@ const PENDING_LABEL = {double:'데미지 2배', shield:'패배 보호', mission:
 const TIERS = ['꽝','일반','희귀','전설','함정'];
 
 
-/* ---------- 파티원 체력 ----------
+/* ---------- 공략대원 체력 ----------
    PARTY_HP  : 기본 체력 (갑옷 수치가 더해짐). 0 이 되면 전투불능
    REVIVE_HP : 전투불능 상태에서 승리하거나 불사의 목걸이가 발동할 때의 체력 */
 const PARTY_HP = 100, REVIVE_HP = 30;
@@ -67,10 +67,10 @@ const PARTY_HP = 100, REVIVE_HP = 30;
    보스 스킬의 type 은 아래 5가지 중 하나이고, v 의 의미가 다릅니다. */
 const SKILL_TYPES = {
   regen:  {label:'보스 회복', unit:'%',  desc:v=>`보스 HP ${v}% 회복`},             // v = 최대 HP 대비 %
-  smash:  {label:'단일 공격', unit:'',   desc:v=>`파티원 1명 체력 −${v}`},          // v = 체력 감소량
-  flame:  {label:'광역 공격', unit:'',   desc:v=>`생존 파티원 전원 체력 −${v}`},    // v = 1인당 체력 감소량
-  curse:  {label:'저주',      unit:'배', desc:v=>`파티원 1명 다음 승리 데미지 ×${v}`}, // v = 데미지 배율
-  barrier:{label:'보호막',    unit:'회', desc:v=>`파티의 다음 승리 ${v}번 데미지 절반`} // v = 횟수
+  smash:  {label:'단일 공격', unit:'',   desc:v=>`공략대원 1명 체력 −${v}`},          // v = 체력 감소량
+  flame:  {label:'광역 공격', unit:'',   desc:v=>`생존 공략대원 전원 체력 −${v}`},    // v = 1인당 체력 감소량
+  curse:  {label:'저주',      unit:'배', desc:v=>`공략대원 1명 다음 승리 데미지 ×${v}`}, // v = 데미지 배율
+  barrier:{label:'보호막',    unit:'회', desc:v=>`공략대의 다음 승리 ${v}번 데미지 절반`} // v = 횟수
 };
 
 
@@ -119,7 +119,7 @@ const BOSS_BY_RACE = {
 };
 
 
-/* ---------- 파티 역할과 역할 스킬 ----------
+/* ---------- 공략대 역할과 역할 스킬 ----------
    ROLES 의 type 은 코드가 효과를 고르는 키라 바꾸면 안 됩니다.
    DEFAULT_ROLE_SKILLS 의 이름과 v 는 자유롭게 바꿔도 됩니다.
    - 탱커 v : 대신 받는 피해 감소 %
@@ -129,8 +129,8 @@ const BOSS_BY_RACE = {
 const ROLES = {
   tank:   {label:'탱커',   short:'T', type:'taunt', desc:v=>`다음 보스 공격(단일·광역)을 혼자 받고 피해 ${v}% 감소`},
   dealer: {label:'딜러',   short:'D', type:'nuke',  desc:v=>`보스 HP ${v}% 즉시 감소`},
-  healer: {label:'힐러',   short:'H', type:'heal',  desc:v=>`파티원 전원 체력 +${v} (전투불능도 부활)`},
-  support:{label:'서포터', short:'S', type:'rally', desc:v=>`파티의 다음 승리 ${v}번 데미지 ×1.5, 저주 해제`}
+  healer: {label:'힐러',   short:'H', type:'heal',  desc:v=>`공략대원 전원 체력 +${v} (전투불능도 부활)`},
+  support:{label:'서포터', short:'S', type:'rally', desc:v=>`공략대의 다음 승리 ${v}번 데미지 ×1.5, 저주 해제`}
 };
 const DEFAULT_ROLE_SKILLS = {
   tank:   {name:'도발',      v:50},
@@ -217,9 +217,9 @@ const ROULETTE_PLAN = [
   {name:'전설 룰렛', cost:1000, p:[0,20,40,35,5]}
 ];
 const PARTY_SKILL_PLAN = [
-  {tier:'일반', name:'응급 치료',   desc:'룰렛을 돌린 파티원 체력 +40'},
-  {tier:'희귀', name:'부활',        desc:'전투불능 파티원 1명 체력 50으로 부활'},
-  {tier:'희귀', name:'저주 해제',   desc:'파티 전체의 저주 해제'},
-  {tier:'전설', name:'전체 치유',   desc:'파티원 전원 체력 +30 (전투불능도 부활)'},
+  {tier:'일반', name:'응급 치료',   desc:'룰렛을 돌린 공략대원 체력 +40'},
+  {tier:'희귀', name:'부활',        desc:'전투불능 공략대원 1명 체력 50으로 부활'},
+  {tier:'희귀', name:'저주 해제',   desc:'공략대 전체의 저주 해제'},
+  {tier:'전설', name:'전체 치유',   desc:'공략대원 전원 체력 +30 (전투불능도 부활)'},
   {tier:'전설', name:'보호막 파괴', desc:'보스 보호막 제거, 분노 게이지 비우기'}
 ];

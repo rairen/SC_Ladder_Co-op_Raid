@@ -1,5 +1,5 @@
 /* =====================================================================
-   logic.js — 게임 규칙 계산: 기록(events)을 처음부터 다시 계산해 보스 HP, 분노, 파티 상태를 만듦
+   logic.js — 게임 규칙 계산: 기록(events)을 처음부터 다시 계산해 보스 HP, 분노, 공략대 상태를 만듦
    ===================================================================== */
 /* ---------- Game logic ---------- */
 function cfgOf(r){ return r && r.cfg ? {bonus:0, rageRate:0.5, ...r.cfg} : {hp:220, bonus:20, rage:80, rageRate:0.5, rec:40}; }
@@ -160,7 +160,7 @@ function compute(r, evs){
         break;
       }
       case 'curse': { if(target){ curse[target] = v; out.target = target; out.text = `${target} 다음 승리 데미지 ×${v}`; } else out.text = '대상 없음'; break; }
-      case 'barrier': { barrier = Math.max(barrier, Math.round(v)); out.text = `파티의 다음 승리 ${Math.round(v)}번 데미지 절반`; break; }
+      case 'barrier': { barrier = Math.max(barrier, Math.round(v)); out.text = `공략대의 다음 승리 ${Math.round(v)}번 데미지 절반`; break; }
       default: out.text = '알 수 없는 스킬';
     }
     lastSkill = sk.name;
@@ -182,7 +182,7 @@ function compute(r, evs){
     const enraged = hp <= maxHp*0.5;
     const m = ev.member;
     if(ev.type === 'party'){ entry.party0 = true; continue; }
-    if(m && !members.includes(m)){ entry.ignored = true; entry.notes.push('파티에 없는 파티원 · 반영 안 됨'); continue; }
+    if(m && !members.includes(m)){ entry.ignored = true; entry.notes.push('공략대에 없는 공략대원 · 반영 안 됨'); continue; }
     const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item ?? ''}`;
     if(ev.type === 'game'){
       const s = st(m);
@@ -287,7 +287,7 @@ function compute(r, evs){
           let healed = 0, revived = [];
           for(const x of Object.keys(mhp)){ const before = mhp[x]; mhp[x] = Math.min(maxH[x], mhp[x] + v); healed += mhp[x]-before; if(before <= 0 && mhp[x] > 0) revived.push(x); }
           entry.healed = healed;
-          entry.notes.push(`파티 체력 +${fmt(healed)}${revived.length ? ' · 부활: '+revived.join(', ') : ''}`); break;
+          entry.notes.push(`공략대 체력 +${fmt(healed)}${revived.length ? ' · 부활: '+revived.join(', ') : ''}`); break;
         }
         case 'taunt': { taunt = {m, v}; entry.notes.push(`다음 보스 공격을 ${m}가 대신 받음 (피해 ${v}% 감소)`); break; }
         case 'rally': { rally = Math.max(rally, Math.round(v)); const cleared = Object.keys(curse).length; for(const k in curse) delete curse[k]; entry.notes.push(`다음 승리 ${Math.round(v)}번 데미지 ×1.5${cleared ? ' · 저주 해제' : ''}`); break; }
@@ -297,21 +297,21 @@ function compute(r, evs){
     if(hp <= 0){ hp = 0; status = 'clear'; entry.notes.push('보스 처치!'); }
     else {
       checkRage(entry, seedBase);
-      if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('파티 전멸 · 레이드 실패'); }
+      if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('공략대 전멸 · 레이드 실패'); }
     }
   }
   return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, spent, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
-/* 파티 구성 기록 문구 */
+/* 공략대 구성 기록 문구 */
 function partyText(ev){
   const rl = ROLES[ev.role] ? ROLES[ev.role].label : '';
-  if(ev.action === 'join') return `파티 참가${rl ? ' · '+rl : ''}${ev.fee ? ' · 입장료 '+fmt(ev.fee) : ''}`;
-  if(ev.action === 'kick') return '파티에서 내보냄';
+  if(ev.action === 'join') return `공략대 참가${rl ? ' · '+rl : ''}${ev.fee ? ' · 입장료 '+fmt(ev.fee) : ''}`;
+  if(ev.action === 'kick') return '공략대에서 내보냄';
   if(ev.action === 'role') return `역할 변경 → ${rl}`;
   if(ev.action === 'fee') return `입장료 ${fmt(ev.fee||0)}(으)로 변경`;
-  return '파티 변경';
+  return '공략대 변경';
 }
 function whatHtml(e){
   const ev = e.ev;

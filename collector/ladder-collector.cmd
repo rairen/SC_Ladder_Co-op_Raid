@@ -9,7 +9,7 @@ exit /b
 #  래더 점수 자동 수집기 (래더 협동 보스 레이드)
 #  ---------------------------------------------------------------------
 #  스타크래프트: 리마스터가 켜져 있는 PC 한 대에서 실행합니다.
-#  레이드 파티원에 등록된 래더 아이디의 점수를 주기적으로 조회해서,
+#  레이드 공략대원에 등록된 래더 아이디의 점수를 주기적으로 조회해서,
 #  래더 한 판이 끝날 때마다 승패와 점수 변동을 레이드 사이트에 자동으로 넣습니다.
 #
 #  - 스타크래프트에 로그인한 상태여야 합니다 (게임 클라이언트의 래더 조회 기능을 씁니다).
@@ -24,7 +24,7 @@ $Mode        = 'coop'    # 협동 레이드 데이터 위치
 $IntervalSec = 20        # 조회 간격(초)
 $LocalApi    = ''        # 비워두면 스타크래프트가 연 주소를 자동으로 찾음 (예: http://127.0.0.1:50250)
 $ApiKey      = ''        # 비워두면 사이트의 firebase-config.js 에서 읽음 (수집기 로그인용)
-$Version     = '1.2'
+$Version     = '1.3'
 # -------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
@@ -165,14 +165,14 @@ function Members-Of($raid) {
 # ---------- 시작 ----------
 Write-Host ''
 Write-Host "  래더 협동 보스 레이드 · 래더 점수 자동 수집기 v$Version" -ForegroundColor Cyan
-Write-Host '  이 창을 열어 두는 동안 파티원의 래더 결과가 자동으로 들어갑니다. (종료: 창 닫기)' -ForegroundColor DarkGray
+Write-Host '  이 창을 열어 두는 동안 공략대원의 래더 결과가 자동으로 들어갑니다. (종료: 창 닫기)' -ForegroundColor DarkGray
 Write-Host ''
 try { $DatabaseUrl = Find-DatabaseUrl; Log "레이드 저장소: $DatabaseUrl" }
 catch { Log ("레이드 사이트 설정을 읽지 못했습니다: " + (Err $_)) 'Red'; return }
 
 $api = $null
-$cache = @{}          # 파티원별 마지막 기록 (rating, wins, losses, season, id, gw)
-$cacheRaid = $null
+$cache = @{}          # 공략대원별 마지막 기록 (rating, wins, losses, season, id, gw)
+$caches = @{}         # 공략대별 기억
 
 while ($true) {
   $state = 'ok'; $msg = ''
@@ -185,18 +185,22 @@ while ($true) {
       $state = 'nogame'; $msg = '스타크래프트가 켜져 있지 않거나 로그인 전입니다'
       Log $msg 'Yellow'
     } else {
-      $raid = Db-Get "$Mode/raid"
-      if (-not $raid -or -not $raid.raidId) {
-        $state = 'noraid'; $msg = '진행 중인 레이드 없음'
+      $all = Db-Get "$Mode/raids"
+      $list = @(); if ($all) { $list = @($all.PSObject.Properties | ForEach-Object { $_.Value } | Where-Object { $_ -and $_.raidId }) }
+      if (-not $list.Count) {
+        $state = 'noraid'; $msg = '진행 중인 공략대 없음'
       } else {
+       $count = 0
+       foreach ($raid in $list) {
         $rid = [string]$raid.raidId
-        if ($cacheRaid -ne $rid) {
-          $cache = @{}; $cacheRaid = $rid
+        if (-not $caches.ContainsKey($rid)) {
+          $c0 = @{}
           $saved = Db-Get "$Mode/ladder/$rid"
-          if ($saved) { foreach ($p in $saved.PSObject.Properties) { $v = $p.Value; $cache[$p.Name] = @{ id = $v.id; gw = $v.gw; season = $v.season; rating = $v.rating; wins = $v.wins; losses = $v.losses } } }
-          Log "레이드: $($raid.name)" 'Cyan'
+          if ($saved) { foreach ($p in $saved.PSObject.Properties) { $v = $p.Value; $c0[$p.Name] = @{ id = $v.id; gw = $v.gw; season = $v.season; rating = $v.rating; wins = $v.wins; losses = $v.losses } } }
+          $caches[$rid] = $c0
+          Log ("{0}공략대: {1}" -f $raid.squad, $raid.name) 'Cyan'
         }
-        $count = 0
+        $cache = $caches[$rid]
         foreach ($m in (Members-Of $raid)) {
           if (-not $api) { $state = 'nogame'; $msg = '스타크래프트 연결이 끊겼습니다. 다시 찾는 중'; break }
           $key = Roster-Key $m
@@ -212,7 +216,7 @@ while ($true) {
             if ($r.err -and (-not $prev -or $prev.id -ne $toon)) {
               # 등록 직후 못 찾으면 다른 서버도 찾아봄
               $r2 = Find-Gateway $api $toon $gw
-              if ($r2.ok -and -not $r2.err -and $r2.gw -ne $gw) { $gw = $r2.gw; $snap.gw = $gw; $r = $r2; Db-Patch "$Mode/raid/roster/$(Enc $key)" @{ gw = $gw }; Log "$m : $($GW_NAME[$gw]) 서버에서 찾음" }
+              if ($r2.ok -and -not $r2.err -and $r2.gw -ne $gw) { $gw = $r2.gw; $snap.gw = $gw; $r = $r2; Db-Patch "$Mode/raids/$rid/roster/$(Enc $key)" @{ gw = $gw }; Log "$m : $($GW_NAME[$gw]) 서버에서 찾음" }
             }
             if (-not $r.ok) { throw $r.err }
             $snap.rating = $r.rating; $snap.wins = $r.wins; $snap.losses = $r.losses; $snap.season = $r.season; $snap.err = $r.err
@@ -245,7 +249,9 @@ while ($true) {
           }
           Db-Put "$Mode/ladder/$rid/$(Enc $key)" $snap
         }
-        if ($state -eq 'ok') { $msg = "파티원 $count 명 수집 중" }
+        if (-not $api) { break }
+       }
+        if ($state -eq 'ok') { $msg = "공략대 $($list.Count)개 · $count 명 수집 중" }
       }
     }
   } catch {
