@@ -4,7 +4,7 @@
 /* ---------- Boot ---------- */
 /* 베타 로컬 저장: 같은 브라우저의 다른 탭에도 자동 반영 */
 import { App } from '@app/core/app.js';
-import { $, CUR_KEY, MODE, OVERLAY, ROOM, base } from '@app/core/state.js';
+import { $, CUR_KEY, MODE, OVERLAY, ROOM, base, TEST } from '@app/core/state.js';
 import { toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
@@ -80,7 +80,8 @@ export function init(){
   App.meName = '';   try{ App.meName = localStorage.getItem(ME_KEY) || ''; }catch(_){}
   { const qm = new URLSearchParams(location.search).get('me'); if(qm){ App.meName = String(qm).replace(/\s+/g,' ').trim().slice(0,20); try{ localStorage.setItem(ME_KEY, App.meName); }catch(_){} } }
   // 개인 링크로 들어왔으면 읽은 뒤 주소창은 깔끔하게 비웁니다 (오버레이 주소는 그대로 둡니다)
-  if(!OVERLAY && location.search){ try{ window.history.replaceState(null, '', location.pathname + location.hash); }catch(_){} }
+  // (테스트 모드 ?test=1 은 새로고침해도 유지되도록 남김)
+  if(!OVERLAY && location.search){ try{ window.history.replaceState(null, '', location.pathname + (TEST ? '?test=1' : '') + location.hash); }catch(_){} }
   $('meSelect').onchange = e=>{
     App.meName = e.target.value;
     try{ App.meName ? localStorage.setItem(ME_KEY, App.meName) : localStorage.removeItem(ME_KEY); }catch(_){}
@@ -122,7 +123,8 @@ export function init(){
       return;
     }
     try{
-      const app = firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg);
+      /* 테스트 모드는 이름이 다른 Firebase 앱을 써서, 같은 브라우저의 운영자 로그인과 섞이지 않게 함 */
+      const app = TEST ? firebase.initializeApp(cfg, 'test') : (firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg));
       App.db = app.database();
       initAuth(app);
     }catch(e){ startLocal(); toast('Firebase 설정이 올바르지 않습니다. firebase-config.js 값을 확인하세요.'); return; }

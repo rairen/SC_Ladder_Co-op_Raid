@@ -10,6 +10,10 @@ const CUR_KEY = 'sc-boss-raid:cur:coop';
 const squadLabel = r => r && r.squad ? `${r.squad}공략대` : '공략대';
 // 방 코드: 주소 끝에 ?room=코드 를 붙이면 그룹별로 레이드가 분리됩니다.
 const OVERLAY = document.documentElement.classList.contains('overlay');
+/* 테스트 모드: 주소 끝에 ?test=1. 이 탭에서만 유지되는 테스트 계정(익명 로그인)으로 스트리머 화면을 시험합니다.
+   탭마다 다른 계정이라, 탭을 여러 개 열면 여러 명의 스트리머로 시험할 수 있습니다. */
+const TEST = !OVERLAY && (()=>{ try{ return new URLSearchParams(location.search).get('test') === '1'; }catch(_){ return false; } })();
+if(TEST) document.documentElement.classList.add('testmode');
 /* 게임 모드. 나중에 '래더 보스 레이드 대전' 버전을 추가하면 'versus'처럼 다른 값을 써서 데이터가 섞이지 않게 합니다. */
 const MODE = 'coop';
 const ROOM = MODE;
@@ -53,4 +57,4 @@ function openModal(id, focusSel){
   if(f) setTimeout(()=>f.focus(), 0);
 }
 
-export { $, esc, fmt, CUR_KEY, squadLabel, OVERLAY, MODE, ROOM, base, bindModal, openModal };
+export { $, esc, fmt, CUR_KEY, squadLabel, OVERLAY, TEST, MODE, ROOM, base, bindModal, openModal };

@@ -4,7 +4,7 @@
 /* ---------- 장비 룰렛 ---------- */
 import { App } from '@app/core/app.js';
 import { DEFAULT_GEAR_ROLL, GEAR_GRADES, GEAR_SLOT, PARTY_HP, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, ROOM, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, TEST, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
 import { guard, rpath, store, toast } from '@app/core/store.js';
 import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, salvageValue, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
@@ -138,6 +138,7 @@ function renderJoin(s, me){
   // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
   const authed = useAuth(), needLogin = authed && !App.authUser;
   $('joinLogin').hidden = !needLogin; $('joinForm').hidden = needLogin; $('joinIntro').hidden = needLogin;
+  $('loginBtn2').textContent = TEST ? '테스트 계정으로 시작' : '구글 로그인';
   $('joinExisting').hidden = authed && !isAdmin();
   $('joinName').disabled = authed;
   $('joinCodeField').hidden = !(authed && App.authUser && !isAdmin());

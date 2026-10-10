@@ -724,3 +724,6 @@ html.overlay .upd-bar{display:none!important}
 @media (max-width:520px){ .upd-text{flex-basis:100%} .upd-more{margin-left:0} }
 .upd-mo{display:none}
 @media (max-width:520px){ .upd-it + .upd-it, .upd-d{display:none} .upd-mo{display:inline} }
+/* 테스트 모드 */
+.test-tag{font-size:11px;font-weight:700;color:#fff;background:#3f74d0;padding:1px 6px;border-radius:4px;margin-right:6px}
+html.testmode body::before{content:"테스트 모드 · 이 탭에서만 유지되는 테스트 계정";position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:60;font-size:11px;font-weight:700;color:#fff;background:#3f74d0;padding:2px 10px;border-radius:0 0 6px 6px;pointer-events:none}

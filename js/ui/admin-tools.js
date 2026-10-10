@@ -60,6 +60,10 @@ function endRaid(rid){
 
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
+  const testUrl = ()=>{ const u = new URL(location.href); u.search = '?test=1'; u.hash = ''; return u.toString(); };
+  $('admTestUrl').textContent = testUrl();
+  $('admTestCopy').onclick = ()=>{ navigator.clipboard.writeText(testUrl()).then(()=>toast('테스트 계정 주소를 복사했습니다.'), ()=>toast(testUrl())); };
+  $('admTestOpen').onclick = ()=>{ window.open(testUrl(), '_blank', 'noopener'); };
   $('adminBtn').onclick = ()=>{ endArm = ''; $('admWipeWord').value = ''; document.querySelector('input[name="wipeKind"][value="history"]').checked = true; renderAdminTools(); openModal('adminModal', '#adminClose'); };
   bindModal('adminModal', 'adminClose', ()=>{ endArm = ''; });
   $('admRaids').addEventListener('click', e=>{
