@@ -26,12 +26,26 @@ function renderGearPanel(s, canAct, me){
   $('gearFor').textContent = left < cost ? '지참금이 부족합니다. 내 정보에서 추가 지원금을 넣어 주세요.' : '';
 }
 /* 인벤토리: 얻은 장비 목록, 착용·해제 */
+/* 인벤토리 정렬: 등급·내구도·획득순, 오름/내림. 고른 방식은 이 브라우저에 기억 */
+const INV_SORT_KEY = 'sc-boss-raid:invSort';
+const INV_SORTS = {
+  'grade-desc':'등급 높은 순', 'grade-asc':'등급 낮은 순',
+  'dur-desc':'내구도 많은 순', 'dur-asc':'내구도 적은 순',
+  'new-desc':'최근 획득 순', 'new-asc':'먼저 획득 순'
+};
+function invSort(){ try{ const v = localStorage.getItem(INV_SORT_KEY); return INV_SORTS[v] ? v : 'grade-desc'; }catch(_){ return 'grade-desc'; } }
+function sortInv(items){
+  const [key, dir] = invSort().split('-'), sign = dir === 'asc' ? 1 : -1;
+  const slotOrder = {weapon:0, armor:1, accessory:2};
+  const durOf = it => it.dur === Infinity ? 1e9 : it.dur;
+  const val = (it, i) => key === 'grade' ? (it.rank + 1) * 10 + it.idx : key === 'dur' ? durOf(it) : i;
+  return items.map((it, i)=>({it, i})).sort((a,b)=> sign * (val(a.it, a.i) - val(b.it, b.i)) || (slotOrder[a.it.slot] - slotOrder[b.it.slot]) || (itemScore(b.it) - itemScore(a.it)) || (a.i - b.i)).map(x=>x.it);
+}
 function renderInventory(s, m, canEdit, left = Infinity){
   const box = $('invList'), items = (s.inv && s.inv[m]) || [], eq = (s.eq && s.eq[m]) || {};
   $('invCount').textContent = items.length ? `${items.filter(x=>!x.broken).length}개 보유${items.some(x=>x.broken) ? ` · 파괴 ${items.filter(x=>x.broken).length}` : ''}` : '';
   if(!items.length){ box.innerHTML = '<li class="empty">장비 룰렛으로 얻은 장비가 여기에 쌓입니다. 레이드가 끝나도 계속 가지고 다음 레이드에서 씁니다.</li>'; return; }
-  const order = {weapon:0, armor:1, accessory:2};
-  const list = items.slice().sort((a,b)=> (a.broken-b.broken) || (order[a.slot]-order[b.slot]) || (itemScore(b)-itemScore(a)));
+  const list = sortInv(items);
   box.innerHTML = list.map(it=>{
     const on = eq[it.slot] === it.id;
     const eff = it.slot==='weapon' ? `승리 데미지 +${Math.round(it.v*100)}%` : it.slot==='armor' ? `최대 체력 +${it.v}` : it.idx===1 ? `분노 상승 −${Math.round(it.v*100)}%` : `쓰러질 때 체력 ${it.revive}`;
@@ -191,6 +205,9 @@ export function init(){
 
   /* 분해·버리기: 한 번 누르면 확인 버튼으로 바뀌고, 한 번 더 누르면 실행 */
   App.dropArm = null;
+  $('invSort').innerHTML = Object.entries(INV_SORTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
+  $('invSort').value = invSort();
+  $('invSort').addEventListener('change', e=>{ try{ localStorage.setItem(INV_SORT_KEY, e.target.value); }catch(_){} render(); });
   document.addEventListener('click', e=>{
     const d = e.target.closest('[data-drop]'); if(!d || d.disabled || !App.raid || !App.selected) return;
     const id = d.dataset.drop, kind = d.dataset.salvage ? 'salvage' : 'trash', who = App.selected;

@@ -704,3 +704,6 @@ button.linkbtn.num{font-variant-numeric:tabular-nums;font-size:inherit;cursor:po
 .me-money .linkbtn{margin-left:auto}
 .btn.ghost{background:none;border-color:transparent;color:var(--muted)}
 .btn.ghost:hover{color:var(--trap)}
+.inv-head{gap:8px}
+.inv-head #invCount{margin-left:auto}
+.inv-sort{font-size:12px;padding:3px 6px}

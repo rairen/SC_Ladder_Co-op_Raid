@@ -4,6 +4,7 @@
    지참금은 공략대원에게 붙어 있어서 레이드가 끝나도 남은 금액이 다음 레이드로 이월됩니다.
    - 진행 중인 레이드: 지금 기록(events)으로 계산한 내역 (compute 의 money)
    - 끝난 레이드: 레이드가 끝날 때 저장한 coop/players/<이름>/ledger/<레이드ID>
+   레이드도, 레이드 안의 내역도 최근 것이 위
    ===================================================================== */
 import { App } from '@app/core/app.js';
 import { $, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
@@ -16,7 +17,7 @@ const KIND = {carry:'이월', deposit:'가져온 지참금', fund:'추가 지원
 const tm = t => { if(!t) return ''; const d = new Date(t); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
 
 function groupHtml(g){
-  const rows = (g.entries || []).map(x=>`<tr><td class="num hint">${tm(x.t)}</td><td>${esc(KIND[x.k] || x.k)}${x.n ? ` <span class="hint">${esc(x.n)}</span>` : ''}</td>
+  const rows = (g.entries || []).map((x,i)=>({...x, i})).sort((a,b)=>(b.t||0)-(a.t||0) || b.i-a.i).map(x=>`<tr><td class="num hint">${tm(x.t)}</td><td>${esc(KIND[x.k] || x.k)}${x.n ? ` <span class="hint">${esc(x.n)}</span>` : ''}</td>
     <td class="r num ${x.a >= 0 ? 'd-heal' : 'd-hp'}">${x.a >= 0 ? '+' : '−'}${fmt(Math.abs(x.a))}</td><td class="r num">${fmt(x.b)}</td></tr>`).join('');
   return `<article class="lg-card">
     <header class="pr-head">${g.live ? '' : `<span class="pr-when num">${fmtDate(g.t)}</span>`}<b>${esc(g.label)}</b><b class="pr-boss">${esc(g.boss)}</b>${g.status ? `<span class="res ${g.status}">${esc(RES_LABEL[g.status] || g.status)}</span>` : ''}<span class="lg-end">${g.live ? '지금' : '남은'} <b class="num">${fmt(g.end)}</b></span></header>
