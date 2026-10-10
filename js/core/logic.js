@@ -3,7 +3,7 @@
    ===================================================================== */
 /* ---------- Game logic ---------- */
 import { App } from '@app/core/app.js';
-import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, ITEM, PARTY_HP, PENDING_LABEL, REVIVE_HP, ROLES } from '@app/core/game-data.js';
+import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, ITEM, PARTY_HP, PENDING_LABEL, POTIONS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
 import { esc, fmt } from '@app/core/state.js';
 
 function cfgOf(r){ return r && r.cfg ? {bonus:0, rageRate:0.5, ...r.cfg} : {hp:220, bonus:20, rage:80, rageRate:0.5, rec:40}; }
@@ -22,9 +22,9 @@ function gearItemName(S, key, grade){ if(!key || key === 'none') return '꽝'; c
 /* 장비 등급: 등급 정보 (없으면 예전 기록 → 내구도 없음) */
 function gradeOf(S, id){
   const i = GEAR_GRADES.findIndex(g=>g.id===id);
-  if(i < 0) return {id:'', label:'', rank:-1, dur:Infinity, stat:1};
+  if(i < 0) return {id:'', label:'', rank:-1, dur:Infinity, stat:1, repair:0};
   const x = (S.grades && S.grades[i]) || GEAR_GRADES[i];
-  return {id, label:GEAR_GRADES[i].label, rank:i, w:Math.max(0, Number(x.w)||0), dur:Math.max(1, Math.round(Number(x.dur)||1)), stat:Math.max(0, Number(x.stat)||1)};
+  return {id, label:GEAR_GRADES[i].label, rank:i, w:Math.max(0, Number(x.w)||0), dur:Math.max(1, Math.round(Number(x.dur)||1)), stat:Math.max(0, Number(x.stat)||1), repair:Math.max(0, Math.round(Number(x.repair ?? GEAR_GRADES[i].repair)||0))};
 }
 /* 장비 하나 만들기: 등급 배율을 적용한 수치와 내구도 */
 function makeItem(S, id, key, gradeId){
@@ -44,7 +44,6 @@ function settingsOf(r){
   const out = {
     win: {...DEFAULT_SETTINGS.win, ...(x.win || {})},
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
-    feeGauge: x.feeGauge ?? DEFAULT_SETTINGS.feeGauge,
     gearCost: x.gearCost ?? DEFAULT_SETTINGS.gearCost,
     lossDmg: x.lossDmg ?? DEFAULT_SETTINGS.lossDmg,
     gearRoll: {...DEFAULT_SETTINGS.gearRoll, ...(x.gearRoll || {})},
@@ -56,10 +55,27 @@ function settingsOf(r){
     out.gear[k] = GEAR[k].map((g,i)=>({name:g.name, min: Math.max(0, Number(src[i].min)||0), v: Number(src[i].v)||0}));
   }
   out.grades = GEAR_GRADES.map((g,i)=>({...DEFAULT_SETTINGS.grades[i], ...((x.grades && x.grades[i]) || {})}));
+  out.potions = {};
+  for(const k in POTIONS){ const p = {...DEFAULT_SETTINGS.potions[k], ...((x.potions && x.potions[k]) || {})}; out.potions[k] = {name: POTIONS[k].name, unit: POTIONS[k].unit, cost: Math.max(0, Number(p.cost)||0), v: Math.max(0, Number(p.v)||0)}; }
+  return out;
+}
+/* 수리 비용: 등급별 (등급 없는 예전 장비·기본 장비는 수리 없음) */
+function repairCost(S, it){ if(!it || it.base || it.maxDur === Infinity || !it.grade) return 0; return gradeOf(S, it.grade).repair; }
+const listOf = v => Array.isArray(v) ? v.filter(Boolean) : (v && typeof v === 'object' ? Object.values(v) : []);
+/* 레이드가 끝날 때 남기는 공략대원 가방 (장비 + 소모품). 다음 레이드에 참가할 때 그대로 가져옴 */
+function bagsOf(s){
+  const out = {};
+  for(const m of s.members){
+    const eqm = (s.eq && s.eq[m]) || {};
+    out[m] = {
+      items: ((s.inv && s.inv[m]) || []).map(it=>({id: it.id, key: it.key, grade: it.grade || '', dur: it.dur === Infinity ? null : it.dur, eq: eqm[it.slot] === it.id})),
+      pots: {...((s.pots && s.pots[m]) || {})}
+    };
+  }
   return out;
 }
 const rosterKey = name => String(name).replace(/[.#$\[\]\/]/g, '_');
-function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0), ladder: String(x.ladder||''), gw: Number(x.gw)||30}; }
+function rosterOf(r, name){ const x = (r && r.roster && r.roster[rosterKey(name)]) || {}; return {role: ROLES[x.role] ? x.role : 'dealer', fee: Math.max(0, Number(x.fee)||0), ladder: String(x.ladder||''), gw: Number(x.gw)||30, bag: x.bag || null}; }
 
 /* 같은 기록이면 어느 화면에서 계산해도 같은 결과가 나오는 난수 */
 function seeded(str){
@@ -82,7 +98,7 @@ function compute(r, evs){
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
   let maxHp = bossHpOf(cfg, n0); const maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
-  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, fund = {}, spent = {};
+  const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, fund = {}, spent = {}, pots = {};
   const inv = {}, eq = {};   // 인벤토리(얻은 장비 전부)와 슬롯별 착용 장비
   const itemOf = (m, id) => id ? inv[m].find(x=>x.id===id) : null;
   /* 착용 장비로 능력치 계산 (빈 슬롯은 기본 장비) */
@@ -115,11 +131,23 @@ function compute(r, evs){
   const st = m => {
     if(!(m in mhp)){
       const ro = rosterOf(r, m);
-      inv[m] = []; eq[m] = {weapon:null, armor:null, accessory:null};
+      inv[m] = []; eq[m] = {weapon:null, armor:null, accessory:null}; pots[m] = {};
+      /* 지난 레이드에서 가져온 가방: 장비(내구도 그대로)와 소모품 */
+      const bag = ro.bag;
+      if(bag){
+        for(const b of listOf(bag.items)){
+          if(!b || !b.key || !b.id || !S.gear[String(b.key).split(':')[0]]) continue;
+          const it = makeItem(S, String(b.id), b.key, b.grade);
+          if(b.dur != null && it.dur !== Infinity){ it.dur = Math.max(0, Math.min(it.maxDur, Math.round(Number(b.dur)||0))); it.broken = it.dur <= 0; }
+          it.carried = true;
+          inv[m].push(it);
+          if(b.eq && !it.broken) eq[m][it.slot] = it.id;
+        }
+        for(const k in POTIONS) pots[m][k] = Math.max(0, Math.round(Number(bag.pots && bag.pots[k])||0));
+      }
       const g = gear[m] = buildGear(m); role[m] = ro.role; fee[m] = ro.fee; spent[m] = 0;
       maxH[m] = PARTY_HP + g.hp; mhp[m] = maxH[m];
-      /* 필요 게이지 = 최대 게이지 − 지참금 × 계수 (예: 100 − 1000 × 0.001 = 99) */
-      needG[m] = Math.max(1, Math.round((G.max - ro.fee * (Number(S.feeGauge)||0)) * 10) / 10);
+      needG[m] = G.max;
       gauge[m] = Math.min(needG[m], G.start);
     }
     return stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0,skills:0,used:0});
@@ -297,6 +325,41 @@ function compute(r, evs){
         else { equip(m, it.slot, it); entry.notes.push(`${GEAR_SLOT[it.slot]} ${it.name}${it.gradeLabel?`[${it.gradeLabel}]`:''} 장착 (내구 ${it.dur === Infinity ? '∞' : it.dur+'/'+it.maxDur})`); }
       }
       entry.equip = true;
+    } else if(ev.type === 'repair'){
+      /* 내구도 수리: 등급별 비용을 지참금에서 내고 내구도를 최대로. 파괴된 장비도 고침 */
+      st(m);
+      const it = itemOf(m, ev.item), cost = repairCost(S, it);
+      entry.repair = it ? {name: it.name, gradeLabel: it.gradeLabel, grade: it.grade} : null;
+      if(!it || !cost){ entry.ignored = true; entry.notes.push('수리할 수 없는 장비 · 반영 안 됨'); continue; }
+      if(it.dur >= it.maxDur){ entry.ignored = true; entry.notes.push('이미 내구도가 가득 참 · 반영 안 됨'); continue; }
+      if(fee[m] - spent[m] < cost){ entry.ignored = true; entry.notes.push(`지참금 부족 (남은 ${fmt(fee[m]-spent[m])} / 필요 ${fmt(cost)}) · 반영 안 됨`); continue; }
+      spent[m] += cost;
+      const wasBroken = it.broken; it.dur = it.maxDur; it.broken = false;
+      if(it.slot === 'accessory' && it.idx === 2) delete immUsed[m];
+      entry.notes.push(`지참금 −${fmt(cost)} · 내구도 ${it.maxDur}/${it.maxDur}${wasBroken ? ' · 파괴 복구' : ''}`);
+      const cur = itemOf(m, eq[m][it.slot]);
+      if(itemScore(it) > itemScore(cur)){ equip(m, it.slot, it); entry.notes.push('착용'); }
+      else if(cur === it) gear[m] = buildGear(m);
+    } else if(ev.type === 'buy'){
+      st(m);
+      const p = S.potions[ev.item];
+      if(!p){ entry.ignored = true; continue; }
+      entry.pot = {name: p.name};
+      if(fee[m] - spent[m] < p.cost){ entry.ignored = true; entry.notes.push(`지참금 부족 (남은 ${fmt(fee[m]-spent[m])} / 필요 ${fmt(p.cost)}) · 반영 안 됨`); continue; }
+      spent[m] += p.cost; pots[m][ev.item] = (pots[m][ev.item] || 0) + 1;
+      entry.notes.push(`지참금 −${fmt(p.cost)} · 보유 ${pots[m][ev.item]}개`);
+    } else if(ev.type === 'use'){
+      st(m);
+      const p = S.potions[ev.item];
+      if(!p){ entry.ignored = true; continue; }
+      entry.pot = {name: p.name, use: true};
+      if(!(pots[m][ev.item] > 0)){ entry.ignored = true; entry.notes.push('가진 소모품이 없음 · 반영 안 됨'); continue; }
+      if(mhp[m] <= 0){ entry.ignored = true; entry.notes.push('전투불능이라 쓸 수 없음 · 반영 안 됨'); continue; }
+      if(ev.item === 'hp' ? mhp[m] >= maxH[m] : gauge[m] >= needG[m]){ entry.ignored = true; entry.notes.push(`${ev.item === 'hp' ? '체력' : '스킬 게이지'}이 이미 가득 참 · 반영 안 됨`); continue; }
+      pots[m][ev.item]--;
+      if(ev.item === 'hp'){ const before = mhp[m]; mhp[m] = Math.min(maxH[m], mhp[m] + p.v); entry.healed = mhp[m] - before; entry.notes.push(`${m} 체력 +${fmt(mhp[m] - before)} (${mhp[m]}/${maxH[m]})`); }
+      else { const before = gauge[m]; gauge[m] = Math.min(needG[m], gauge[m] + p.v); entry.notes.push(`${m} 스킬 게이지 +${fmt(Math.round((gauge[m]-before)*10)/10)} (${gauge[m]}/${needG[m]})`); }
+      entry.notes.push(`남은 ${p.name} ${pots[m][ev.item]}개`);
     } else if(ev.type === 'fund'){
       /* 추가 지원금: 장비 룰렛에 쓸 지참금만 늘어남 (역할 스킬 필요 게이지는 초기 지참금 기준 그대로) */
       st(m);
@@ -329,7 +392,7 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('공략대 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
@@ -347,6 +410,9 @@ function whatHtml(e){
   if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
+  if(ev.type==='repair'){ const r0 = e.repair || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 수리 · <b class="${r0.grade?'gr-'+r0.grade:''}">${esc(r0.name)}${r0.gradeLabel?` [${r0.gradeLabel}]`:''}</b>`; }
+  if(ev.type==='buy'){ return `<b>${esc(ev.member)}</b> 소모품 구매 · ${esc((e.pot && e.pot.name) || '소모품')}`; }
+  if(ev.type==='use'){ return `<b>${esc(ev.member)}</b> <b class="${ev.item==='hp'?'d-heal':'pot-mp'}">${esc((e.pot && e.pot.name) || '소모품')}</b> 사용`; }
   if(ev.type==='fund'){ return `<b>${esc(ev.member)}</b> 추가 지원금 <b class="d-heal">+${fmt(Number(ev.amount)||0)}</b>`; }
   if(ev.type==='party'){ return `<b>${esc(ev.member)}</b> ${partyText(ev)}`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
@@ -386,4 +452,4 @@ function statusTags(s, m){
   return t.join(' · ');
 }
 
-export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON };
+export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, bagsOf, listOf };

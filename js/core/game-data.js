@@ -29,9 +29,9 @@
 import { App } from '@app/core/app.js';
 
 const PRESETS = {
-  light: {label:'라이트', hp:120, bonus:10, rage:100, rageRate:0.5, rec:25, desc:'가볍게'},
-  normal:{label:'노멀',   hp:220, bonus:20, rage:80,  rageRate:0.5, rec:40, desc:'보통'},
-  hard:  {label:'하드',   hp:280, bonus:30, rage:60,  rageRate:0.5, rec:60, desc:'어렵게'},
+  light: {label:'라이트', hp:150, bonus:10, rage:100, rageRate:0.5, rec:25, desc:'가볍게'},
+  normal:{label:'노멀',   hp:275, bonus:20, rage:85,  rageRate:0.5, rec:40, desc:'보통'},
+  hard:  {label:'하드',   hp:350, bonus:30, rage:70,  rageRate:0.5, rec:60, desc:'어렵게'},
   custom:{label:'커스텀', desc:'직접 입력'}
 };
 
@@ -143,7 +143,7 @@ const DEFAULT_ROLE_SKILLS = {
 
 
 /* ---------- 역할 스킬 게이지 ----------
-   max   : 최대 게이지. 필요 게이지 = max − 초기 지참금 × feeGauge(아래 레이드 설정)
+   max   : 최대 게이지. 가득 차면 역할 스킬 사용
    start : 레이드 시작 시 게이지
    win   : 승리할 때 충전량
    loss  : 패배할 때 충전량 */
@@ -173,13 +173,24 @@ const GEAR_SLOT = {weapon:'무기', armor:'갑옷', accessory:'장신구'};
           불사의 목걸이     등급과 상관없이 한 번 발동하면 부서짐
           0 이 되면 부서지고, 인벤토리에서 같은 종류의 가장 좋은 장비를 자동으로 착용합니다.
    stat : 능력치 배율 (일반 = 1). 예: 강철 검 +10% → 전설 +13%
-          불사의 목걸이는 버티는 체력(REVIVE_HP)에 곱합니다. */
+          불사의 목걸이는 버티는 체력(REVIVE_HP)에 곱합니다.
+   repair : 내구도 수리 비용 (지참금에서 빠짐). 내구도를 최대로 되돌리고, 파괴된 장비도 고칩니다. */
 const GEAR_GRADES = [
-  {id:'common', label:'일반', w:60, dur:5,  stat:1.00},
-  {id:'rare',   label:'고급', w:28, dur:9,  stat:1.10},
-  {id:'epic',   label:'희귀', w:10, dur:15, stat:1.20},
-  {id:'legend', label:'전설', w:2,  dur:24, stat:1.30}
+  {id:'common', label:'일반', w:60, dur:5,  stat:1.00, repair:50},
+  {id:'rare',   label:'고급', w:28, dur:9,  stat:1.10, repair:75},
+  {id:'epic',   label:'희귀', w:10, dur:15, stat:1.20, repair:100},
+  {id:'legend', label:'전설', w:2,  dur:24, stat:1.30, repair:150}
 ];
+
+
+/* ---------- 소모품 ----------
+   지참금으로 사서 레이드 중 아무 때나 씁니다. 남은 소모품과 장비는 레이드가 끝나도 그 공략대원이 계속 가집니다.
+   cost : 1개 가격 (지참금에서 빠짐)
+   v    : 효과량. hp = 체력 회복, mp = 역할 스킬 게이지 충전 (전투불능일 때는 못 씀) */
+const POTIONS = {
+  hp: {name:'힐링 포션', cost:50, v:30, unit:'체력'},
+  mp: {name:'마나 포션', cost:50, v:30, unit:'스킬 게이지'}
+};
 
 
 /* ---------- 장비 룰렛 확률 ----------
@@ -195,19 +206,18 @@ const DEFAULT_GEAR_ROLL = {
 /* ---------- 레이드 설정 기본값 ----------
    win        : (사용 안 함) 예전 승리 유형 배율. 예전 기록을 다시 계산할 때만 쓰임
    chain      : 서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지 %
-   feeGauge   : 초기 지참금 1개당 줄어드는 역할 스킬 필요 게이지
    gearCost   : 장비 룰렛 1회 비용 (지참금에서 빠짐)
    roulette / gearRoll / gear : 위 목록의 값을 그대로 가져옴 */
 const DEFAULT_SETTINGS = {
   win: {multi:1.5, same:0.5, banned:0},
   chain: 2,
-  feeGauge: 0.001,
   gearCost: 100,
   lossDmg: 0.5,  // 패배 피해 배율: 래더에서 진 점수 × 이 값만큼 그 공략대원 체력이 줄어듦 (0.5 = 잃은 점수의 50%, 0 이면 피해 없음)
   gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))])),
-  grades: GEAR_GRADES.map(g=>({w:g.w, dur:g.dur, stat:g.stat}))
+  grades: GEAR_GRADES.map(g=>({w:g.w, dur:g.dur, stat:g.stat, repair:g.repair})),
+  potions: Object.fromEntries(Object.entries(POTIONS).map(([k,p])=>[k, {cost:p.cost, v:p.v}]))
 };
 
 
@@ -225,4 +235,4 @@ const PARTY_SKILL_PLAN = [
   {tier:'전설', name:'보호막 파괴', desc:'보스 보호막 제거, 분노 게이지 비우기'}
 ];
 
-export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, ROULETTE_PLAN, PARTY_SKILL_PLAN };
+export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, POTIONS, ROULETTE_PLAN, PARTY_SKILL_PLAN };

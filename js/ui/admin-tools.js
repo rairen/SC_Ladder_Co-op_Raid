@@ -8,7 +8,7 @@
 import { App } from '@app/core/app.js';
 import { $, OVERLAY, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
-import { compute } from '@app/core/logic.js';
+import { compute, bagsOf } from '@app/core/logic.js';
 import { canOperate } from '@app/features/auth.js';
 import { eventsOf } from '@app/core/boot.js';
 import { summarize, renderHistory, setHistTab } from '@app/ui/history.js';
@@ -50,9 +50,9 @@ function renderAdminTools(){
 
 function endRaid(rid){
   const r = App.raids[rid]; if(!r) return;
-  const evs = eventsOf(rid), sum = summarize(r, compute(r, evs), true, evs);
+  const evs = eventsOf(rid), st = compute(r, evs), sum = summarize(r, st, true, evs);
   guard(async()=>{
-    await store.reset(sum);
+    await store.reset(sum, bagsOf(st));
     endArm = ''; App.openHist = sum.raidId; setHistTab('hist'); renderAdminTools();
     toast(`${sum.squadLabel} 레이드를 종료하고 레이드 기록에 보관했습니다.`);
   });

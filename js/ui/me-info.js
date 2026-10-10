@@ -8,6 +8,7 @@ import { App } from '@app/core/app.js';
 import { ROLES, PARTY_HP, REVIVE_HP, PENDING_LABEL } from '@app/core/game-data.js';
 import { $, OVERLAY, esc, fmt } from '@app/core/state.js';
 import { gearHtml, statusTags } from '@app/core/logic.js';
+import { guard, store, toast } from '@app/core/store.js';
 
 const num = v => String(Math.round(v*100)/100);
 
@@ -40,7 +41,7 @@ function formulaHtml(s, m){
     </dl>`;
 }
 
-function renderMeInfo(s, me){
+function renderMeInfo(s, me, canAct){
   const panel = $('mePanel'), m = App.selected;
   panel.hidden = OVERLAY || !App.raid || !m || !s.members.includes(m);
   if(panel.hidden) return;
@@ -55,6 +56,31 @@ function renderMeInfo(s, me){
     <div class="rbar sp${full?' full':''}"><i style="width:${Math.min(100, g/need*100)}%"></i><span class="rb-l">스킬</span><span class="rb-v num">${full ? '사용 가능' : `${g} / ${need}`}</span></div>
     <div class="label mc-gl">착용 장비</div>${gearHtml(s, m)}`;
   $('meFormula').innerHTML = formulaHtml(s, m);
+
+  /* 지참금 · 추가 지원금 */
+  const mine = !!canAct && (!me || me === m), alive = !down;
+  const left = (s.fee[m]||0) - (s.spent[m]||0), fund = (s.fund && s.fund[m]) || 0, init0 = (s.fee[m]||0) - fund;
+  $('meMoney').innerHTML = `<span class="label" style="margin:0">지참금</span><b class="num">${fmt(left)}</b><span class="hint">남음 · 초기 ${fmt(init0)}${fund ? ` + 지원 ${fmt(fund)}` : ''}${s.spent[m] ? ` − 사용 ${fmt(s.spent[m])}` : ''}</span>`;
+  $('fundRow').hidden = !mine;
+
+  /* 소모품 */
+  const pots = (s.pots && s.pots[m]) || {};
+  $('mePots').innerHTML = `<div class="label mc-gl">소모품</div>` + Object.entries(s.S.potions).map(([k,p])=>{
+    const n = pots[k] || 0, isFull = k === 'hp' ? h >= mx : g >= need;
+    return `<div class="pot pot-${k}"><span class="pot-ic" aria-hidden="true"></span>
+      <span class="pot-tx"><b>${esc(p.name)}</b> <span class="num pot-n">×${n}</span><small>${esc(p.unit)} +${fmt(p.v)} · ${fmt(p.cost)}</small></span>
+      ${mine ? `<span class="pot-act"><button type="button" class="btn sm" data-potuse="${k}"${n > 0 && alive && !isFull ? '' : ' disabled'}${isFull && n > 0 ? ' title="이미 가득 찼습니다"' : ''}>사용</button><button type="button" class="btn sm" data-potbuy="${k}"${left >= p.cost ? '' : ` disabled title="지참금 부족"`}>구매</button></span>` : ''}</div>`;
+  }).join('');
+}
+
+/* 처음 한 번 실행: 화면 이벤트 연결 (js/main.js 가 파일 순서대로 부름) */
+export function init(){
+  $('mePanel').addEventListener('click', e=>{
+    const b = e.target.closest('[data-potbuy],[data-potuse]'); if(!b || b.disabled || !App.raid || !App.selected) return;
+    const who = App.selected, buy = !!b.dataset.potbuy, item = buy ? b.dataset.potbuy : b.dataset.potuse;
+    const p = App.lastState && App.lastState.S.potions[item];
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type: buy ? 'buy' : 'use', member:who, item, undone:false}); if(p) toast(`${who} ${p.name} ${buy ? '구매' : '사용'}`); });
+  });
 }
 
 export { renderMeInfo, formulaHtml };

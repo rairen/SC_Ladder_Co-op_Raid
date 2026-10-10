@@ -162,7 +162,7 @@ function render(){
   renderJoin(s, myName(s));
   renderEndBtn(s, me);
   renderGearPanel(s, canAct, me);
-  renderMeInfo(s, me);
+  renderMeInfo(s, me, canAct);
   renderAdminBtn();
   renderRoleBar(s, me, canAct);
   if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);

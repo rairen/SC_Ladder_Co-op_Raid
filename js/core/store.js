@@ -10,7 +10,26 @@ import { isAdmin, useAuth } from '@app/features/auth.js';
 import { commit, commitHistory, selectRaid } from '@app/core/boot.js';
 
 const rpath = rid => base()+'/raids/'+(rid || (App.raid && App.raid.raidId));
+/* 공략대원 가방(장비·소모품)은 레이드가 끝나도 남음: Firebase coop/players/<이름>, 로컬은 localStorage */
+const LS_PLAYERS = 'sc-boss-raid:players:' + ROOM;
+function localPlayers(){ try{ return JSON.parse(localStorage.getItem(LS_PLAYERS) || '{}') || {}; }catch(_){ return {}; } }
 const store = {
+  /* 참가할 때 가져올 가방 (없으면 null) */
+  async loadBag(name){
+    const k = rosterKey(name);
+    if(App.local){ const b = localPlayers()[k]; return b ? {items: b.items || [], pots: b.pots || {}} : null; }
+    try{ const snap = await App.db.ref(base()+'/players/'+k).once('value'); const b = snap.val(); return b ? {items: b.items || [], pots: b.pots || {}} : null; }
+    catch(_){ return null; }
+  },
+  /* 레이드가 끝날 때 공략대원 가방 저장 */
+  async saveBags(bags){
+    if(!bags) return;
+    const t = Date.now(), patch = {};
+    for(const [name, b] of Object.entries(bags)) patch[rosterKey(name)] = {name, items: b.items || [], pots: b.pots || {}, t};
+    if(!Object.keys(patch).length) return;
+    if(App.local){ const all = localPlayers(); Object.assign(all, patch); try{ localStorage.setItem(LS_PLAYERS, JSON.stringify(all)); }catch(_){} return; }
+    await App.db.ref(base()+'/players').update(patch);
+  },
   async setRaid(data){
     if(App.local){ App.raid = data; App.events = []; App.curRid = data.raidId; commit(); return; }
     await App.db.ref(rpath(data.raidId)).set(data);
@@ -50,6 +69,7 @@ const store = {
     const hist = kind === 'history' || kind === 'all', raids = kind === 'raids' || kind === 'all';
     if(App.local){
       if(hist){ App.history = []; commitHistory(); }
+      if(kind === 'all'){ try{ localStorage.removeItem(LS_PLAYERS); }catch(_){} }
       if(raids){ App.raid = null; App.events = []; App.localDB = {raids:{}, events:{}}; App.raids = App.localDB.raids; App.allEvents = App.localDB.events; commit(); selectRaid(''); }
       return;
     }
@@ -66,7 +86,8 @@ const store = {
       selectRaid('');
     }
   },
-  async reset(sum){
+  async reset(sum, bags){
+    await store.saveBags(bags);
     const cur = !!(App.raid && App.raid.raidId === sum.raidId);
     if(App.local){ App.history = App.history.filter(h=>h.raidId!==sum.raidId).concat([sum]); commitHistory(); delete App.localDB.raids[sum.raidId]; delete App.localDB.events[sum.raidId]; if(cur){ App.raid = null; App.events = []; selectRaid(''); } commit(); return; }
     await App.db.ref(base()+'/history/'+sum.raidId).set(sum);

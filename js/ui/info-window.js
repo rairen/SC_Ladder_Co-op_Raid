@@ -66,7 +66,7 @@ function renderRulesTab(){
       <tr><td><b>부활 체력</b></td><td class="r num">${REVIVE_HP}</td><td class="desc">전투불능 상태에서 승리하거나 불사의 목걸이 발동 시</td></tr>
       <tr><td><b>보스 회복 시작</b></td><td class="r num">50%</td><td class="desc">보스 HP가 이 아래면 패배 점수 × 회복률만큼 보스 회복</td></tr>
       <tr><td><b>체인 보너스</b></td><td class="r num">${S.chain}%</td><td class="desc">서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지</td></tr>
-      <tr><td><b>역할 스킬 게이지</b></td><td class="r num">${G.max}</td><td class="desc">시작 ${G.start}, 승리 +${G.win}, 패배 +${G.loss}. 필요 게이지 = ${G.max} − 지참금 × ${S.feeGauge}</td></tr>
+      <tr><td><b>역할 스킬 게이지</b></td><td class="r num">${G.max}</td><td class="desc">시작 ${G.start}, 승리 +${G.win}, 패배 +${G.loss}, 마나 포션 +${S.potions.mp.v}</td></tr>
       <tr><td><b>성공 / 실패</b></td><td class="r">-</td><td class="desc">보스 HP 0 / 공략대 전원 전투불능</td></tr>
     </tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">보스 이름과 종족</h3>
@@ -134,13 +134,17 @@ function renderSkillModal(){
     armor:    {title:'갑옷',   unit:'',  show:v=> v ? `최대 체력 +${v}` : '기본'},
     accessory:{title:'장신구', unit:'%', show:(v,i)=> i===1 ? `내 공격으로 오르는 분노 −${Math.round(v*100)}%` : i===2 ? `1회용, 쓰러질 때 체력 ${REVIVE_HP}(등급 배율 적용)으로 버팀` : '-', pctv:true}
   };
-  $('skTabGear').innerHTML = `<p class="sk-note"><b>초기 지참금</b>은 참가할 때 가져온 별풍선이고, 역할 스킬 필요 게이지를 줄여 줍니다. 레이드 중에 받은 별풍선은 장비 룰렛 패널의 <b>추가 지원금</b>으로 넣으면 지참금에 더해집니다(게이지에는 영향 없음). 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 지참금에서 비용을 내고, 아래 확률로 장비 하나와 <b>등급</b>이 나옵니다. 얻은 장비는 인벤토리에 쌓이고, 지금 것보다 좋으면 바로 장착합니다. 등급이 높을수록 능력치가 조금 높고 내구도가 깁니다. 무기·평온의 부적은 내 승리 공격마다, 갑옷은 보스에게 맞을 때마다 내구도가 1씩 줄고, 불사의 목걸이는 한 번 발동하면 부서집니다. 부서지면 인벤토리의 다음 장비를 자동으로 착용합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
+  $('skTabGear').innerHTML = `<p class="sk-note"><b>초기 지참금</b>은 참가할 때 가져온 별풍선이고, 레이드 중에 받은 별풍선은 내 정보의 <b>추가 지원금</b>으로 더합니다. 지참금은 장비 룰렛, 장비 수리, 소모품 구매에 씁니다. <b>장비와 남은 소모품은 레이드가 끝나도 계속 가지고</b> 다음 레이드에 참가할 때 그대로 가져갑니다(내구도 포함). 장비는 <b>장비 룰렛</b>으로 얻습니다. 한 번 돌릴 때마다 남은 지참금에서 비용을 내고, 아래 확률로 장비 하나와 <b>등급</b>이 나옵니다. 얻은 장비는 인벤토리에 쌓이고, 지금 것보다 좋으면 바로 장착합니다. 등급이 높을수록 능력치가 조금 높고 내구도가 깁니다. 무기·평온의 부적은 내 승리 공격마다, 갑옷은 보스에게 맞을 때마다 내구도가 1씩 줄고, 불사의 목걸이는 한 번 발동하면 부서집니다. 부서지면 인벤토리의 다음 장비를 자동으로 착용합니다.${edit ? ' 비용, 확률 비중, 수치를 고친 뒤 저장하면 이 레이드에 바로 적용됩니다.' : ''}</p>
     ${(()=>{ const gl = gearRollList(SD), gt = gl.reduce((a,x)=>a+x.w,0) || 1; return `<div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>장비 룰렛 1회 비용</b></td><td class="r">${edit ? `<input type="number" min="0" step="10" value="${SD.gearCost}" data-sp="gearCost" aria-label="장비 룰렛 비용">` : `<span class="num">${fmt(SD.gearCost)}개</span>`}</td><td class="desc">남은 지참금에서 빠집니다</td></tr><tr><td><b>꽝</b></td><td class="r">${edit ? `<input type="number" min="0" step="1" value="${SD.gearRoll.none}" data-gr="none" aria-label="꽝 비중">` : `<span class="num">${SD.gearRoll.none}</span>`}</td><td class="desc" data-grp="none">${Math.round((gl.find(x=>x.key==='none').w)/gt*1000)/10}%</td></tr></tbody></table></div>`; })()}
     ${(()=>{ const gs = GEAR_GRADES.map((g,i)=>({...g, ...SD.grades[i]})), gt = gs.reduce((a,x)=>a+(Number(x.w)||0),0) || 1;
       const inp = (i,k,val,step,label) => edit ? `<input type="number" min="0" step="${step}" value="${val}" data-gd="${i}" data-gk="${k}" aria-label="${label}">` : `<span class="num">${val}</span>`;
-      return `<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th class="r">확률 비중</th><th class="r">내구도</th><th class="r">능력치 (%)</th><th>예시</th></tr></thead><tbody>
-      ${gs.map((g,i)=>`<tr><td class="gr-${g.id}"><b>${g.label}</b></td><td class="r">${inp(i,'w',g.w,1,g.label+' 비중')} <span class="hint" data-gdp="${i}">${Math.round((Number(g.w)||0)/gt*1000)/10}%</span></td><td class="r">${inp(i,'dur',g.dur,1,g.label+' 내구도')}</td><td class="r">${inp(i,'stat',Math.round(g.stat*100),1,g.label+' 능력치')}</td><td class="desc">강철 검 +${Math.round(SD.gear.weapon[1].v*g.stat*100)}% · 사슬 갑옷 +${Math.round(SD.gear.armor[1].v*g.stat)} · ${g.dur}회</td></tr>`).join('')}
+      return `<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th class="r">확률 비중</th><th class="r">내구도</th><th class="r">능력치 (%)</th><th class="r">수리 비용</th><th>예시</th></tr></thead><tbody>
+      ${gs.map((g,i)=>`<tr><td class="gr-${g.id}"><b>${g.label}</b></td><td class="r">${inp(i,'w',g.w,1,g.label+' 비중')} <span class="hint" data-gdp="${i}">${Math.round((Number(g.w)||0)/gt*1000)/10}%</span></td><td class="r">${inp(i,'dur',g.dur,1,g.label+' 내구도')}</td><td class="r">${inp(i,'stat',Math.round(g.stat*100),1,g.label+' 능력치')}</td><td class="r">${inp(i,'repair',g.repair ?? GEAR_GRADES[i].repair,5,g.label+' 수리 비용')}</td><td class="desc">강철 검 +${Math.round(SD.gear.weapon[1].v*g.stat*100)}% · 사슬 갑옷 +${Math.round(SD.gear.armor[1].v*g.stat)} · ${g.dur}회</td></tr>`).join('')}
       </tbody></table></div>`; })()}
+    <h3 class="label" style="margin:4px 0 0">소모품</h3>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>소모품</th><th class="r">가격</th><th>효과</th></tr></thead><tbody>
+      ${Object.values(SD.potions).map(p=>`<tr><td><b>${esc(p.name)}</b></td><td class="r num">${fmt(p.cost)}</td><td class="desc">${esc(p.unit)} +${fmt(p.v)} · 내 정보에서 사서 아무 때나 사용 (전투불능일 때는 못 씀)</td></tr>`).join('')}
+    </tbody></table></div>
     ${Object.entries(gearInfo).map(([k,info])=>`<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>${info.title}</th><th class="r">확률 비중</th><th class="r">수치${info.unit?' ('+info.unit+')':''}</th><th>효과</th></tr></thead><tbody>
       ${SD.gear[k].map((x,i)=>{
         const fixedV = (k==='accessory' && i!==1) || (i===0 && k!=='gauge');
@@ -159,8 +163,6 @@ function renderSkillModal(){
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>서로 다른 3명 연속 승리</b></td><td class="r">${num('chain', SD.chain, 0.5, '체인 보너스')}</td><td class="desc">보스 최대 HP의 % 만큼 추가 데미지</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">패배 피해</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>패배 피해 배율</b></td><td class="r">${num('lossDmg', SD.lossDmg, 0.1, '패배 피해 배율')}</td><td class="desc">래더에서 지면 잃은 점수 × 이 값만큼 그 공략대원 체력이 줄어듭니다. 예: −20점 × ${SD.lossDmg} = 체력 −${Math.round(20*SD.lossDmg)}. 0이면 피해 없음</td></tr></tbody></table></div>
-    <h3 class="label" style="margin:4px 0 0">지참금 → 역할 스킬 필요 게이지</h3>
-    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>지참금 1개당 줄어드는 게이지</b></td><td class="r">${num('feeGauge', SD.feeGauge, 0.001, '지참금 게이지 계수')}</td><td class="desc">필요 게이지 = 최대 게이지 − 지참금 × 이 값. 예: ${fmt(1000)}개 × ${SD.feeGauge} = ${Math.round(1000*SD.feeGauge*10)/10} 감소</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
@@ -207,7 +209,7 @@ export function init(){
     if(t.dataset.gd !== undefined){
       App.setDraft = App.setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
       const row = App.setDraft.grades[+t.dataset.gd], val = Math.max(0, Number(t.value)||0);
-      if(t.dataset.gk === 'stat') row.stat = val/100; else if(t.dataset.gk === 'dur') row.dur = Math.max(1, Math.round(val)); else row.w = val;
+      if(t.dataset.gk === 'stat') row.stat = val/100; else if(t.dataset.gk === 'dur') row.dur = Math.max(1, Math.round(val)); else if(t.dataset.gk === 'repair') row.repair = Math.round(val); else row.w = val;
       const tot = App.setDraft.grades.reduce((a,x)=>a+(Number(x.w)||0),0) || 1;
       $('skTabGear').querySelectorAll('[data-gdp]').forEach(c=>{ c.textContent = Math.round((Number(App.setDraft.grades[+c.dataset.gdp].w)||0)/tot*1000)/10 + '%'; });
       App.setDirty = true; $('skillModal').querySelectorAll('[data-setsave]').forEach(b=>b.disabled = false);
@@ -255,14 +257,14 @@ export function init(){
     if(sr){
       App.setDraft = App.setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
       const D = JSON.parse(JSON.stringify(settingsOf(null)));
-      if(sr.dataset.setreset === 'gear'){ App.setDraft.gear = D.gear; App.setDraft.gearRoll = D.gearRoll; App.setDraft.gearCost = D.gearCost; App.setDraft.grades = D.grades; } else { App.setDraft.win = D.win; App.setDraft.chain = D.chain; App.setDraft.feeGauge = D.feeGauge; App.setDraft.lossDmg = D.lossDmg; App.setDraft.roulette = D.roulette; }
+      if(sr.dataset.setreset === 'gear'){ App.setDraft.gear = D.gear; App.setDraft.gearRoll = D.gearRoll; App.setDraft.gearCost = D.gearCost; App.setDraft.grades = D.grades; } else { App.setDraft.win = D.win; App.setDraft.chain = D.chain; App.setDraft.lossDmg = D.lossDmg; App.setDraft.roulette = D.roulette; }
       App.setDirty = true; renderSkillModal(); return;
     }
     if(e.target.closest('[data-setsave]') && App.setDraft){
       const g = {}; for(const k in App.setDraft.gear) g[k] = App.setDraft.gear[k].map(x=>({min: Math.max(0, Math.round(Number(x.min)||0)), v: Math.max(0, Number(x.v)||0)}));
       const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(App.setDraft.roulette[it.id])||0);
       if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
-      const settings = {win:{multi:+App.setDraft.win.multi||0, same:+App.setDraft.win.same||0, banned:+App.setDraft.win.banned||0}, chain:+App.setDraft.chain||0, feeGauge: Math.max(0, +App.setDraft.feeGauge||0), lossDmg: Math.max(0, +App.setDraft.lossDmg||0), gearCost: Math.max(0, Math.round(+App.setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +App.setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: App.setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0)}))};
+      const settings = {win:{multi:+App.setDraft.win.multi||0, same:+App.setDraft.win.same||0, banned:+App.setDraft.win.banned||0}, chain:+App.setDraft.chain||0, lossDmg: Math.max(0, +App.setDraft.lossDmg||0), gearCost: Math.max(0, Math.round(+App.setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +App.setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: App.setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0), repair: Math.max(0, Math.round(+x.repair||0))})), potions: JSON.parse(JSON.stringify(settingsOf(null).potions))};
       guard(async()=>{ await saveSrc({settings}); App.setDraft = null; App.setDirty = false; renderSkillModal(); updateSetupPreview(); toast('수치를 적용했습니다. 레이드 시작 시 반영됩니다.'); });
       return;
     }

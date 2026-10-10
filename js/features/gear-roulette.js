@@ -6,7 +6,7 @@ import { App } from '@app/core/app.js';
 import { DEFAULT_GEAR_ROLL, GEAR_GRADES, GEAR_SLOT, PARTY_HP, ROLES } from '@app/core/game-data.js';
 import { $, OVERLAY, ROOM, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
 import { guard, rpath, store, toast } from '@app/core/store.js';
-import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
+import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { openSkillModal } from '@app/ui/info-window.js';
@@ -21,18 +21,16 @@ function renderGearPanel(s, canAct, me){
   const fund = (s.fund && s.fund[m]) || 0, init0 = (s.fee[m]||0) - fund;
   const mine = !me || me === m;
   $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 지참금 <b>${fmt(left)}</b> <span class="hint">/ 초기 ${fmt(init0)}${fund ? ` + 지원 ${fmt(fund)}` : ''}</span></span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
-  const fr = $('fundRow'); fr.hidden = !(canAct && mine);
-  $('fundFor').textContent = `${m} 추가 지원금`;
-  renderInventory(s, m, canAct && mine);
+  renderInventory(s, m, canAct && mine, left);
   $('gearSpin').disabled = !(canAct && mine && left >= cost);
   $('gearSpin').textContent = `장비 뽑기 (−${fmt(cost)})`;
-  $('gearFor').textContent = left < cost ? '지참금이 부족합니다. 방송에서 받은 별풍선을 추가 지원금으로 넣어 주세요.' : '';
+  $('gearFor').textContent = left < cost ? '지참금이 부족합니다. 내 정보에서 추가 지원금을 넣어 주세요.' : '';
 }
 /* 인벤토리: 얻은 장비 목록, 착용·해제 */
-function renderInventory(s, m, canEdit){
+function renderInventory(s, m, canEdit, left = Infinity){
   const box = $('invList'), items = (s.inv && s.inv[m]) || [], eq = (s.eq && s.eq[m]) || {};
   $('invCount').textContent = items.length ? `${items.filter(x=>!x.broken).length}개 보유${items.some(x=>x.broken) ? ` · 파괴 ${items.filter(x=>x.broken).length}` : ''}` : '';
-  if(!items.length){ box.innerHTML = '<li class="empty">장비 룰렛으로 얻은 장비가 여기에 쌓입니다.</li>'; return; }
+  if(!items.length){ box.innerHTML = '<li class="empty">장비 룰렛으로 얻은 장비가 여기에 쌓입니다. 레이드가 끝나도 계속 가지고 다음 레이드에서 씁니다.</li>'; return; }
   const order = {weapon:0, armor:1, accessory:2};
   const list = items.slice().sort((a,b)=> (a.broken-b.broken) || (order[a.slot]-order[b.slot]) || (itemScore(b)-itemScore(a)));
   box.innerHTML = list.map(it=>{
@@ -42,10 +40,12 @@ function renderInventory(s, m, canEdit){
     const btn = !canEdit || it.broken ? '' : on
       ? `<button type="button" class="btn sm" data-unequip="${it.slot}">해제</button>`
       : `<button type="button" class="btn sm" data-equip="${esc(it.id)}">장착</button>`;
+    const rc = repairCost(s.S, it);
+    const fix = canEdit && rc && it.dur < it.maxDur ? `<button type="button" class="btn sm repair" data-repair="${esc(it.id)}"${left < rc ? ` disabled title="지참금 부족 (남은 ${fmt(left)})"` : ''}>수리 ${fmt(rc)}</button>` : '';
     return `<li class="${it.broken?'broken':''}${on?' on':''}"><span class="inv-slot">${GEAR_SLOT[it.slot]}</span>
       <span class="inv-name${it.grade?' gr-'+it.grade:''}">${it.gradeLabel?`<span class="gr-tag">${it.gradeLabel}</span>`:''}${esc(it.name)}</span>
       <span class="inv-eff">${eff}</span><span class="inv-d">${it.broken ? '<span class="d-hp">파괴</span>' : dur}</span>
-      <span class="inv-act">${on ? '<span class="inv-on">착용 중</span>' : ''}${btn}</span></li>`;
+      <span class="inv-act">${on ? '<span class="inv-on">착용 중</span>' : ''}${it.carried ? '<span class="inv-kept" title="지난 레이드에서 가져온 장비">보유</span>' : ''}${btn}${fix}</span></li>`;
   }).join('');
 }
 function pickGrade(){
@@ -73,7 +73,7 @@ function setMe(name){
   if(name) openSetup(false);
   render();
 }
-function renderJoinGear(){ const S = settingsOf(App.raid), f = Math.max(0, Number($('joinFee').value)||0); $('joinGear').textContent = `장비 룰렛 ${S.gearCost > 0 ? Math.floor(f / S.gearCost) + '회' : '무제한'} 가능 (1회 ${fmt(S.gearCost)}) · 역할 스킬 필요 게이지 ${Math.max(1, Math.round((gaugeOf(App.raid).max - f*(Number(S.feeGauge)||0))*10)/10)}`; }
+function renderJoinGear(){ const S = settingsOf(App.raid), f = Math.max(0, Number($('joinFee').value)||0); $('joinGear').textContent = `초기 지참금으로 장비 룰렛 ${S.gearCost > 0 ? Math.floor(f / S.gearCost) + '회' : '무제한'} 가능 (1회 ${fmt(S.gearCost)}) · 소모품·수리에도 씁니다`; }
 function doJoin(){
   const authed = useAuth();
   if(authed && !App.authUser){ login(); return; }
@@ -104,7 +104,7 @@ function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
     }
     if(!already) await store.partyLog(name, 'join', {role, fee});
     await store.join(name);
-    if(!already) await store.setRoster(name, {role, fee});
+    if(!already){ const bag = await store.loadBag(name); await store.setRoster(name, bag ? {role, fee, bag} : {role, fee}); }
     if(authed) await store.setRoster(name, {uid: App.authUser.uid, ladder, gw});
     else if(ladder) await store.setRoster(name, {ladder});
     if(authed && App.profile && ladder !== (App.profile.ladder||'')) await App.db.ref('users/'+App.authUser.uid).update({ladder});
@@ -158,7 +158,7 @@ function addMember(){
   confirmJoin(name, $('addMemberRole').value, 0, role=>addMemberNow(name, role));
 }
 function addMemberNow(name, role){
-  guard(async()=>{ await store.partyLog(name, 'join', {role, fee:0}); await store.join(name); await store.setRoster(name, {role}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
+  guard(async()=>{ await store.partyLog(name, 'join', {role, fee:0}); await store.join(name); const bag = await store.loadBag(name); await store.setRoster(name, bag ? {role, bag} : {role}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
 }
 
 /* 중간 합류 안내: 첫 래더 결과 뒤에 참가하면 보스 HP 가 1인분 늘어남 (HP% 유지) */
@@ -180,6 +180,12 @@ function renderLateJoin(){
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
 
+  document.addEventListener('click', e=>{
+    const rp = e.target.closest('[data-repair]');
+    if(!rp || rp.disabled || !App.raid || !App.selected) return;
+    const who = App.selected;
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'repair', member:who, item: rp.dataset.repair, undone:false}); toast(`${who} 장비 수리`); });
+  });
   document.addEventListener('click', e=>{
     const eqb = e.target.closest('[data-equip]'), off = e.target.closest('[data-unequip]');
     if(!(eqb || off) || !App.raid || !App.selected) return;

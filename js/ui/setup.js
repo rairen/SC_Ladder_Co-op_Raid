@@ -6,7 +6,7 @@ import { App } from '@app/core/app.js';
 import { BOSS_BY_RACE, BOSS_SETS, PRESETS, RACES, ROLES } from '@app/core/game-data.js';
 import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
-import { bossHpOf, compute, rosterOf } from '@app/core/logic.js';
+import { bossHpOf, compute, rosterOf, bagsOf } from '@app/core/logic.js';
 import { canOperate, useAuth } from '@app/features/auth.js';
 import { setHistTab, summarize } from '@app/ui/history.js';
 
@@ -74,9 +74,9 @@ function renderEndBtn(s, me){
 }
 function finishAndReset(){
   if(!App.raid){ openSetup(true); return; }
-  const sum = summarize(App.raid, compute(App.raid, App.events), true);
+  const st = compute(App.raid, App.events), sum = summarize(App.raid, st, true);
   guard(async()=>{
-    await store.reset(sum);
+    await store.reset(sum, bagsOf(st));
     $('endConfirm').hidden = true;
     App.openHist = sum.raidId; setHistTab('hist');
     toast(sum.status === 'stopped' ? `${sum.squadLabel || '공략대'} 레이드를 중단하고 기록에 보관했습니다.` : `${sum.squadLabel || '공략대'} 레이드를 정리하고 기록에 보관했습니다.`);

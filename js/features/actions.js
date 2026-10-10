@@ -6,7 +6,7 @@ import { App } from '@app/core/app.js';
 import { BOSS_SETS, ITEMS, TIERS } from '@app/core/game-data.js';
 import { $, esc } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
-import { compute, rosterKey, settingsOf } from '@app/core/logic.js';
+import { compute, rosterKey, settingsOf, bagsOf } from '@app/core/logic.js';
 import { render, updateGamePreview } from '@app/ui/render.js';
 import { openSetup, parseMembers, raceOfName, randomBossName, renderDiffs, setupCfg, updateSetupPreview } from '@app/ui/setup.js';
 import { newInvite } from '@app/features/party.js';
@@ -65,8 +65,8 @@ export function init(){
     if(d){ App.diff = d.dataset.d; renderDiffs(); return; }
     const rs = e.target.closest('[data-act="reset"]');
     if(rs && App.raid){
-      const sum = summarize(App.raid, compute(App.raid, App.events), true);
-      guard(async()=>{ await store.reset(sum); App.openHist = sum.raidId; setHistTab('hist'); toast(`${sum.squadLabel} 레이드를 정리하고 기록에 보관했습니다.`); });
+      const st = compute(App.raid, App.events), sum = summarize(App.raid, st, true);
+      guard(async()=>{ await store.reset(sum, bagsOf(st)); App.openHist = sum.raidId; setHistTab('hist'); toast(`${sum.squadLabel} 레이드를 정리하고 기록에 보관했습니다.`); });
       return;
     }
     const u = e.target.closest('[data-undo]');
@@ -85,6 +85,9 @@ export function init(){
     const extra = {}; if(ss){ if(ss.roleSkills) extra.roleSkills = ss.roleSkills; if(ss.gauge) extra.gauge = ss.gauge; if(ss.settings) extra.settings = ss.settings; }
     const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof App.authUser !== 'undefined' && App.authUser) ? App.authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: App.setupRoles[m] || 'dealer', fee:0}])), diff: App.diff, cfg:setupCfg(), startedAt:Date.now()};
     guard(async()=>{
+      /* 지난 레이드에서 쓰던 장비·소모품 가져오기 */
+      const bags = await Promise.all(ms.map(m=>store.loadBag(m)));
+      ms.forEach((m,i)=>{ if(bags[i]) data.roster[rosterKey(m)].bag = bags[i]; });
       await store.setRaid(data); App.setupSrc = null; openSetup(false); selectRaid(data.raidId);
       if(useAuth()){ await newInvite(data.raidId); toast(`${squad}공략대 레이드를 시작했습니다. 공략대 현황의 초대 코드를 공략대원에게 알려 주세요.`); }
       else toast(`${squad}공략대 레이드를 시작했습니다. 수치는 이제 고정됩니다.`);
