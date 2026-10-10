@@ -42,6 +42,7 @@ function settingsOf(r){
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
     feeGauge: x.feeGauge ?? DEFAULT_SETTINGS.feeGauge,
     gearCost: x.gearCost ?? DEFAULT_SETTINGS.gearCost,
+    lateCut: x.lateCut ?? DEFAULT_SETTINGS.lateCut,
     gearRoll: {...DEFAULT_SETTINGS.gearRoll, ...(x.gearRoll || {})},
     roulette: {...DEFAULT_SETTINGS.roulette, ...(x.roulette || {})},
     gear: {}
@@ -68,8 +69,14 @@ function compute(r, evs){
   const members = (r && r.members) || [];
   const cfg = cfgOf(r), G = gaugeOf(r), BS = bossSkillsOf(r), RS = roleSkillsOf(r), S = settingsOf(r);
   const n = members.length;
+  /* 중간 합류: 첫 래더 결과가 나온 뒤에 참가한 공략대원은 시작 HP 에 넣지 않고, 합류하는 순간 보스 HP 를 늘림 */
+  const liveEvs = (evs||[]).filter(e=>!e.undone);
+  const firstGameT = Math.min(Infinity, ...liveEvs.filter(e=>e.type==='game').map(e=>e.t||0));
+  const lateJoin = new Map();
+  for(const e of liveEvs) if(e.type==='party' && e.action==='join' && (e.t||0) > firstGameT && members.includes(e.member) && !lateJoin.has(e.member)) lateJoin.set(e.member, e);
+  const n0 = Math.max(n > 0 ? 1 : 0, n - lateJoin.size);
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
-  const maxHp = bossHpOf(cfg, n), maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
+  let maxHp = bossHpOf(cfg, n0); const maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
   let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
   const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, spent = {};
   const inv = {}, eq = {};   // 인벤토리(얻은 장비 전부)와 슬롯별 착용 장비
@@ -181,7 +188,16 @@ function compute(r, evs){
     if(status !== 'live'){ entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
     const enraged = hp <= maxHp*0.5;
     const m = ev.member;
-    if(ev.type === 'party'){ entry.party0 = true; continue; }
+    if(ev.type === 'party'){
+      entry.party0 = true;
+      if(lateJoin.get(m) === ev && n0 < n){
+        /* 보스 최대 HP 는 1인분(1인당 HP + 인원당 추가 HP)만큼 늘고, 지금 HP 는 남은 비율만큼만 늘어 HP% 는 그대로 */
+        const inc = (Number(cfg.hp)||0) + (Number(cfg.bonus)||0), before = maxHp;
+        maxHp += inc; const add = before > 0 ? Math.round(inc * hp / before) : inc; hp += add; entry.dHp += add;
+        entry.late = true; entry.notes.push(`중간 합류 · 보스 최대 HP +${fmt(inc)}, 현재 HP +${fmt(add)}`);
+      }
+      continue;
+    }
     if(m && !members.includes(m)){ entry.ignored = true; entry.notes.push('공략대에 없는 공략대원 · 반영 안 됨'); continue; }
     const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item ?? ''}`;
     if(ev.type === 'game'){

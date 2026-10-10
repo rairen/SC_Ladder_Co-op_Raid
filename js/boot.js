@@ -30,7 +30,7 @@ function loadLocal(){
     else if(d && d.raid){ const r = {squad:1, ...d.raid}; localDB = {raids:{[r.raidId]: r}, events:{[r.raidId]: Array.isArray(d.events) ? d.events : []}}; }
     else localDB = {raids:{}, events:{}};
   }catch(_){ localDB = {raids:{}, events:{}}; }
-  raids = localDB.raids; allEvents = localDB.events;
+  raids = localDB.raids; allEvents = localDB.events; eventsReady = true;
   syncSelected();
 }
 function commit(){
@@ -117,7 +117,7 @@ render();
     render();
     migrateLegacy();
   }, onErr);
-  db.ref(base()+'/events').on('value', snap=>{ allEvents = snap.val() || {}; syncSelected(); render(); }, onErr);
+  db.ref(base()+'/events').on('value', snap=>{ allEvents = snap.val() || {}; eventsReady = true; syncSelected(); render(); }, onErr);
   db.ref(base()+'/ladder').on('value', snap=>{ allLadder = snap.val() || {}; syncSelected(); render(); }, ()=>{});
 })();
 

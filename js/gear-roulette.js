@@ -106,6 +106,7 @@ function doJoin(){
   const already = raid.members.includes(name);
   const needCode = authed && !isAdmin(), code = String($('joinCode').value||'').trim().toUpperCase();
   if(needCode && !code){ toast('운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
+  if(!already){ const lj = lateJoinInfo(); if(lj.closed){ toast(`보스 HP가 ${lj.cut}% 아래라 이 공략대는 합류가 마감됐습니다.`); return; } }
   // 한 사람은 공략대 하나에만
   const other = Object.values(raids).find(r=>r.raidId !== raid.raidId && (r.members||[]).includes(name));
   if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return; }
@@ -119,12 +120,12 @@ function doJoin(){
       }
       await db.ref(rpath()+'/uids/'+authUser.uid).set(name);
     }
+    if(!already) await store.partyLog(name, 'join', {role, fee});
     await store.join(name);
     if(!already || role !== rosterOf(raid, name).role || fee !== rosterOf(raid, name).fee) await store.setRoster(name, {role, fee});
     if(authed) await store.setRoster(name, {uid: authUser.uid, ladder, gw});
     else if(ladder) await store.setRoster(name, {ladder});
     if(authed && profile && ladder !== (profile.ladder||'')) await db.ref('users/'+authUser.uid).update({ladder});
-    if(!already) await store.partyLog(name, 'join', {role, fee});
     $('joinName').value = ''; $('joinLadder').value = ''; $('joinCode').value = ''; delete $('joinLadder').dataset.touched;
     setMe(name);
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
@@ -146,7 +147,7 @@ function renderJoin(s, me){
   $('joinPanel').hidden = !(live && !me) || OVERLAY;
   $('mePanel').hidden = !me;
   $('meNameView').textContent = me || '';
-  if(!$('joinPanel').hidden) renderJoinGear();
+  if(!$('joinPanel').hidden){ renderJoinGear(); renderLateJoin(); }
   $('meSelect').parentElement.hidden = !!me || OVERLAY || !canOperate();
   $('dangerZone').hidden = !!me || !canOperate();
   // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
@@ -175,8 +176,28 @@ function addMember(){
   if(!name || !raid) return;
   if(raid.members.includes(name)){ toast('이미 공략대에 있는 이름입니다.'); return; }
   const role = $('addMemberRole').value;
-  guard(async()=>{ await store.join(name); await store.setRoster(name, {role}); await store.partyLog(name, 'join', {role, fee:0}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
+  guard(async()=>{ await store.partyLog(name, 'join', {role, fee:0}); await store.join(name); await store.setRoster(name, {role}); $('addMember').value=''; toast(`${name}(${ROLES[role].label}) 추가 · 보스가 강해졌습니다`); });
 }
 
 $('joinLadder').addEventListener('input', ()=>{ $('joinLadder').dataset.touched = '1'; });
 document.addEventListener('click', e=>{ if(e.target.id === 'loginBtn2') login(); });
+
+/* 중간 합류 안내: 첫 래더 결과 뒤면 합류로 보고, 보스 HP 가 마감선 아래면 참가 불가 */
+function lateJoinInfo(){
+  const s = lastState; if(!raid || !s) return {late:false, closed:false};
+  const started = events.some(e=>!e.undone && e.type==='game');
+  const pct = s.maxHp ? s.hp / s.maxHp * 100 : 100, cut = Number(s.S.lateCut)||0;
+  const inc = (Number(s.cfg.hp)||0) + (Number(s.cfg.bonus)||0);
+  return {late: started, closed: started && cut > 0 && pct < cut, cut, pct, inc, add: s.maxHp ? Math.round(inc * s.hp / s.maxHp) : inc};
+}
+function renderLateJoin(){
+  const el = $('joinLate'); if(!el) return;
+  const lj = lateJoinInfo();
+  el.hidden = !lj.late;
+  if(!lj.late) return;
+  el.className = 'late-note' + (lj.closed ? ' closed' : '');
+  el.innerHTML = lj.closed
+    ? `<b>합류 마감</b> · 보스 HP가 ${lj.cut}% 아래로 내려가 새로 참가할 수 없습니다.`
+    : `<b>레이드 진행 중 · 중간 합류</b> · 참가하면 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.${lj.cut ? ` 보스 HP ${lj.cut}% 아래가 되면 합류 마감.` : ''}`;
+  $('joinBtn').disabled = lj.closed;
+}

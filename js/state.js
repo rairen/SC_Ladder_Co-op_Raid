@@ -10,7 +10,7 @@ let history = [], histTab = 'hist', openHist = null;
 let raid = null, events = [], unsubEvents = null, subRaidId = null;
 let ladderSnap = {}, collector = null, unsubLadder = null;   // 래더 자동 수집 (Firebase 연결 때만)
 /* 던전: 공략대 여럿이 동시에 레이드. raids = 진행 중인 모든 공략대, raid/events/ladderSnap = 지금 보고 있는 공략대 */
-let raids = {}, allEvents = {}, allLadder = {}, curRid = '';
+let raids = {}, allEvents = {}, allLadder = {}, curRid = '', eventsReady = false;
 const CUR_KEY = 'sc-boss-raid:cur:coop';
 try{ curRid = new URLSearchParams(location.search).get('raid') || localStorage.getItem(CUR_KEY) || ''; }catch(_){}
 const squadLabel = r => r && r.squad ? `${r.squad}공략대` : '공략대';

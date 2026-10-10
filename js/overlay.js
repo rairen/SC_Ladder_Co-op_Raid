@@ -2,7 +2,7 @@
    overlay.js — 방송 오버레이 (체력바 알림, 데미지 숫자, 오버레이 주소)
    ===================================================================== */
 /* ---------- Overlay ---------- */
-let lastSeenEv = null, tickerReady = false;
+let seenEv = new Set(), seenRaid = undefined;
 function evText(e){
   const ev = e.ev;
   if(ev.type === 'game'){
@@ -30,14 +30,7 @@ function renderTicker(s){
   const sk = last && last.skills && last.skills.length ? last.skills[last.skills.length-1] : null;
   tk.innerHTML = sk ? `<span class="tk-tag boss">BOSS SKILL</span><span class="tk-text">${esc(sk.name)}! ${esc(sk.text)}${last.party.some(x=>x.down) ? ' · 전투불능 '+esc(last.party.filter(x=>x.down).map(x=>x.m).join(', ')) : ''}</span>`
     : last ? `<span class="tk-tag">${last.ev.type==='roulette' ? 'ROULETTE' : last.ev.type==='role' ? 'PARTY SKILL' : last.ev.type==='gear' ? 'GEAR' : last.ev.type==='party' ? 'PARTY' : 'LADDER'}</span><span class="tk-text">${esc(evText(last))}</span>` : (raid ? '<span class="tk-text" style="color:var(--muted)">첫 래더 결과를 기다리는 중</span>' : '');
-  const id = last ? (last.ev._id || last.ev.t) : null;
-  if(tickerReady && id && id !== lastSeenEv && OVERLAY){
-    if(last.dHp < 0) popAt('#hpMeter', '−'+fmt(-last.dHp));
-    else if(last.dHp > 0) popAt('#hpMeter', '+'+fmt(last.dHp), 'heal');
-    if(last.dRage > 0 && !sk) popAt('#rageMeter', '+'+fmt(last.dRage), 'rage');
-    if(sk) popAt('#rageMeter', sk.name+'!', 'sk');
-  }
-  lastSeenEv = id; tickerReady = true;
+  reactToNew(s);
 }
 
 /* 오버레이 주소 (OBS 브라우저 소스용) */
@@ -95,4 +88,45 @@ function renderDmgMeter(s){
         <span class="dm-hp">${down ? '<b class="ko">전투불능</b>' : `<span class="dm-hpbar"><i style="width:${Math.max(0, h/mx*100)}%"></i></span><span class="dm-hpv">${h}/${mx}</span>`}<span class="dm-wl">${x.w}승 ${x.l}패</span></span>
       </div>`;
     }).join('') : '<div class="dm-empty">참가한 공략대원이 없습니다</div>');
+}
+
+/* ---------- 실시간 반응 ----------
+   다른 스트리머가 결과를 넣으면 모든 화면에서 바로 보이도록:
+   보스 HP·분노 바 위에 숫자가 튀고, 바가 번쩍이고, 화면 구석에 알림 카드가 뜹니다.
+   보스 스킬이 터지면 보스 화면이 흔들립니다. (처음 열 때 이미 있던 기록에는 반응하지 않음) */
+const evId = e => e.ev._id || (e.ev.t + '|' + e.ev.member + '|' + e.ev.type);
+function reactToNew(s){
+  const rid = raid ? raid.raidId : null;
+  if(rid !== seenRaid || !eventsReady){ seenRaid = eventsReady ? rid : undefined; seenEv = new Set(s.log.map(evId)); return; }
+  const fresh = s.log.filter(e=>!seenEv.has(evId(e)));
+  fresh.forEach(e=>seenEv.add(evId(e)));
+  fresh.filter(e=>!e.undone && !e.ignored).slice(-3).forEach((e,i)=>setTimeout(()=>react(e), i*350));
+}
+function react(e, again){
+  // 참가 기록은 공략대원 목록이 갱신된 뒤에야 보스 HP 변화가 계산되므로 잠깐 기다렸다가 다시 읽음
+  if(e.ev.type === 'party' && !again){ const id = evId(e); setTimeout(()=>{ const f = lastState && lastState.log.find(x=>evId(x)===id); if(f) react(f, true); }, 800); return; }
+  const sk = e.skills && e.skills.length ? e.skills[e.skills.length-1] : null;
+  if(e.dHp < 0){ popAt('#hpMeter', '−'+fmt(-e.dHp)); flashEl('hpFill'); }
+  else if(e.dHp > 0){ popAt('#hpMeter', '+'+fmt(e.dHp), 'heal'); }
+  if(e.dRage > 0 && !sk){ popAt('#rageMeter', '+'+fmt(e.dRage), 'rage'); flashEl('rageFill'); }
+  if(sk){ popAt('#rageMeter', sk.name+'!', 'sk'); shakeHud(); }
+  if(!OVERLAY) feedCard(e, sk);
+  // 공략대 상태 카드도 잠깐 강조
+  const card = [...document.querySelectorAll('#partyBody .pcard')].find(c=>c.querySelector('.pc-name') && c.querySelector('.pc-name').textContent === e.ev.member);
+  if(card){ card.classList.remove('ping'); void card.offsetWidth; card.classList.add('ping'); }
+}
+function flashEl(id){ const el = $(id); if(!el) return; el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+function shakeHud(){ const h = $('hud'); if(!h) return; h.classList.remove('shake'); void h.offsetWidth; h.classList.add('shake'); }
+function feedCard(e, sk){
+  const box = $('liveFeed'); if(!box) return;
+  const ev = e.ev, p = Number(ev.points)||0;
+  const kind = sk ? 'boss' : ev.type === 'game' ? (p > 0 ? 'win' : 'loss') : ev.type === 'party' ? 'party' : ev.type === 'role' ? 'skill' : 'item';
+  const head = sk ? `보스 스킬 · ${sk.name}` : ev.type === 'game' ? (p > 0 ? `${ev.member} 승리` : `${ev.member} 패배`) : ev.type === 'party' ? `${ev.member} ${partyText(ev)}` : ev.type === 'role' ? `${ev.member} 역할 스킬` : `${ev.member}`;
+  const body = sk ? sk.text : [e.dHp < 0 ? `보스 HP −${fmt(-e.dHp)}` : e.dHp > 0 ? `보스 HP +${fmt(e.dHp)}` : '', e.dRage > 0 ? `분노 +${fmt(e.dRage)}` : '', ev.type === 'game' ? '' : ev.type === 'party' ? (e.late ? '중간 합류' : '') : evText(e).replace(ev.member, '').trim()].filter(Boolean).join(' · ');
+  const el = document.createElement('div');
+  el.className = 'feed ' + kind;
+  el.innerHTML = `<b>${esc(head)}</b>${body ? `<span>${esc(body)}</span>` : ''}`;
+  box.prepend(el);
+  while(box.children.length > 4) box.lastChild.remove();
+  setTimeout(()=>{ el.classList.add('out'); setTimeout(()=>el.remove(), 400); }, 5200);
 }
