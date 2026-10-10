@@ -105,7 +105,7 @@ function renderRank(){
   } else {
     $('rankNote').textContent = '진행 중인 공략대와 지난 레이드 기록을 합친 개인 누적 데미지 순입니다.';
     $('rankBody').innerHTML = players.length ? `<div class="tbl-wrap"><table class="rank-table"><thead><tr><th></th><th>공략대원</th><th>지금</th><th class="r">데미지</th><th class="r">승</th><th class="r">패</th><th class="r">한 판 최고</th><th class="r">레이드</th><th class="r">격파</th></tr></thead><tbody>
-      ${players.map((p,i)=>`<tr><td>${medal(i)}</td><td><b>${esc(p.name)}</b></td><td>${p.now ? esc(p.now) : '<span class="hint">-</span>'}</td><td class="r num">${fmt(p.dmg)}</td><td class="r num">${p.w}</td><td class="r num">${p.l}</td><td class="r num">${fmt(p.best)}</td><td class="r num"><button type="button" class="linkbtn num" data-praids="${esc(p.name)}" title="${esc(p.name)} 참여 레이드 보기">${p.raids}</button></td><td class="r num">${p.clears}</td></tr>`).join('')}
+      ${players.map((p,i)=>`<tr><td>${medal(i)}</td><td><button type="button" class="linkbtn name-btn" data-ledger="${esc(p.name)}" title="${esc(p.name)} 지참금 내역"><b>${esc(p.name)}</b></button></td><td>${p.now ? esc(p.now) : '<span class="hint">-</span>'}</td><td class="r num">${fmt(p.dmg)}</td><td class="r num">${p.w}</td><td class="r num">${p.l}</td><td class="r num">${fmt(p.best)}</td><td class="r num"><button type="button" class="linkbtn num" data-praids="${esc(p.name)}" title="${esc(p.name)} 참여 레이드 보기">${p.raids}</button></td><td class="r num">${p.clears}</td></tr>`).join('')}
       </tbody></table></div>` : '<p class="empty">아직 공략대원 기록이 없습니다.</p>';
   }
 }

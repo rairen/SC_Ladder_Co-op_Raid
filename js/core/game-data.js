@@ -174,17 +174,18 @@ const GEAR_SLOT = {weapon:'무기', armor:'갑옷', accessory:'장신구'};
           0 이 되면 부서지고, 인벤토리에서 같은 종류의 가장 좋은 장비를 자동으로 착용합니다.
    stat : 능력치 배율 (일반 = 1). 예: 강철 검 +10% → 전설 +13%
           불사의 목걸이는 버티는 체력(REVIVE_HP)에 곱합니다.
-   repair : 내구도 수리 비용 (지참금에서 빠짐). 내구도를 최대로 되돌리고, 파괴된 장비도 고칩니다. */
+   repair : 내구도 수리 비용 (지참금에서 빠짐). 내구도를 최대로 되돌리고, 파괴된 장비도 고칩니다.
+   salvage: 분해하면 돌려받는 지참금. 상위 장비(마력 검·판금 갑옷·불사의 목걸이)는 1.5배, 파괴된 장비는 절반 */
 const GEAR_GRADES = [
-  {id:'common', label:'일반', w:60, dur:5,  stat:1.00, repair:50},
-  {id:'rare',   label:'고급', w:28, dur:9,  stat:1.10, repair:75},
-  {id:'epic',   label:'희귀', w:10, dur:15, stat:1.20, repair:100},
-  {id:'legend', label:'전설', w:2,  dur:24, stat:1.30, repair:150}
+  {id:'common', label:'일반', w:50, dur:5,  stat:1.00, repair:50,  salvage:20},
+  {id:'rare',   label:'고급', w:30, dur:9,  stat:1.10, repair:75,  salvage:30},
+  {id:'epic',   label:'희귀', w:15, dur:15, stat:1.20, repair:100, salvage:50},
+  {id:'legend', label:'전설', w:5,  dur:24, stat:1.30, repair:150, salvage:80}
 ];
 
 
 /* ---------- 소모품 ----------
-   지참금으로 사서 레이드 중 아무 때나 씁니다. 남은 소모품과 장비는 레이드가 끝나도 그 공략대원이 계속 가집니다.
+   지참금으로 사서 레이드 중 아무 때나 씁니다. 남은 소모품·장비·지참금은 레이드가 끝나도 그 공략대원이 계속 가집니다.
    cost : 1개 가격 (지참금에서 빠짐)
    v    : 효과량. hp = 체력 회복, mp = 역할 스킬 게이지 충전 (전투불능일 때는 못 씀) */
 const POTIONS = {
@@ -216,7 +217,7 @@ const DEFAULT_SETTINGS = {
   gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))])),
-  grades: GEAR_GRADES.map(g=>({w:g.w, dur:g.dur, stat:g.stat, repair:g.repair})),
+  grades: GEAR_GRADES.map(g=>({w:g.w, dur:g.dur, stat:g.stat, repair:g.repair, salvage:g.salvage})),
   potions: Object.fromEntries(Object.entries(POTIONS).map(([k,p])=>[k, {cost:p.cost, v:p.v}]))
 };
 

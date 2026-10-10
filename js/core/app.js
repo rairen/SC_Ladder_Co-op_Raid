@@ -60,6 +60,7 @@ export const App = {
   adminsLoaded: undefined,
   unsubProfile: undefined,
   deleteArm: undefined,
+  dropArm: undefined,
   archiveTimer: undefined,
   rankTab: undefined,
   meName: undefined,

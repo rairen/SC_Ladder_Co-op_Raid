@@ -118,7 +118,7 @@ function renderHistory(){
 
   $('fameView').innerHTML = names.length ? `<div class="tbl-wrap"><table>
     <thead><tr><th>순위</th><th>공략대원</th><th class="r">참여</th><th class="r">클리어</th><th class="r">MVP</th><th class="r">승</th><th class="r">패</th><th class="r">누적 데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th></tr></thead>
-    <tbody>${names.map((m,i)=>{ const p = P[m]; return `<tr><td class="num">${i+1}</td><td>${esc(m)}</td><td class="r num"><button type="button" class="linkbtn num" data-praids="${esc(m)}" title="${esc(m)} 참여 레이드 보기">${p.raids}</button></td><td class="r num">${p.clears}</td><td class="r num">${p.mvp}</td><td class="r num">${p.w}</td><td class="r num">${p.l}</td><td class="r num">${fmt(p.dmg)}</td><td class="r num">${fmt(p.best)}</td><td class="r num">${fmt(p.rage)}</td></tr>`; }).join('')}</tbody>
+    <tbody>${names.map((m,i)=>{ const p = P[m]; return `<tr><td class="num">${i+1}</td><td><button type="button" class="linkbtn name-btn" data-ledger="${esc(m)}" title="${esc(m)} 지참금 내역">${esc(m)}</button></td><td class="r num"><button type="button" class="linkbtn num" data-praids="${esc(m)}" title="${esc(m)} 참여 레이드 보기">${p.raids}</button></td><td class="r num">${p.clears}</td><td class="r num">${p.mvp}</td><td class="r num">${p.w}</td><td class="r num">${p.l}</td><td class="r num">${fmt(p.dmg)}</td><td class="r num">${fmt(p.best)}</td><td class="r num">${fmt(p.rage)}</td></tr>`; }).join('')}</tbody>
   </table></div>` : `<p class="empty">끝난 레이드가 쌓이면 공략대원별 누적 기록이 표시됩니다.</p>`;
   $('histView').hidden = App.histTab !== 'hist';
   $('fameView').hidden = App.histTab !== 'fame';

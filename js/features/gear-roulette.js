@@ -6,7 +6,7 @@ import { App } from '@app/core/app.js';
 import { DEFAULT_GEAR_ROLL, GEAR_GRADES, GEAR_SLOT, PARTY_HP, ROLES } from '@app/core/game-data.js';
 import { $, OVERLAY, ROOM, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
 import { guard, rpath, store, toast } from '@app/core/store.js';
-import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
+import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, salvageValue, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { openSkillModal } from '@app/ui/info-window.js';
@@ -18,9 +18,8 @@ function renderGearPanel(s, canAct, me){
   const S = s.S, m = App.selected;
   if(!App.raid || !m || !s.members.includes(m)){ $('gearFeeLine').innerHTML = '<span class="hint">공략대원을 고르면 남은 지참금과 장비가 표시됩니다.</span>'; $('gearSpin').disabled = true; $('gearFor').textContent = ''; $('invList').innerHTML = ''; $('invCount').textContent = ''; return; }
   const left = (s.fee[m]||0) - (s.spent[m]||0), cost = S.gearCost, times = cost > 0 ? Math.floor(left / cost) : 0;
-  const fund = (s.fund && s.fund[m]) || 0, init0 = (s.fee[m]||0) - fund;
   const mine = !me || me === m;
-  $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 지참금 <b>${fmt(left)}</b> <span class="hint">/ 초기 ${fmt(init0)}${fund ? ` + 지원 ${fmt(fund)}` : ''}</span></span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
+  $('gearFeeLine').innerHTML = `<span>${esc(m)} 남은 지참금 <b>${fmt(left)}</b> <button type="button" class="linkbtn" data-ledger="${esc(m)}">내역</button></span><span>1회 <b>${fmt(cost)}</b> · ${cost > 0 ? times+'회 가능' : '무료'}</span>${gearHtml(s, m)}`;
   renderInventory(s, m, canAct && mine, left);
   $('gearSpin').disabled = !(canAct && mine && left >= cost);
   $('gearSpin').textContent = `장비 뽑기 (−${fmt(cost)})`;
@@ -40,12 +39,16 @@ function renderInventory(s, m, canEdit, left = Infinity){
     const btn = !canEdit || it.broken ? '' : on
       ? `<button type="button" class="btn sm" data-unequip="${it.slot}">해제</button>`
       : `<button type="button" class="btn sm" data-equip="${esc(it.id)}">장착</button>`;
-    const rc = repairCost(s.S, it);
+    const rc = repairCost(s.S, it), sv = salvageValue(s.S, it);
+    const arm = App.dropArm && App.dropArm.id === it.id ? App.dropArm.kind : '';
+    const drop = canEdit && !on ? (arm === 'salvage' ? `<button type="button" class="btn sm danger solid" data-drop="${esc(it.id)}" data-salvage="1">정말 분해 +${fmt(sv)}</button>`
+      : arm === 'trash' ? `<button type="button" class="btn sm danger solid" data-drop="${esc(it.id)}">정말 버리기</button>`
+      : `<button type="button" class="btn sm" data-drop="${esc(it.id)}" data-salvage="1" title="분해하면 지참금 ${fmt(sv)}을 돌려받습니다">분해 +${fmt(sv)}</button><button type="button" class="btn sm ghost" data-drop="${esc(it.id)}" title="버리기 (돌려받는 것 없음)" aria-label="버리기">버리기</button>`) : '';
     const fix = canEdit && rc && it.dur < it.maxDur ? `<button type="button" class="btn sm repair" data-repair="${esc(it.id)}"${left < rc ? ` disabled title="지참금 부족 (남은 ${fmt(left)})"` : ''}>수리 ${fmt(rc)}</button>` : '';
     return `<li class="${it.broken?'broken':''}${on?' on':''}"><span class="inv-slot">${GEAR_SLOT[it.slot]}</span>
       <span class="inv-name${it.grade?' gr-'+it.grade:''}">${it.gradeLabel?`<span class="gr-tag">${it.gradeLabel}</span>`:''}${esc(it.name)}</span>
       <span class="inv-eff">${eff}</span><span class="inv-d">${it.broken ? '<span class="d-hp">파괴</span>' : dur}</span>
-      <span class="inv-act">${on ? '<span class="inv-on">착용 중</span>' : ''}${it.carried ? '<span class="inv-kept" title="지난 레이드에서 가져온 장비">보유</span>' : ''}${btn}${fix}</span></li>`;
+      <span class="inv-act">${on ? '<span class="inv-on">착용 중</span>' : ''}${it.carried ? '<span class="inv-kept" title="지난 레이드에서 가져온 장비">보유</span>' : ''}${btn}${fix}${drop}</span></li>`;
   }).join('');
 }
 function pickGrade(){
@@ -149,6 +152,12 @@ function confirmJoin(name, role, fee, onOk){
   $('jcLate').hidden = !lj.late;
   if(lj.late) $('jcLate').innerHTML = `<b>중간 합류</b> · 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.`;
   joinOk = onOk;
+  $('jcBag').textContent = '';
+  store.loadBag(name).then(b=>{
+    if(!b || joinOk !== onOk) return;
+    const items = (b.items || []).length, pots = Object.values(b.pots || {}).reduce((a,v)=>a+(Number(v)||0), 0);
+    if(b.money || items || pots) $('jcBag').innerHTML = `가지고 들어가는 것: 지참금 <b>${fmt(b.money)}</b> 이월${items ? ` · 장비 ${items}개` : ''}${pots ? ` · 소모품 ${pots}개` : ''}`;
+  });
   openModal('joinModal', '#jcRole');
 }
 function addMember(){
@@ -180,6 +189,19 @@ function renderLateJoin(){
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
 
+  /* 분해·버리기: 한 번 누르면 확인 버튼으로 바뀌고, 한 번 더 누르면 실행 */
+  App.dropArm = null;
+  document.addEventListener('click', e=>{
+    const d = e.target.closest('[data-drop]'); if(!d || d.disabled || !App.raid || !App.selected) return;
+    const id = d.dataset.drop, kind = d.dataset.salvage ? 'salvage' : 'trash', who = App.selected;
+    if(!App.dropArm || App.dropArm.id !== id || App.dropArm.kind !== kind){
+      App.dropArm = {id, kind}; render();
+      setTimeout(()=>{ if(App.dropArm && App.dropArm.id === id && App.dropArm.kind === kind){ App.dropArm = null; render(); } }, 4000);
+      return;
+    }
+    App.dropArm = null;
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'drop', member:who, item:id, ...(kind === 'salvage' ? {salvage:true} : {}), undone:false}); toast(`${who} 장비 ${kind === 'salvage' ? '분해' : '버리기'}`); });
+  });
   document.addEventListener('click', e=>{
     const rp = e.target.closest('[data-repair]');
     if(!rp || rp.disabled || !App.raid || !App.selected) return;

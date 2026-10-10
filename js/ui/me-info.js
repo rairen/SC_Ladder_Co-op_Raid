@@ -59,8 +59,10 @@ function renderMeInfo(s, me, canAct){
 
   /* 지참금 · 추가 지원금 */
   const mine = !!canAct && (!me || me === m), alive = !down;
-  const left = (s.fee[m]||0) - (s.spent[m]||0), fund = (s.fund && s.fund[m]) || 0, init0 = (s.fee[m]||0) - fund;
-  $('meMoney').innerHTML = `<span class="label" style="margin:0">지참금</span><b class="num">${fmt(left)}</b><span class="hint">남음 · 초기 ${fmt(init0)}${fund ? ` + 지원 ${fmt(fund)}` : ''}${s.spent[m] ? ` − 사용 ${fmt(s.spent[m])}` : ''}</span>`;
+  const left = (s.fee[m]||0) - (s.spent[m]||0);
+  const sum = k => ((s.money && s.money[m]) || []).filter(x=>x.k===k).reduce((a,x)=>a+x.a, 0);
+  const parts = [['이월', sum('carry')], ['이번', sum('deposit')], ['지원', sum('fund')], ['분해', sum('salvage')]].filter(x=>x[1]).map(([k,v])=>`${k} ${fmt(v)}`);
+  $('meMoney').innerHTML = `<span class="label" style="margin:0">지참금</span><b class="num">${fmt(left)}</b><span class="hint">${parts.length ? parts.join(' + ') : '없음'}${s.spent[m] ? ` − 사용 ${fmt(s.spent[m])}` : ''}</span><button type="button" class="linkbtn" data-ledger="${esc(m)}">내역</button>`;
   $('fundRow').hidden = !mine;
 
   /* 소모품 */
