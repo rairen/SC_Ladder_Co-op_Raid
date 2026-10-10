@@ -329,7 +329,7 @@ html.overlay .danger{display:none!important}
 /* ---- 방송 오버레이 (?overlay) ---- */
 html.overlay,html.overlay body{background:transparent!important}
 html.overlay body{padding:12px}
-html.overlay .top,html.overlay .grid,html.overlay #historyPanel,html.overlay #setup,html.overlay #toast,html.overlay .hud-foot,html.overlay #bossMeta{display:none!important}
+html.overlay .top,html.overlay .grid,html.overlay #logPanel,html.overlay .logpanel,html.overlay #lobby,html.overlay .site-foot,html.overlay .modal,html.overlay #historyPanel,html.overlay #setup,html.overlay #toast,html.overlay .hud-foot,html.overlay #bossMeta{display:none!important}
 html.overlay .wrap{max-width:none}
 html.overlay .hud{background:color-mix(in srgb,#06090d 82%,transparent);border-color:#ffffff22;padding:14px 18px;box-shadow:0 6px 24px #0008}
 html.overlay .hud-head{margin-bottom:6px}
