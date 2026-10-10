@@ -83,14 +83,6 @@ function renderRouletteTab(){
   box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 룰렛을 돌린 공략대원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
-    </tbody></table></div>
-    <h3 class="label" style="margin:4px 0 0">별풍선 양에 따른 룰렛 등급 <span class="plan-tag">기획안 · 미적용</span></h3>
-    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>룰렛</th><th class="r">필요 별풍선</th>${TIERS.map(t=>`<th class="r tier-${t}" style="color:var(--tc)">${t}</th>`).join('')}</tr></thead><tbody>
-      ${ROULETTE_PLAN.map(r=>`<tr><td><b>${r.name}</b></td><td class="r num">${fmt(r.cost)}개</td>${r.p.map(v=>`<td class="r num">${v}%</td>`).join('')}</tr>`).join('')}
-    </tbody></table></div>
-    <h3 class="label" style="margin:4px 0 0">추가 공략대 스킬 (룰렛 결과) <span class="plan-tag">기획안 · 미적용</span></h3>
-    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>스킬</th><th>효과</th></tr></thead><tbody>
-      ${PARTY_SKILL_PLAN.map(x=>`<tr><td class="tier-${x.tier}" style="color:var(--tc)"><b>${x.tier}</b></td><td>${esc(x.name)}</td><td class="desc">${esc(x.desc)}</td></tr>`).join('')}
     </tbody></table></div>`;
 }
 

@@ -643,3 +643,13 @@ html:not(.overlay) .pcard.sel{outline:2px solid color-mix(in srgb,var(--accent) 
 .wk small{color:var(--muted);font-size:12px}
 .wk:has(input:checked){border-color:color-mix(in srgb,var(--trap) 60%,transparent)}
 .adm-box .danger>*{flex:0 0 auto}
+/* 초대 코드 (데미지 입력 위) */
+.col-mid > .invite{margin-top:0;background:var(--panel);border-style:solid}
+.invite .code.masked{letter-spacing:4px;color:var(--muted)}
+.toggle{display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--muted);user-select:none}
+.toggle input{position:absolute;opacity:0;width:1px;height:1px}
+.tg-knob{position:relative;width:34px;height:18px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);transition:background .15s}
+.tg-knob::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--muted);transition:transform .15s,background .15s}
+.toggle input:checked + .tg-knob{background:color-mix(in srgb,var(--accent) 35%,var(--panel2));border-color:var(--accent)}
+.toggle input:checked + .tg-knob::after{transform:translateX(16px);background:var(--accent)}
+.toggle input:focus-visible + .tg-knob{outline:2px solid var(--accent);outline-offset:2px}

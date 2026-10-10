@@ -38,21 +38,26 @@ function watchInvite(){
   App.unsubInvite = ()=>ref.off('value', h);
 }
 
+const INVITE_SHOW_KEY = 'sc-boss-raid:inviteShow';
+function inviteShown(){ try{ return localStorage.getItem(INVITE_SHOW_KEY) === '1'; }catch(_){ return false; } }
 function renderInvite(s, me){
   const authed = useAuth();
   $('addMemberRow').hidden = authed;
   $('addHint').hidden = authed;
   watchInvite();
   const box = $('inviteBox');
-  const show = authed && isAdmin() && !me && !!App.raid && s.status === 'live' && !OVERLAY;
+  /* 운영자에게는 공략대원으로 참가 중이어도 항상 표시. 방송 화면 노출을 막으려고 기본은 가림 */
+  const show = authed && isAdmin() && !!App.raid && s.status === 'live' && !OVERLAY;
   box.hidden = !show;
   if(!show) return;
   const cur = App.inviteCode && App.inviteCode.raidId === App.raid.raidId ? App.inviteCode.code : '';
+  const open = inviteShown();
   box.innerHTML = cur
-    ? `<span class="label">초대 코드</span><b class="code num">${esc(cur)}</b>
+    ? `<span class="label">초대 코드</span><b class="code num${open ? '' : ' masked'}" aria-label="${open ? esc(cur) : '가려진 초대 코드'}">${open ? esc(cur) : '•'.repeat(cur.length)}</b>
+       <label class="toggle" title="방송 화면에 코드가 보이지 않게 가릴 수 있습니다"><input type="checkbox" id="inviteShow"${open ? ' checked' : ''}><span class="tg-knob"></span><span class="tg-tx">${open ? '보이기' : '가림'}</span></label>
        <button type="button" class="btn sm" id="inviteCopy">복사</button>
        <button type="button" class="btn sm" id="inviteNew" title="새 코드를 만들면 이전 코드로는 참가할 수 없습니다. 이미 참가한 공략대원은 그대로입니다.">새 코드</button>
-       <span class="hint">공략대원은 로그인 후 레이드 참가에서 이 코드를 넣습니다.</span>`
+       <span class="hint">공략대원은 로그인 후 레이드 참가에서 이 코드를 넣습니다. 가려져 있어도 복사는 됩니다.</span>`
     : `<span class="label">초대 코드</span><span class="hint">아직 없습니다.</span><button type="button" class="btn sm primary" id="inviteNew">코드 만들기</button>`;
 }
 
@@ -61,6 +66,11 @@ export function init(){
      // 헷갈리는 0/O, 1/I 제외
   App.inviteCode = null; App.inviteFor = ''; App.unsubInvite = null; App.kickArm = null;
 
+  document.addEventListener('change', e=>{
+    if(e.target.id !== 'inviteShow') return;
+    try{ e.target.checked ? localStorage.setItem(INVITE_SHOW_KEY, '1') : localStorage.removeItem(INVITE_SHOW_KEY); }catch(_){}
+    render();
+  });
   document.addEventListener('click', e=>{
     const id = e.target.id;
     if(id === 'inviteNew'){ guard(async()=>{ await newInvite(); toast('새 초대 코드를 만들었습니다. 이전 코드로는 더 이상 참가할 수 없습니다.'); }); return; }
