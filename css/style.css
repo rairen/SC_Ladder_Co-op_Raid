@@ -551,7 +551,11 @@ html.overlay.ovl-meter .dmgmeter{display:flex;flex-direction:column;gap:6px;back
 
 /* 전투 기록: 화면 아래 넓게 */
 .logpanel .log{max-height:420px;overflow-y:auto}
-@media (min-width:1400px){ .logpanel .log{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:24px} }
+/* 전투 기록 2단: 왼쪽 전투, 오른쪽 기타 */
+.log-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
+.log-col{min-width:0}
+.log-col .panel-head{min-height:34px}
+@media (max-width:980px){ .log-cols{grid-template-columns:1fr} }
 
 /* ===== 던전 (공략대 목록) ===== */
 .lobby{padding:14px 18px}
@@ -734,12 +738,12 @@ html.testmode body::before{content:"테스트 모드 · 이 탭에서만 유지�
 .log-filter{flex-wrap:wrap}
 .log-filter .num{font-size:11px;opacity:.7;margin-left:2px}
 .log-filter .empty-cat{opacity:.45}
-#log[data-f="battle"] li[data-cat]:not([data-cat="battle"]),
-#log[data-f="roulette"] li[data-cat]:not([data-cat="roulette"]),
-#log[data-f="item"] li[data-cat]:not([data-cat="item"]),
-#log[data-f="money"] li[data-cat]:not([data-cat="money"]),
-#log[data-f="party"] li[data-cat]:not([data-cat="party"]){display:none}
-#log.nomatch::after{content:"이 분류의 기록이 없습니다.";display:block;padding:10px 4px;color:var(--muted);font-size:13px}
+#logEtc[data-f="battle"] li[data-cat]:not([data-cat="battle"]),
+#logEtc[data-f="roulette"] li[data-cat]:not([data-cat="roulette"]),
+#logEtc[data-f="item"] li[data-cat]:not([data-cat="item"]),
+#logEtc[data-f="money"] li[data-cat]:not([data-cat="money"]),
+#logEtc[data-f="party"] li[data-cat]:not([data-cat="party"]){display:none}
+#logEtc.nomatch::after{content:"이 분류의 기록이 없습니다.";display:block;padding:10px 4px;color:var(--muted);font-size:13px}
 /* 본부지원 */
 .hq-box{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:13px}
 .hq-box.ready{border-color:color-mix(in srgb,var(--accent) 70%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent),0 0 18px color-mix(in srgb,var(--accent) 22%,transparent);animation:hqPulse 1.6s ease-in-out infinite}
@@ -753,4 +757,4 @@ html.testmode body::before{content:"테스트 모드 · 이 탭에서만 유지�
 .hq-tag.supply{background:#1f4a35;color:#9ee6bf}
 .hq-tag.attack{background:#5a2323;color:#ffb0a0}
 .cat-hq{color:#ffb070}
-#log[data-f="hq"] li[data-cat]:not([data-cat="hq"]){display:none}
+#logEtc[data-f="hq"] li[data-cat]:not([data-cat="hq"]){display:none}
