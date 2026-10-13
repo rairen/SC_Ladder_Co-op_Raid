@@ -5,7 +5,7 @@
 import { App } from '@app/core/app.js';
 import { PARTY_HP, PENDING_LABEL, PRESETS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
 import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
-import { compute, gearHtml, rosterOf, skillHtml, statusTags, whatHtml } from '@app/core/logic.js';
+import { compute, gearHtml, rosterOf, skillHtml, statusTags, whatHtml, catOf, catTag, LOG_CATS } from '@app/core/logic.js';
 import { renderEndBtn } from '@app/ui/setup.js';
 import { renderOdds } from '@app/features/actions.js';
 import { renderGearPanel, renderJoin } from '@app/features/gear-roulette.js';
@@ -131,6 +131,7 @@ function render(){
 
   // log
   const items = s.log.slice().reverse();
+  renderLogFilter(items);
   $('log').innerHTML = items.length ? items.map(e=>{
     const ev = e.ev, d = new Date(ev.t);
     const tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
@@ -144,7 +145,7 @@ function render(){
     const id = esc(ev._id);
     const canCtl = !(App.readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party';
     const ctl = canCtl ? `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>` : '';
-    return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span>
+    return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}" data-cat="${catOf(ev)}"><span class="time">${tm}${catTag(ev)}</span>
       <div class="what">${whatHtml(e)}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>
       <div class="delta">${deltas.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
   }).join('') : `<li style="display:block" class="empty">결과를 입력하거나 룰렛을 돌리면 기록이 쌓입니다. 잘못 넣은 기록은 여기서 취소할 수 있습니다.</li>`;
@@ -205,6 +206,25 @@ function updateGamePreview(){
     const ld = Math.round(p * (Number(s.S.lossDmg)||0));
     el.innerHTML = `${ld ? `<b>${esc(App.selected)}</b> 체력 <b class="d-hp">−${fmt(ld)}</b>` : '체력 피해 없음'}${h ? ` · 보스 HP가 50% 아래라 <b class="d-heal">+${fmt(h)}</b> 회복` : ''} · 스킬 게이지 +${s.G.loss}`;
   }
+}
+
+/* 전투 기록 분류 탭: 전체 / 전투 / 룰렛 / 아이템 / 지원금 / 공략대. 고른 탭은 이 브라우저에 기억 */
+const LOG_F_KEY = 'sc-boss-raid:logFilter';
+function logFilter(){ try{ const v = localStorage.getItem(LOG_F_KEY) || 'all'; return v === 'all' || LOG_CATS[v] ? v : 'all'; }catch(_){ return 'all'; } }
+function renderLogFilter(items){
+  const box = $('logFilter'); if(!box) return;
+  const f = logFilter(), n = {all: items.length};
+  for(const e of items){ const c = catOf(e.ev); n[c] = (n[c] || 0) + 1; }
+  box.innerHTML = [['all','전체'], ...Object.entries(LOG_CATS)].map(([k,l])=>`<button type="button" data-logf="${k}" aria-pressed="${f===k}"${k !== 'all' && !n[k] ? ' class="empty-cat"' : ''}>${l}${n[k] ? ` <span class="num">${n[k]}</span>` : ''}</button>`).join('');
+  $('log').dataset.f = f;
+  $('log').classList.toggle('nomatch', f !== 'all' && items.length > 0 && !n[f]);
+}
+export function init(){
+  document.addEventListener('click', e=>{
+    const b = e.target.closest('[data-logf]'); if(!b) return;
+    try{ localStorage.setItem(LOG_F_KEY, b.dataset.logf); }catch(_){}
+    render();
+  });
 }
 
 export { render, topDealer, updateGamePreview };

@@ -439,6 +439,18 @@ function partyText(ev){
   if(ev.action === 'fee') return `지참금 ${fmt(ev.fee||0)}(으)로 변경`;
   return '공략대 변경';
 }
+/* 전투 기록 분류: 전투(래더 결과·역할 스킬) / 룰렛 / 아이템(장비·소모품) / 지원금 / 공략대(참가·내보내기 등) */
+const LOG_CATS = {battle:'전투', roulette:'룰렛', item:'아이템', money:'지원금', party:'공략대'};
+function catOf(ev){
+  const t = ev && ev.type;
+  if(t === 'game' || t === 'role') return 'battle';
+  if(t === 'roulette') return 'roulette';
+  if(t === 'gear' || t === 'equip' || t === 'repair' || t === 'drop' || t === 'buy' || t === 'use') return 'item';
+  if(t === 'fund') return 'money';
+  if(t === 'party') return 'party';
+  return 'battle';
+}
+const catTag = ev => { const c = catOf(ev); return `<span class="cat-tag cat-${c}">${LOG_CATS[c]}</span>`; };
 /* 래더 결과 기록 유형: 자동(래더 자동 수집) / 수동(직접 입력). 예전 기록은 auto 값으로 판단 */
 const inputOf = ev => ev.input === 'auto' || ev.input === 'manual' ? ev.input : (ev.auto ? 'auto' : 'manual');
 const inputTag = ev => inputOf(ev) === 'auto'
@@ -492,4 +504,4 @@ function statusTags(s, m){
   return t.join(' · ');
 }
 
-export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf };
+export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf, LOG_CATS, catOf, catTag };

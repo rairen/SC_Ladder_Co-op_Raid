@@ -6,7 +6,7 @@ import { App } from '@app/core/app.js';
 import { PARTY_HP, PRESETS, RACES, ROLES, SKILL_TYPES } from '@app/core/game-data.js';
 import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
-import { bossSkillsOf, cfgOf, compute, inputOf, rosterOf, skillHtml, whatHtml } from '@app/core/logic.js';
+import { bossSkillsOf, cfgOf, compute, inputOf, rosterOf, skillHtml, whatHtml, catOf, catTag } from '@app/core/logic.js';
 import { render, topDealer } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { pct } from '@app/ui/info-window.js';
@@ -153,7 +153,7 @@ function histDetail(h, mem){
       if(e.dRage < 0) ds.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
       const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) ds.push(`<span class="d-party">공략대 −${fmt(pd)}</span>`);
       if(e.healed) ds.push(`<span class="d-heal">공략대 +${fmt(e.healed)}</span>`);
-      return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}"><span class="time">${tm}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
+      return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}" data-cat="${catOf(ev)}"><span class="time">${tm}${catTag(ev)}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
     }).join('') + '</ul>';
   }
   return meta + `<div class="hd-grid"><div><h3>공략대원 기록</h3>${table}</div><div><h3>전투 기록</h3>${logHtml}</div></div>`;

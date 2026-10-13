@@ -728,3 +728,15 @@ html.overlay .upd-bar{display:none!important}
 .test-tag{font-size:11px;font-weight:700;color:#fff;background:#3f74d0;padding:1px 6px;border-radius:4px;margin-right:6px}
 html.testmode body::before{content:"테스트 모드 · 이 탭에서만 유지되는 테스트 계정";position:fixed;left:50%;top:0;transform:translateX(-50%);z-index:60;font-size:11px;font-weight:700;color:#fff;background:#3f74d0;padding:2px 10px;border-radius:0 0 6px 6px;pointer-events:none}
 .auto-tag.manual{background:var(--panel2);color:var(--muted);border:1px solid var(--line)}
+/* 전투 기록 분류 */
+.cat-tag{display:block;width:max-content;margin-top:3px;padding:0 5px;border-radius:4px;font-size:10px;font-weight:700;line-height:16px;border:1px solid currentColor;opacity:.9}
+.cat-battle{color:#ff8a7a}.cat-roulette{color:#c9a2ff}.cat-item{color:#7fd1a8}.cat-money{color:#ffd34d}.cat-party{color:#8fb8ff}
+.log-filter{flex-wrap:wrap}
+.log-filter .num{font-size:11px;opacity:.7;margin-left:2px}
+.log-filter .empty-cat{opacity:.45}
+#log[data-f="battle"] li[data-cat]:not([data-cat="battle"]),
+#log[data-f="roulette"] li[data-cat]:not([data-cat="roulette"]),
+#log[data-f="item"] li[data-cat]:not([data-cat="item"]),
+#log[data-f="money"] li[data-cat]:not([data-cat="money"]),
+#log[data-f="party"] li[data-cat]:not([data-cat="party"]){display:none}
+#log.nomatch::after{content:"이 분류의 기록이 없습니다.";display:block;padding:10px 4px;color:var(--muted);font-size:13px}
