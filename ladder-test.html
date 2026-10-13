@@ -44,7 +44,7 @@
       <button class="btn" id="look" type="button">조회</button>
     </div>
     <div class="res" id="lookRes" hidden style="margin-top:8px"></div>
-    <div class="row2" style="margin-top:10px"><button class="btn" id="mm" type="button">최근 경기 조회 (리플레이 확인)</button><span class="hint">위 아이디의 최근 래더 경기와 리플레이 정보를 가져옵니다. 결과 전체를 복사해서 운영자에게 보내 주세요.</span></div>
+    <div class="row2" style="margin-top:10px"><button class="btn" id="mm" type="button">최근 경기 조회 (리플레이 확인)</button><a class="hint" href="collector/match-check.cmd" download>읽기 차단이면: 최근 경기 확인 도구 받기</a><span class="hint">위 아이디의 최근 래더 경기와 리플레이 정보를 가져옵니다. 결과 전체를 복사해서 운영자에게 보내 주세요.</span></div>
     <div class="res" id="mmRes" hidden style="margin-top:8px"></div>
     <pre id="mmRaw" hidden style="max-height:360px;overflow:auto"></pre>
     <button class="btn" id="mmCopy" type="button" hidden>결과 전체 복사</button>
@@ -81,7 +81,7 @@ $('go').onclick = async ()=>{
     r.className = 'res bad';
     r.innerHTML = lna === '거부'
       ? `<b>로컬 네트워크 접근이 거부되어 있습니다</b> · 주소창 왼쪽 아이콘 → 사이트 설정 → <b>로컬 네트워크 접근</b>을 <b>허용</b>으로 바꾸고 새로고침한 뒤 다시 테스트하세요.`
-      : `<b>읽기 차단</b> · 열린 포트는 찾았지만 브라우저 보안(CORS)에 막혀 래더 정보를 읽지 못했습니다. 스타크래프트 쪽에서 웹 페이지의 읽기를 허용하지 않는 것이라 이 PC에서는 브라우저만으로는 수집할 수 없고, 수집기 프로그램(설치 없이 실행)이 필요합니다.`;
+      : `<b>읽기 차단</b> · 열린 포트는 찾았지만 브라우저 보안(CORS)에 막혀 래더 정보를 읽지 못했습니다. 스타크래프트 쪽에서 웹 페이지의 읽기를 허용하지 않는 것이라 이 PC에서는 브라우저만으로는 수집할 수 없고, 수집기 프로그램(설치 없이 실행)이 필요합니다. 최근 경기·리플레이 확인은 <a href="collector/match-check.cmd" download>최근 경기 확인 도구</a>를 받아 더블클릭하세요.`;
     $('status').textContent = '완료';
   } else {
     r.className = 'res warn';
