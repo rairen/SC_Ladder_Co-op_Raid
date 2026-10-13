@@ -792,3 +792,16 @@ html.overlay.key-blue{--rare:#c58cff}
 html.overlay.key-magenta{--legend:#ffd34d}
 .dc-priv{color:var(--accent);font-weight:700}
 .setup-opts{gap:16px;align-items:flex-end}
+/* 첫 로딩 화면: 데이터가 오기 전 화면(빈 값·버튼 깜빡임)을 가림 */
+html.booting .wrap{visibility:hidden}
+.boot-loader{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--bg,#0b0e14);transition:opacity .35s ease}
+.boot-loader.done{opacity:0;pointer-events:none}
+html:not(.booting) .boot-loader:not(.done){display:none}
+.bl-box{display:flex;flex-direction:column;align-items:center;gap:16px}
+.bl-title{font-family:var(--f-display);font-size:26px;color:var(--accent)}
+.bl-spin{width:40px;height:40px;border-radius:50%;border:3px solid color-mix(in srgb,var(--accent) 25%,transparent);border-top-color:var(--accent);animation:blSpin .8s linear infinite}
+@keyframes blSpin{to{transform:rotate(360deg)}}
+.bl-text{font-size:14px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.bl-spin{animation-duration:2.4s}}
+/* 방송 오버레이에서는 로딩 화면 없이 투명하게 기다림 */
+html.overlay .boot-loader{display:none!important}

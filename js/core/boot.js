@@ -4,7 +4,7 @@
 /* ---------- Boot ---------- */
 /* 베타 로컬 저장: 같은 브라우저의 다른 탭에도 자동 반영 */
 import { App } from '@app/core/app.js';
-import { $, CUR_KEY, MODE, OVERLAY, ROOM, base, TEST } from '@app/core/state.js';
+import { $, CUR_KEY, MODE, OVERLAY, ROOM, base, TEST, bootNeed, bootReady } from '@app/core/state.js';
 import { toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
@@ -121,22 +121,24 @@ export function init(){
   (function boot(){
     const cfg = window.RAID_FIREBASE_CONFIG;
     if(!cfg || !cfg.databaseURL || /여기에|YOUR_/.test(cfg.databaseURL) || !window.firebase){
-      startLocal();
+      startLocal(); bootNeed([]);
       return;
     }
+    /* 로딩 화면은 공략대·기록·로그인 상태·운영자 목록이 모두 도착한 뒤 걷어냄 (운영자 버튼 등이 깜빡이지 않게) */
+    bootNeed(['raids', 'events', 'history', 'auth', 'admins']);
     try{
       /* 테스트 모드는 이름이 다른 Firebase 앱을 써서, 같은 브라우저의 운영자 로그인과 섞이지 않게 함 */
       const app = TEST ? firebase.initializeApp(cfg, 'test') : (firebase.apps.length ? firebase.app() : firebase.initializeApp(cfg));
       App.db = app.database();
       initAuth(app);
-    }catch(e){ startLocal(); toast('Firebase 설정이 올바르지 않습니다. firebase-config.js 값을 확인하세요.'); return; }
+    }catch(e){ startLocal(); bootNeed([]); toast('Firebase 설정이 올바르지 않습니다. firebase-config.js 값을 확인하세요.'); return; }
 
     App.db.ref('.info/connected').on('value', snap=>{ App.online = snap.val() === true; render(); });
-    App.db.ref(base()+'/history').on('value', snap=>{ App.history = Object.values(snap.val() || {}); renderHistory(); });
+    App.db.ref(base()+'/history').on('value', snap=>{ App.history = Object.values(snap.val() || {}); renderHistory(); bootReady('history'); }, ()=>bootReady('history'));
     App.db.ref(base()+'/collector').on('value', snap=>{ App.collector = snap.val(); render(); });
 
     /* 공략대 전체, 기록 전체, 래더 조회 전체를 구독하고 지금 보는 공략대만 골라서 화면에 씀 */
-    const onErr = ()=>toast('레이드 정보를 불러오지 못했습니다. Firebase 보안 규칙을 확인하세요.');
+    const onErr = ()=>{ bootReady('raids', 'events'); toast('레이드 정보를 불러오지 못했습니다. Firebase 보안 규칙을 확인하세요.'); };
     App.db.ref(base()+'/raids').on('value', snap=>{
       App.raids = snap.val() || {};
       for(const r of Object.values(App.raids)) if(r && !Array.isArray(r.members)) r.members = Object.values(r.members || {});
@@ -144,8 +146,9 @@ export function init(){
       if(!Object.keys(App.raids).length && $('setup').hidden && !App.meName && !OVERLAY && canOperate()) openSetup(true);
       render();
       migrateLegacy();
+      bootReady('raids');
     }, onErr);
-    App.db.ref(base()+'/events').on('value', snap=>{ App.allEvents = snap.val() || {}; App.eventsReady = true; syncSelected(); render(); }, onErr);
+    App.db.ref(base()+'/events').on('value', snap=>{ App.allEvents = snap.val() || {}; App.eventsReady = true; syncSelected(); render(); bootReady('events'); }, onErr);
     App.db.ref(base()+'/ladder').on('value', snap=>{ App.allLadder = snap.val() || {}; syncSelected(); render(); }, ()=>{});
   })();
 

@@ -43,6 +43,18 @@ export function init(){
 }
 
 
+/* 첫 로딩 화면: 필요한 데이터가 모두 도착하면(bootNeed 로 정한 항목이 bootReady 로 다 오면) 걷어냄.
+   네트워크가 느리거나 실패해도 10초 뒤에는 화면을 보여 줌 */
+const BOOT = {need: null, got: new Set()};
+function bootFinish(){
+  const r = document.documentElement; if(!r.classList.contains('booting')) return;
+  requestAnimationFrame(()=>{ r.classList.remove('booting'); const l = document.getElementById('bootLoader'); if(l){ l.classList.add('done'); setTimeout(()=>l.remove(), 450); } });
+}
+function bootCheck(){ if(!BOOT.need) return; for(const k of BOOT.need) if(!BOOT.got.has(k)) return; bootFinish(); }
+function bootNeed(keys){ BOOT.need = new Set(keys); bootCheck(); }
+function bootReady(...keys){ keys.forEach(k=>BOOT.got.add(k)); bootCheck(); }
+setTimeout(bootFinish, 10000);
+
 /* 팝업(모달) 공통: 바깥 클릭·Esc·닫기 버튼으로 닫힘. bindModal('ladderModal', 'ladderClose') */
 function bindModal(id, closeId, onClose){
   const el = document.getElementById(id), close = ()=>{ el.hidden = true; if(onClose) onClose(); };
@@ -57,4 +69,4 @@ function openModal(id, focusSel){
   if(f) setTimeout(()=>f.focus(), 0);
 }
 
-export { $, esc, fmt, CUR_KEY, squadLabel, OVERLAY, TEST, MODE, ROOM, base, bindModal, openModal };
+export { bootNeed, bootReady, bootFinish, $, esc, fmt, CUR_KEY, squadLabel, OVERLAY, TEST, MODE, ROOM, base, bindModal, openModal };

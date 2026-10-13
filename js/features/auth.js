@@ -10,7 +10,7 @@
      운영자        레이드 열기·종료, 공략대원 추가, 모든 공략대원 입력, 데이터 초기화 (콘솔에서 지정)
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, ROOM, TEST, esc } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, TEST, esc, bootReady } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { cleanName } from '@app/features/gear-roulette.js';
@@ -25,12 +25,13 @@ const canOperate = () => !useAuth() || isAdmin();
 const profileName = () => (App.profile && App.profile.name) || '';
 
 function initAuth(app){
-  if(!firebase.auth){ return; }
+  if(!firebase.auth){ bootReady('auth', 'admins'); return; }
   App.auth = app.auth();
   /* 테스트 모드: 로그인을 이 탭에만 저장 (탭마다 다른 테스트 계정) */
   if(TEST && App.auth.setPersistence && firebase.auth.Auth) App.auth.setPersistence(firebase.auth.Auth.Persistence.SESSION).catch(()=>{});
-  App.db.ref('admins').on('value', snap=>{ App.admins = snap.val() || {}; App.adminsLoaded = true; render(); renderAuth(); });
+  App.db.ref('admins').on('value', snap=>{ App.admins = snap.val() || {}; App.adminsLoaded = true; render(); renderAuth(); bootReady('admins'); }, ()=>bootReady('admins'));
   App.auth.onAuthStateChanged(u=>{
+    bootReady('auth');
     // 계정이 바뀌면 이전 사람의 "내 이름" 선택을 지움 (같은 PC를 여럿이 쓸 때)
     if((App.authUser && App.authUser.uid) !== (u && u.uid) && App.authUser !== null){ App.meName = ''; try{ localStorage.removeItem(ME_KEY); }catch(_){} }
     App.authUser = u || null;
