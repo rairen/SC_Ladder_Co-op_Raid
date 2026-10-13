@@ -9,19 +9,20 @@ import { PRESETS, ROLES } from '@app/core/game-data.js';
 import { $, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
 import { compute } from '@app/core/logic.js';
 import { eventsOf } from '@app/core/boot.js';
+import { canSeeHist, canSeeRaid } from '@app/features/auth.js';
 import { bossSpecOf, specOfHist, bossSpecHtml, fmtDate, RES_LABEL } from '@app/ui/history.js';
 
 /* 이 공략대원이 참여한 레이드: 진행 중 + 끝난 기록 */
 function raidsOf(name){
   const out = [];
   for(const r of Object.values(App.raids)){
-    if(!(r.members || []).includes(name)) continue;
+    if(!(r.members || []).includes(name) || !canSeeRaid(r)) continue;
     const s = compute(r, eventsOf(r.raidId)), x = s.stats[name] || {};
     out.push({label: squadLabel(r), boss: r.name || '이름 없는 보스', status: s.status === 'live' ? 'live' : s.status, t: r.startedAt || 0, live: true,
       spec: bossSpecOf(r, s), hpLeft: s.hp, me: {w: x.w||0, l: x.l||0, dmg: x.dmg||0, role: s.role[name]}});
   }
   for(const h of App.history){
-    if(App.raids[h.raidId] || h.status === 'live') continue;
+    if(App.raids[h.raidId] || h.status === 'live' || !canSeeHist(h)) continue;
     const x = (h.members || {})[name]; if(!x) continue;
     out.push({label: h.squadLabel || '', boss: h.name || '이름 없는 보스', status: h.status, t: h.endedAt || h.startedAt || 0, live: false,
       spec: specOfHist(h), hpLeft: h.hpLeft, mvp: h.mvp === name, me: {w: x.w||0, l: x.l||0, dmg: x.dmg||0, role: x.role}});

@@ -77,13 +77,15 @@ export function init(){
   ['cHp','cBonus','cRage','cRageRate','cRec'].forEach(id=>$(id).addEventListener('input', updateSetupPreview));
   $('startRaid').onclick = ()=>{
     const ms = parseMembers();
+    const maxMembers = Math.max(0, Math.round(Number($('maxMembers').value) || 0));
+    if(maxMembers && ms.length > maxMembers){ toast(`미리 넣은 공략대원(${ms.length}명)이 최대 인원(${maxMembers}명)보다 많습니다.`); $('maxMembers').focus(); return; }
     // 새 공략대 번호: 진행 중인 공략대가 쓰지 않는 가장 작은 번호
     const used = Object.values(App.raids).map(r=>r.squad||0); let squad = 1; while(used.includes(squad)) squad++;
     const nm = $('raidName').value.trim().slice(0,40) || randomBossName();
     const race = $('bossRace').value || raceOfName(nm);
     const ss = (App.setupSrc && App.setupSrc.race === race) ? App.setupSrc : null;
     const extra = {}; if(ss){ if(ss.roleSkills) extra.roleSkills = ss.roleSkills; if(ss.gauge) extra.gauge = ss.gauge; if(ss.settings) extra.settings = ss.settings; }
-    const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof App.authUser !== 'undefined' && App.authUser) ? App.authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: App.setupRoles[m] || 'dealer', fee:0}])), diff: App.diff, cfg:setupCfg(), startedAt:Date.now()};
+    const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof App.authUser !== 'undefined' && App.authUser) ? App.authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: App.setupRoles[m] || 'dealer', fee:0}])), diff: App.diff, cfg:setupCfg(), startedAt:Date.now(), ...(maxMembers ? {maxMembers} : {}), ...($('privateRaid').checked ? {private:true} : {})};
     guard(async()=>{
       /* 지난 레이드에서 쓰던 장비·소모품 가져오기 */
       const bags = await Promise.all(ms.map(m=>store.loadBag(m)));

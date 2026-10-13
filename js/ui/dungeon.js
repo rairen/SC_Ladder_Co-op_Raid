@@ -11,7 +11,7 @@ import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
 import { compute } from '@app/core/logic.js';
 import { topDealer } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
-import { canOperate, useAuth } from '@app/features/auth.js';
+import { canOperate, canSeeHist, canSeeRaid, useAuth } from '@app/features/auth.js';
 import { eventsOf, selectRaid } from '@app/core/boot.js';
 
 const DIFF_LABEL = k => (PRESETS[k] && PRESETS[k].label) || '커스텀';
@@ -31,10 +31,11 @@ function renderLobby(){
   const box = $('lobby'); if(!box) return;
   box.hidden = OVERLAY;
   if(OVERLAY) return;
-  const list = Object.values(App.raids).sort((a,b)=>(a.squad||0)-(b.squad||0));
-  $('newSquadBtn').hidden = !canOperate();
-  // 공략대에 참가 중이면 목록은 숨기고 내 공략대만 보여 줌
+  const list = Object.values(App.raids).filter(canSeeRaid).sort((a,b)=>(a.squad||0)-(b.squad||0));
+  // 공략대에 참가 중이면 목록은 숨기고 내 공략대만 보여 줌. 참가 중인 운영자는 새 공략대를 만들 수 없음
   const mine = mySquadId();
+  $('newSquadBtn').hidden = !canOperate() || !!mine;
+  $('newSquadNote').hidden = !(canOperate() && mine);
   box.classList.toggle('joined', !!mine);
   $('dungeonList').hidden = !!mine;
   if(mine){
@@ -54,7 +55,7 @@ function renderLobby(){
       <span class="dc-squad">${esc(squadLabel(r))}</span>
       <span class="dc-boss">${esc(r.name || '이름 없는 보스')}</span>
       <span class="dc-hp"><i style="width:${pct}%"></i></span>
-      <span class="dc-meta"><span>HP ${Math.round(pct)}%</span><span>공략대원 ${alive}/${st.members.length}</span><span>${DIFF_LABEL(r.diff)}</span><span>${status}</span></span>
+      <span class="dc-meta">${r.private ? '<span class="dc-priv">비공개</span>' : ''}<span>HP ${Math.round(pct)}%</span><span>공략대원 ${alive}/${st.members.length}${r.maxMembers ? ` · 정원 ${r.maxMembers}` : ''}</span><span>${DIFF_LABEL(r.diff)}</span><span>${status}</span></span>
     </button>`;
   }).join('') : `<p class="empty">진행 중인 공략대가 없습니다.${canOperate() ? ' <b>새 공략대</b>로 레이드를 여세요.' : ' 운영자가 공략대를 열면 여기에 나타납니다.'}</p>`;
   // 공략대를 고르지 않았으면 아래 화면은 숨김
@@ -72,6 +73,7 @@ function rankData(){
     if(live) p.now = squad;
   };
   for(const r of Object.values(App.raids)){
+    if(!canSeeRaid(r)) continue;
     const st = compute(r, eventsOf(r.raidId));
     const dmg = st.members.reduce((a,m)=>a + (st.stats[m].dmg||0), 0);
     const end = st.status !== 'live' ? Math.max(r.startedAt||0, ...eventsOf(r.raidId).filter(e=>!e.undone).map(e=>e.t||0)) : Date.now();
@@ -79,7 +81,7 @@ function rankData(){
     st.members.forEach(m=>addP(m, st.stats[m], squadLabel(r), true, st.status === 'clear'));
   }
   for(const h of App.history){
-    if(App.raids[h.raidId] || h.status === 'live') continue;
+    if(App.raids[h.raidId] || h.status === 'live' || !canSeeHist(h)) continue;
     const mem = h.members || {};
     const dmg = Object.values(mem).reduce((a,x)=>a + (x.dmg||0), 0);
     squads.push({label: h.squadLabel || '', boss: h.name, diff: h.diff, status: h.status, live: false, progress: h.maxHp ? 1 - (h.hpLeft||0)/h.maxHp : 0, dmg, n: Object.keys(mem).length, mvp: h.mvp || '', start: h.startedAt||0, end: h.endedAt||h.startedAt||0});

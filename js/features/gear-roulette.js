@@ -101,6 +101,9 @@ function doJoin(){
   const already = App.raid.members.includes(name);
   const needCode = authed && !isAdmin(), code = String($('joinCode').value||'').trim().toUpperCase();
   if(needCode && !code){ toast('운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
+  // 정원 (최대 인원)
+  const cap = Number(App.raid.maxMembers) || 0;
+  if(!already && cap && (App.raid.members || []).length >= cap){ toast(`이 공략대는 정원(${cap}명)이 찼습니다.`); return; }
   // 한 사람은 공략대 하나에만
   const other = Object.values(App.raids).find(r=>r.raidId !== App.raid.raidId && (r.members||[]).includes(name));
   if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return; }
@@ -134,6 +137,9 @@ function renderJoin(s, me){
   const hasRaid = !!App.raid, live = hasRaid && s.status === 'live';
   $('joinPanel').hidden = !(live && !me) || OVERLAY;
   if(!$('joinPanel').hidden){ renderJoinGear(); renderLateJoin(); }
+  const cap = hasRaid ? Number(App.raid.maxMembers) || 0 : 0, full = !!cap && s.members.length >= cap;
+  $('joinBtn').disabled = full;
+  if(full) $('joinGear').textContent = `정원(${cap}명)이 찼습니다. 자리가 나면 참가할 수 있습니다.`;
   $('meSelect').parentElement.hidden = (!!me && useAuth()) || OVERLAY || !canOperate();
   // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
   const authed = useAuth(), needLogin = authed && !App.authUser;
@@ -179,6 +185,8 @@ function addMember(){
   const name = $('addMember').value.trim().slice(0,20);
   if(!name || !App.raid) return;
   if(App.raid.members.includes(name)){ toast('이미 공략대에 있는 이름입니다.'); return; }
+  const cap = Number(App.raid.maxMembers) || 0;
+  if(cap && App.raid.members.length >= cap){ toast(`이 공략대는 정원(${cap}명)이 찼습니다.`); return; }
   confirmJoin(name, $('addMemberRole').value, 0, role=>addMemberNow(name, role));
 }
 function addMemberNow(name, role){
@@ -275,6 +283,8 @@ export function init(){
   $('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addMember(); } });
 
   $('joinLadder').addEventListener('input', ()=>{ $('joinLadder').dataset.touched = '1'; });
+  /* 초대 링크(?raid=…&code=…)로 들어오면 초대 코드를 미리 채움 */
+  try{ const c = new URLSearchParams(location.search).get('code'); if(c) $('joinCode').value = String(c).trim().toUpperCase().slice(0,8); }catch(_){}
   document.addEventListener('click', e=>{ if(e.target.id === 'loginBtn2') login(); });
 }
 

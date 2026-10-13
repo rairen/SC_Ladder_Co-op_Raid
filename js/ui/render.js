@@ -42,7 +42,7 @@ function render(){
   const meta = $('bossMeta');
   if(hasRaid){
     const p = PRESETS[App.raid.diff] || PRESETS.custom;
-    meta.innerHTML = `<span class="pill">${esc(p.label)}</span><span class="pill">공략대 ${s.members.length}명</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
+    meta.innerHTML = `<span class="pill">${esc(p.label)}</span>${App.raid.private ? '<span class="pill">비공개</span>' : ''}<span class="pill">공략대 ${s.members.length}명${App.raid.maxMembers ? ` / 정원 ${App.raid.maxMembers}` : ''}</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
   } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 공략대원과 난이도를 정하면 시작됩니다</span>`;
   const hpPct = hasRaid && s.maxHp ? s.hp/s.maxHp*100 : 100;
   const ragePct = hasRaid && s.maxRage ? Math.min(100, s.rage/s.maxRage*100) : 0;
@@ -98,7 +98,8 @@ function render(){
   const pb = $('partyBody');
   if(!(pb.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName))){
   pb.innerHTML = rows.length ? rows.map((m,i)=>{
-    const x = s.stats[m], ro = rosterOf(App.raid, m), canEdit = editAll && (!me || me === m);
+    /* 역할은 시작 후 고정, 가져온 지참금은 참가 때 정하고 이후에는 운영자만 고칠 수 있음 (지참금은 다음 레이드로 이월되므로) */
+    const x = s.stats[m], ro = rosterOf(App.raid, m), canEdit = editAll && !me && canOperate();
     const h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0, low = !down && h <= mx*0.4;
     const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
     const rk = s.role[m] || ro.role;
@@ -145,7 +146,9 @@ function render(){
     const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) deltas.push(`<span class="d-party">공략대 −${fmt(pd)}</span>`);
     if(e.healed) deltas.push(`<span class="d-heal">공략대 +${fmt(e.healed)}</span>`);
     const id = esc(ev._id);
-    const canCtl = !(App.readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party';
+    /* 무작위 결과(룰렛·장비 룰렛·본부지원)는 취소 후 다시 돌려 결과를 고르는 일을 막으려고 운영자만 취소 가능 */
+    const rolled = ev.type === 'roulette' || ev.type === 'gear' || ev.type === 'hq';
+    const canCtl = !(App.readOnly || !ev._id || (me && ev.member !== me)) && ev.type !== 'party' && (!rolled || canOperate());
     const ctl = canCtl ? `<button type="button" class="undo" data-undo="${id}" data-state="${ev.undone?1:0}">${ev.undone?'되살리기':'취소'}</button>` : '';
     return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}" data-cat="${catOf(ev)}"><span class="time">${tm}${catOf(ev) === 'battle' ? '' : catTag(ev)}</span>
       <div class="what">${whatHtml(e)}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}${ctl}</div>

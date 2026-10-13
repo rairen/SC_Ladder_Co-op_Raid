@@ -108,6 +108,7 @@ const store = {
     await App.db.ref(base()+'/events/'+sum.raidId).remove();
     await App.db.ref(base()+'/ladder/'+sum.raidId).remove();
     await App.db.ref('invites/'+ROOM+'/'+sum.raidId).remove().catch(()=>{});
+    await App.db.ref('joins/'+ROOM+'/'+sum.raidId).remove().catch(()=>{});
     await App.db.ref(rpath(sum.raidId)).remove();
     if(cur) selectRaid('');
   },

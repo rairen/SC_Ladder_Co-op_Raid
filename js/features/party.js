@@ -56,6 +56,7 @@ function renderInvite(s, me){
     ? `<span class="label">초대 코드</span><b class="code num${open ? '' : ' masked'}" aria-label="${open ? esc(cur) : '가려진 초대 코드'}">${open ? esc(cur) : '•'.repeat(cur.length)}</b>
        <label class="toggle" title="방송 화면에 코드가 보이지 않게 가릴 수 있습니다"><input type="checkbox" id="inviteShow"${open ? ' checked' : ''}><span class="tg-knob"></span><span class="tg-tx">${open ? '보이기' : '가림'}</span></label>
        <button type="button" class="btn sm" id="inviteCopy">복사</button>
+       <button type="button" class="btn sm" id="inviteLink" title="이 공략대가 바로 열리고 초대 코드가 미리 채워지는 주소 (비공개 공략대는 이 링크로만 찾아 들어올 수 있습니다)">초대 링크 복사</button>
        <button type="button" class="btn sm" id="inviteNew" title="새 코드를 만들면 이전 코드로는 참가할 수 없습니다. 이미 참가한 공략대원은 그대로입니다.">새 코드</button>
        <span class="hint">공략대원은 로그인 후 레이드 참가에서 이 코드를 넣습니다. 가려져 있어도 복사는 됩니다.</span>`
     : `<span class="label">초대 코드</span><span class="hint">아직 없습니다.</span><button type="button" class="btn sm primary" id="inviteNew">코드 만들기</button>`;
@@ -74,6 +75,7 @@ export function init(){
   document.addEventListener('click', e=>{
     const id = e.target.id;
     if(id === 'inviteNew'){ guard(async()=>{ await newInvite(); toast('새 초대 코드를 만들었습니다. 이전 코드로는 더 이상 참가할 수 없습니다.'); }); return; }
+    if(id === 'inviteLink'){ const c = App.inviteCode && App.inviteCode.code; if(!c || !App.raid) return; const u = new URL(location.href); u.search = `?raid=${encodeURIComponent(App.raid.raidId)}&code=${encodeURIComponent(c)}`; u.hash = ''; navigator.clipboard.writeText(u.toString()).then(()=>toast('초대 링크를 복사했습니다. 받은 사람이 열면 이 공략대와 초대 코드가 바로 채워집니다.'), ()=>toast(u.toString())); return; }
     if(id === 'inviteCopy'){ const c = App.inviteCode && App.inviteCode.code; if(c) navigator.clipboard.writeText(c).then(()=>toast(`초대 코드 ${c} 복사`), ()=>toast(c)); return; }
     const k = e.target.closest('[data-kick]');
     if(k){

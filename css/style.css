@@ -790,3 +790,5 @@ html.overlay.key-green{--good:#4ec9ff}
 html.overlay.key-green .hq-tag.supply{background:#16405a;color:#a8e2ff}
 html.overlay.key-blue{--rare:#c58cff}
 html.overlay.key-magenta{--legend:#ffd34d}
+.dc-priv{color:var(--accent);font-weight:700}
+.setup-opts{gap:16px;align-items:flex-end}

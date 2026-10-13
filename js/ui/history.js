@@ -10,7 +10,7 @@ import { bossSkillsOf, cfgOf, compute, inputOf, rosterOf, skillHtml, whatHtml, c
 import { render, topDealer } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { pct } from '@app/ui/info-window.js';
-import { canOperate } from '@app/features/auth.js';
+import { canOperate, canSeeHist } from '@app/features/auth.js';
 
 function renderSkillBoard(s){
   if(!OVERLAY || !document.documentElement.classList.contains('ovl-skills')) return;
@@ -39,7 +39,7 @@ function summarize(r, s, stopped, evs = App.events){
   return {raidId:r.raidId, squad:r.squad||0, squadLabel: squadLabel(r), name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
-    boss: bossSpecOf(r, s),
+    boss: bossSpecOf(r, s), private: !!r.private, maxMembers: Number(r.maxMembers) || 0,
     evCount: evs.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
     events: evs.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; o.input = e.input === 'auto' || e.input === 'manual' ? e.input : (e.auto ? 'auto' : 'manual'); if(e.auto) o.auto = true; if(e.src) o.src = e.src; if(e.games > 1) o.games = e.games; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette'){ o.item = e.item; if(e.target) o.target = e.target; } else if(e.type==='repair' || e.type==='buy' || e.type==='use') o.item = e.item; else if(e.type==='drop'){ o.item = e.item; if(e.salvage) o.salvage = true; } else if(e.type==='hq'){ o.item = e.item; o.slot = e.slot; } else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='fund') o.amount = e.amount; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
 }
@@ -80,7 +80,7 @@ function fame(){
   const P = {};
   let bestHit = null, bestRaid = null;
   for(const h of App.history){
-    if(h.status==='live') continue;
+    if(h.status==='live' || !canSeeHist(h)) continue;
     for(const [m,x] of Object.entries(h.members||{})){
       const p = P[m] || (P[m] = {raids:0, clears:0, w:0, l:0, dmg:0, rage:0, best:0, mvp:0});
       p.raids++; if(h.status==='clear') p.clears++;
@@ -94,7 +94,7 @@ function fame(){
   return {P, bestHit, bestRaid};
 }
 function renderHistory(){
-  const done = App.history.filter(h=>h.status!=='live').sort((a,b)=>(b.endedAt||b.startedAt)-(a.endedAt||a.startedAt));
+  const done = App.history.filter(h=>h.status!=='live' && canSeeHist(h)).sort((a,b)=>(b.endedAt||b.startedAt)-(a.endedAt||a.startedAt));
   const {P, bestHit, bestRaid} = fame();
   const names = Object.keys(P).sort((a,b)=>P[b].dmg-P[a].dmg);
   const clears = done.filter(h=>h.status==='clear').length, fails = done.filter(h=>h.status==='fail').length;

@@ -6,11 +6,11 @@
 <title>래더 협동 보스 레이드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610131559">
+<link rel="stylesheet" href="css/style.css?v=202610131626">
 <script>
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else if(q.get('view')==='hq') document.documentElement.classList.add('ovl-hq'); else document.documentElement.classList.add('ovl-hp'); var bg = q.get('bg'); if(bg==='green'||bg==='blue'||bg==='magenta') document.documentElement.classList.add('key','key-'+bg); } })();
 </script>
-<script src="firebase-config.js?v=202610131559"></script>
+<script src="firebase-config.js?v=202610131626"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -58,6 +58,10 @@
         </div>
         <div class="chips" id="setupMembers" style="margin-top:8px"></div>
         </div>
+        <div class="row setup-opts" style="margin:12px 0 0">
+          <div class="field"><label class="label" for="maxMembers">최대 인원</label><input type="number" id="maxMembers" min="0" step="1" value="0" inputmode="numeric" style="width:90px"><span class="hint">0 = 제한 없음</span></div>
+          <label class="check" style="margin:0;align-self:flex-end"><input type="checkbox" id="privateRaid"><span>비공개 공략대<small>던전 목록·랭킹에서 공략대원과 운영자에게만 보임</small></span></label>
+        </div>
         <p class="hint" id="setupInviteHint" hidden style="margin:10px 0 0">공략대원은 레이드를 시작한 뒤 <b>초대 코드</b>로 각자 참가합니다. 코드는 공략대 현황에 표시됩니다.</p>
       </div>
       <div class="field">
@@ -87,7 +91,7 @@
   <section class="panel lobby" id="lobby">
     <div class="lobby-head">
       <h2>던전</h2><span class="hint" id="lobbyCount"></span>
-      <div class="lobby-act"><button class="btn" id="rankBtn" type="button">랭킹</button><button class="btn primary" id="newSquadBtn" type="button" hidden>새 공략대</button></div>
+      <div class="lobby-act"><button class="btn" id="rankBtn" type="button">랭킹</button><button class="btn primary" id="newSquadBtn" type="button" hidden>새 공략대</button><span class="hint" id="newSquadNote" hidden>공략대에 참가 중에는 새 공략대를 만들 수 없습니다</span></div>
     </div>
     <div class="dungeons" id="dungeonList"></div>
   </section>
@@ -446,37 +450,37 @@
 <script type="importmap">
 {
   "imports": {
-    "@app/core/app.js": "./js/core/app.js?v=202610131559",
-    "@app/core/game-data.js": "./js/core/game-data.js?v=202610131559",
-    "@app/core/state.js": "./js/core/state.js?v=202610131559",
-    "@app/core/store.js": "./js/core/store.js?v=202610131559",
-    "@app/core/logic.js": "./js/core/logic.js?v=202610131559",
-    "@app/ui/render.js": "./js/ui/render.js?v=202610131559",
-    "@app/ui/me-info.js": "./js/ui/me-info.js?v=202610131559",
-    "@app/ui/admin-tools.js": "./js/ui/admin-tools.js?v=202610131559",
-    "@app/ui/player-raids.js": "./js/ui/player-raids.js?v=202610131559",
-    "@app/ui/ledger.js": "./js/ui/ledger.js?v=202610131559",
-    "@app/core/changelog.js": "./js/core/changelog.js?v=202610131559",
-    "@app/ui/updates.js": "./js/ui/updates.js?v=202610131559",
-    "@app/features/hq.js": "./js/features/hq.js?v=202610131559",
-    "@app/ui/setup.js": "./js/ui/setup.js?v=202610131559",
-    "@app/features/actions.js": "./js/features/actions.js?v=202610131559",
-    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610131559",
-    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610131559",
-    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610131559",
-    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610131559",
-    "@app/features/ladder.js": "./js/features/ladder.js?v=202610131559",
-    "@app/features/party.js": "./js/features/party.js?v=202610131559",
-    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610131559",
-    "@app/features/auth.js": "./js/features/auth.js?v=202610131559",
-    "@app/ui/history.js": "./js/ui/history.js?v=202610131559",
-    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610131559",
-    "@app/core/boot.js": "./js/core/boot.js?v=202610131559"
+    "@app/core/app.js": "./js/core/app.js?v=202610131626",
+    "@app/core/game-data.js": "./js/core/game-data.js?v=202610131626",
+    "@app/core/state.js": "./js/core/state.js?v=202610131626",
+    "@app/core/store.js": "./js/core/store.js?v=202610131626",
+    "@app/core/logic.js": "./js/core/logic.js?v=202610131626",
+    "@app/ui/render.js": "./js/ui/render.js?v=202610131626",
+    "@app/ui/me-info.js": "./js/ui/me-info.js?v=202610131626",
+    "@app/ui/admin-tools.js": "./js/ui/admin-tools.js?v=202610131626",
+    "@app/ui/player-raids.js": "./js/ui/player-raids.js?v=202610131626",
+    "@app/ui/ledger.js": "./js/ui/ledger.js?v=202610131626",
+    "@app/core/changelog.js": "./js/core/changelog.js?v=202610131626",
+    "@app/ui/updates.js": "./js/ui/updates.js?v=202610131626",
+    "@app/features/hq.js": "./js/features/hq.js?v=202610131626",
+    "@app/ui/setup.js": "./js/ui/setup.js?v=202610131626",
+    "@app/features/actions.js": "./js/features/actions.js?v=202610131626",
+    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610131626",
+    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610131626",
+    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610131626",
+    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610131626",
+    "@app/features/ladder.js": "./js/features/ladder.js?v=202610131626",
+    "@app/features/party.js": "./js/features/party.js?v=202610131626",
+    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610131626",
+    "@app/features/auth.js": "./js/features/auth.js?v=202610131626",
+    "@app/ui/history.js": "./js/ui/history.js?v=202610131626",
+    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610131626",
+    "@app/core/boot.js": "./js/core/boot.js?v=202610131626"
   }
 }
 </script>
-<script src="js/lib/ladder-local.js?v=202610131559"></script>
-<script type="module" src="js/main.js?v=202610131559"></script>
+<script src="js/lib/ladder-local.js?v=202610131626"></script>
+<script type="module" src="js/main.js?v=202610131626"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a></footer>
 </body>

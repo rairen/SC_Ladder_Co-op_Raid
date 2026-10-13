@@ -57,6 +57,17 @@ function uidName(){
   return n && (r.members||[]).includes(n) ? n : '';
 }
 function joinedAs(nm){ return !!nm && uidName() === nm; }
+/* 비공개 공략대: 운영자와 그 공략대원에게만 목록·랭킹·기록에 보임 (주소를 아는 사람의 직접 열기와 오버레이는 가능) */
+function canSeeRaid(r){
+  if(!r || !r.private || canOperate()) return true;
+  if(App.authUser && r.uids && r.uids[App.authUser.uid]) return true;
+  return !useAuth() && !!App.meName && (r.members || []).includes(App.meName);
+}
+function canSeeHist(h){
+  if(!h || !h.private || canOperate()) return true;
+  const uid = App.authUser && App.authUser.uid;
+  return !!uid && Object.values(h.roster || {}).some(x=>x && x.uid === uid);
+}
 /* render() 맨 앞에서 호출: 로그인 상태에 따라 보기 전용 여부를 정함 */
 function applyAccess(){
   if(!useAuth()) return;
@@ -183,4 +194,4 @@ export function init(){
 }
 
 
-export { initAuth, loginTest, uidName, joinedAs, applyAccess, authMe, renderAuth, login, openProfile, renderProfile, saveProfile, deleteAccount, useAuth, isAdmin, canOperate, profileName };
+export { canSeeRaid, canSeeHist, initAuth, loginTest, uidName, joinedAs, applyAccess, authMe, renderAuth, login, openProfile, renderProfile, saveProfile, deleteAccount, useAuth, isAdmin, canOperate, profileName };

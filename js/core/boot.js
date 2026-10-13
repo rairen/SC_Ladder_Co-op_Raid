@@ -8,7 +8,7 @@ import { $, CUR_KEY, MODE, OVERLAY, ROOM, base, TEST } from '@app/core/state.js'
 import { toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
-import { authMe, canOperate, initAuth, isAdmin, useAuth } from '@app/features/auth.js';
+import { authMe, canOperate, initAuth, isAdmin, useAuth, canSeeRaid } from '@app/features/auth.js';
 import { renderHistory } from '@app/ui/history.js';
 
 const LS_KEY = 'sc-boss-raid:' + ROOM;
@@ -51,7 +51,9 @@ function selectRaid(rid){
 function syncSelected(){
   const ids = Object.keys(App.raids).sort((a,b)=>(App.raids[a].squad||0)-(App.raids[b].squad||0));
   if(App.curRid && !App.raids[App.curRid]) App.curRid = '';
-  if(!App.curRid && ids.length === 1) App.curRid = ids[0];
+  // 자동 선택은 볼 수 있는 공략대만 (비공개 공략대는 운영자·공략대원만)
+  const visible = ids.filter(id=>canSeeRaid(App.raids[id]));
+  if(!App.curRid && visible.length === 1) App.curRid = visible[0];
   if(!App.curRid && OVERLAY && ids.length) App.curRid = ids[0];
   App.raid = App.curRid ? App.raids[App.curRid] : null;
   if(App.raid && !Array.isArray(App.raid.members)) App.raid.members = Object.values(App.raid.members || {});

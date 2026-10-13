@@ -49,15 +49,10 @@ function openSetup(open){
   if(invite){ App.setupList = []; App.setupRoles = {}; }
   if(open){ App.setupList = []; App.setupRoles = {}; App.setupSrc = null; }
   if(open){
-    if(false){
-      $('raidName').value = App.raid.name || '';
-      App.setupList = (App.raid.members||[]).slice(); App.setupRoles = Object.fromEntries(App.setupList.map(m=>[m, rosterOf(App.raid, m).role]));
-      App.diff = App.raid.diff || 'normal';
-      if(App.diff==='custom' && App.raid.cfg){ $('cHp').value = App.raid.cfg.hp; $('cBonus').value = App.raid.cfg.bonus || 0; $('cRage').value = App.raid.cfg.rage; $('cRageRate').value = App.raid.cfg.rageRate ?? 0.5; $('cRec').value = App.raid.cfg.rec; }
-    }
-    else { $('raidName').value = randomBossName(); }
+    $('raidName').value = randomBossName();
     $('bossRace').value = raceOfName($('raidName').value.trim()); renderRaceSkills();
     renderDiffs(); renderSetupMembers();
+    $('maxMembers').value = '0'; $('privateRaid').checked = false;
     $('raidName').focus();
   }
 }

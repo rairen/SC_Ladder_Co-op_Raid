@@ -171,7 +171,9 @@ function compute(r, evs){
   };
   /* 지참금 내역 한 줄 (잔액 포함) */
   const ledger = (m, t, k, a, note) => { money[m].push({t: t || 0, k, a, b: fee[m] - spent[m], ...(note ? {n: note} : {})}); };
-  members.forEach(st);
+  /* 처음부터 있던 공략대원만 시작 상태로 만들고, 중간 합류한 공략대원은 합류 기록 시점에 만듦
+     (합류 전에는 보스 공격 대상·전멸 판정·공략대 회복에 들어가지 않음) */
+  members.filter(m=>!lateJoin.has(m)).forEach(st);
   const alive = () => Object.keys(mhp).filter(m=>mhp[m] > 0);
   const addGauge = (m, v) => { if(mhp[m] > 0) gauge[m] = Math.min(needG[m], gauge[m] + v); };
   const hurt = (m, d, entry) => {
@@ -241,6 +243,7 @@ function compute(r, evs){
     const m = ev.member;
     if(ev.type === 'party'){
       entry.party0 = true;
+      if(lateJoin.get(m) === ev) st(m);
       if(lateJoin.get(m) === ev && n0 < n){
         /* 보스 최대 HP 는 1인분(1인당 HP + 인원당 추가 HP)만큼 늘고, 지금 HP 는 남은 비율만큼만 늘어 HP% 는 그대로 */
         const inc = (Number(cfg.hp)||0) + (Number(cfg.bonus)||0), before = maxHp;
