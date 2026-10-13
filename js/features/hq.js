@@ -27,7 +27,27 @@ function hqNow(s){
   return {next: hqSlot(r, S, Math.max(1, k + 1))};
 }
 
+/* 방송 오버레이 (?overlay=1&view=hq): 남은 시간 · 도착 알림 · 받은 지원 */
+let ovlSeenK = null;
+function renderHqOverlay(s){
+  const box = $('hqOvl'); if(!box) return;
+  const on = OVERLAY && document.documentElement.classList.contains('ovl-hq');
+  box.hidden = !on; if(!on) return;
+  if(!App.raid || !s){ box.innerHTML = '<div class="ho-head"><b>본부지원</b></div><div class="ho-main ho-dim">레이드 대기 중</div>'; return; }
+  if(!s.hq || !s.hq.on){ box.innerHTML = '<div class="ho-head"><b>본부지원</b></div><div class="ho-main ho-dim">이 레이드는 본부지원을 쓰지 않습니다</div>'; return; }
+  const live = s.status === 'live', w = live ? hqNow(s) : null, last = s.hq.last, it = last && HQ_SUPPORT.find(x=>x.id === last.id);
+  const fresh = last && ovlSeenK !== null && last.k !== ovlSeenK;
+  if(last) ovlSeenK = last.k; else if(ovlSeenK === null) ovlSeenK = 0;
+  const main = !live ? '<div class="ho-main ho-dim">레이드 종료</div>'
+    : w.open ? `<div class="ho-main ho-ready"><span>${w.open.k}회차 본부지원 도착!</span><b class="num" data-hqleft="${w.open.until}">${mmss(w.open.until - Date.now())}</b></div>`
+    : `<div class="ho-main"><span>다음 본부지원</span><b class="num" data-hqnext="${w.next.at}">${mmss(w.next.at - Date.now())}</b></div>`;
+  box.className = 'hq-ovl' + (live && w.open ? ' ready' : '');
+  box.innerHTML = `<div class="ho-head"><b>본부지원</b><span>${hqEveryMin(App.raid)}분마다</span></div>${main}
+    ${it ? `<div class="ho-last${fresh ? ' fresh' : ''}"><span class="hq-tag ${it.type}">${HQ_TYPES[it.type]}</span><b>${esc(it.name)}</b><span>${esc(it.desc(it.v))}</span></div>` : ''}`;
+}
+
 function renderHq(s){
+  renderHqOverlay(s);
   const box = $('hqBox'); if(!box) return;
   const on = !OVERLAY && !!App.raid && s && s.hq && s.hq.on;
   box.hidden = !on;
@@ -46,6 +66,12 @@ function renderHq(s){
 
 /* 1초마다 남은 시간만 갱신 (회차가 바뀌면 다시 그림) */
 function tick(){
+  const ob = $('hqOvl');
+  if(ob && !ob.hidden && App.lastState){
+    const now = Date.now(), l = ob.querySelector('[data-hqleft]'), n = ob.querySelector('[data-hqnext]');
+    if(l){ const u = +l.dataset.hqleft; if(now > u) renderHqOverlay(App.lastState); else l.textContent = mmss(u - now); }
+    else if(n){ const a = +n.dataset.hqnext; if(now >= a) renderHqOverlay(App.lastState); else n.textContent = mmss(a - now); }
+  }
   const box = $('hqBox'); if(!box || box.hidden || !App.lastState) return;
   const now = Date.now();
   const left = box.querySelector('[data-hqleft]'), next = box.querySelector('[data-hqnext]');
@@ -85,4 +111,4 @@ export function init(){
   });
 }
 
-export { renderHq, openHqList };
+export { renderHq, renderHqOverlay, openHqList };

@@ -550,7 +550,8 @@ html.overlay.ovl-meter .dmgmeter{display:flex;flex-direction:column;gap:6px;back
 .rolebar .slot,.fee-line .slot{padding:4px 6px}
 
 /* 전투 기록: 화면 아래 넓게 */
-.logpanel .log{max-height:420px;overflow-y:auto}
+.logpanel .log{height:420px;max-height:none;overflow-y:auto;overscroll-behavior:contain}
+@media (max-width:980px){ .logpanel .log{height:340px} }
 /* 전투 기록 2단: 왼쪽 전투, 오른쪽 기타 */
 .log-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
 .log-col{min-width:0}
@@ -758,3 +759,34 @@ html.testmode body::before{content:"테스트 모드 · 이 탭에서만 유지�
 .hq-tag.attack{background:#5a2323;color:#ffb0a0}
 .cat-hq{color:#ffb070}
 #logEtc[data-f="hq"] li[data-cat]:not([data-cat="hq"]){display:none}
+/* 본부지원 오버레이 (?overlay=1&view=hq) */
+.hq-ovl{display:none}
+html.overlay.ovl-hq #hud,html.overlay.ovl-hq .skillboard{display:none!important}
+html.overlay.ovl-hq .hq-ovl{display:flex;flex-direction:column;gap:8px;max-width:520px;background:color-mix(in srgb,#06090d 82%,transparent);border:1px solid #ffffff22;border-radius:12px;padding:12px 16px;box-shadow:0 6px 24px #0008;color:var(--fg)}
+.ho-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ho-head b{font-family:var(--f-display);font-weight:400;font-size:22px;color:var(--accent)}
+.ho-head span{font-size:13px;color:var(--muted)}
+.ho-main{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:17px}
+.ho-main b{font-family:var(--f-mono);font-size:30px}
+.ho-dim{color:var(--muted);font-size:15px}
+.hq-ovl.ready{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 50%,transparent),0 6px 24px #0008}
+.ho-ready span{color:var(--accent);font-weight:700}
+.ho-last{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding-top:8px;border-top:1px solid #ffffff1a;font-size:14px}
+.ho-last span:last-child{flex-basis:100%;color:var(--muted);font-size:13px}
+.ho-last.fresh{animation:hoFresh 1s ease-out 3}
+@keyframes hoFresh{0%{background:color-mix(in srgb,var(--accent) 30%,transparent)}100%{background:transparent}}
+
+/* ---------- 크로마키 배경 (?overlay=1&bg=green|blue|magenta) ----------
+   키 색 위에서는 반투명·그림자 가장자리가 지저분하게 빠지므로: 패널은 불투명, 바깥 그림자·흐림 제거,
+   키 색과 비슷한 색(초록 키 → 초록 계열, 파랑 키 → 파랑 계열)은 다른 색으로 바꿈 */
+html.overlay.key-green,html.overlay.key-green body{background:#00b140!important}
+html.overlay.key-blue,html.overlay.key-blue body{background:#0047bb!important}
+html.overlay.key-magenta,html.overlay.key-magenta body{background:#ff00ff!important}
+html.overlay.key .hud,html.overlay.key .dmgmeter,html.overlay.key .hq-ovl,html.overlay.key .skillboard,html.overlay.key .banner{background:#0b0f16!important;border:2px solid #2a3140!important;box-shadow:none!important;border-radius:10px}
+html.overlay.key .hq-ovl.ready{border-color:var(--accent)!important}
+html.overlay.key .boss-name,html.overlay.key .g-val,html.overlay.key .pm,html.overlay.key .ticker{text-shadow:none!important}
+html.overlay.key .pop{text-shadow:none!important;-webkit-text-stroke:1px #000}
+html.overlay.key-green{--good:#4ec9ff}
+html.overlay.key-green .hq-tag.supply{background:#16405a;color:#a8e2ff}
+html.overlay.key-blue{--rare:#c58cff}
+html.overlay.key-magenta{--legend:#ffd34d}

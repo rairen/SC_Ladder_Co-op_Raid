@@ -42,7 +42,8 @@ function renderTicker(s){
 function overlayUrl(){
   const u = new URL(location.href); u.search = ''; u.hash = '';
   const q = new URLSearchParams(); q.set('overlay', '1'); if(App.raid) q.set('raid', App.raid.raidId);
-  if(App.ovlView === 'meter') q.set('view', 'meter'); else if($('ovlNoRage').checked) q.set('rage', '0');
+  if(App.ovlView === 'meter') q.set('view', 'meter'); else if(App.ovlView === 'hq') q.set('view', 'hq'); else if($('ovlNoRage').checked) q.set('rage', '0');
+  if($('ovlBg').value) q.set('bg', $('ovlBg').value);
   return u.toString() + '?' + q.toString();
 }
 function refreshOvl(){
@@ -126,6 +127,7 @@ export function init(){
   $('ovlModal').addEventListener('click', e=>{ if(e.target === $('ovlModal')) $('ovlModal').hidden = true; });
   $('ovlModal').addEventListener('keydown', e=>{ if(e.key === 'Escape') $('ovlModal').hidden = true; });
   $('ovlNoRage').onchange = refreshOvl;
+  $('ovlBg').onchange = refreshOvl;
   App.ovlView = 'hp';
   $('ovlModal').addEventListener('click', e=>{
     const b = e.target.closest('[data-ovlview]'); if(!b) return;

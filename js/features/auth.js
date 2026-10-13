@@ -1,5 +1,5 @@
 /* =====================================================================
-   auth.js — 로그인(구글), 내 프로필(방송 닉네임·게임 아이디), 운영자 권한
+   auth.js — 로그인(구글), 내 프로필(닉네임·게임 아이디), 운영자 권한
    ---------------------------------------------------------------------
    Firebase 를 연결했을 때만 동작합니다. (브라우저 저장 모드에서는 로그인 없음)
      users/<uid>   내 프로필 {name, ladder, gw}       본인만 쓰기
@@ -113,7 +113,8 @@ function openProfile(open){
   $('profileModal').hidden = !open;
   if(open){
     const p = App.profile || {};
-    $('pfName').value = p.name || (App.authUser && App.authUser.isAnonymous ? '테스트' + String(Math.floor(Math.random()*90)+10) : (App.authUser && App.authUser.displayName || '').slice(0,20));
+    /* 구글 계정 이름은 쓰지 않음 (방송에 실명이 드러나지 않게): 기본값은 '공략대원' + 숫자, 테스트 계정은 '테스트' + 숫자 */
+    $('pfName').value = p.name || ((App.authUser && App.authUser.isAnonymous ? '테스트' : '공략대원') + String(Math.floor(Math.random()*9000)+1000));
     $('pfLadder').value = p.ladder || '';
     $('pfGw').innerHTML = LADDER_GW.map(([k,l])=>`<option value="${k}"${k===(Number(p.gw)||30)?' selected':''}>${l}</option>`).join('');
     renderProfile();
@@ -125,11 +126,11 @@ function renderProfile(){
   const idHtml = `내 계정 ID: <code class="uid">${esc(App.authUser ? App.authUser.uid : '')}</code> <button class="btn sm" type="button" id="copyUid">복사</button>`;
   $('pfAdmin').innerHTML = isAdmin()
     ? '<b class="ok">운영자</b> · 레이드 열기·종료, 공략대원 추가, 데이터 초기화를 할 수 있습니다.'
-    : `스트리머 계정입니다. 운영자 권한은 Firebase 콘솔에서만 줄 수 있습니다.<br>${idHtml}`;
+    : `운영자 권한은 Firebase 콘솔에서만 줄 수 있습니다.<br>${idHtml}`;
 }
 async function saveProfile(){
   const name = cleanName($('pfName').value);
-  if(!name){ toast('방송 닉네임을 입력하세요.'); $('pfName').focus(); return; }
+  if(!name){ toast('닉네임을 입력하세요.'); $('pfName').focus(); return; }
   const ladder = cleanLadderId($('pfLadder').value), gw = Number($('pfGw').value)||30;
   const old = profileName();
   await guard(async()=>{

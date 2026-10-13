@@ -104,7 +104,7 @@ function doJoin(){
   // 한 사람은 공략대 하나에만
   const other = Object.values(App.raids).find(r=>r.raidId !== App.raid.raidId && (r.members||[]).includes(name));
   if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return; }
-  if(authed){ const ro0 = App.raid.roster && App.raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== App.authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 방송 닉네임을 바꿔 주세요.'); return; } }
+  if(authed){ const ro0 = App.raid.roster && App.raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== App.authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 닉네임을 바꿔 주세요.'); return; } }
   const fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(App.profile && App.profile.gw)||30) : 30;
   /* 다시 들어오는 이름은 원래 역할 그대로. 새로 참가하면 역할 확인 팝업을 거침 */
   if(already) joinNow(name, rosterOf(App.raid, name).role, fee, ladder, gw, already, needCode, code, authed);
