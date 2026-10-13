@@ -6,7 +6,7 @@ import { App } from '@app/core/app.js';
 import { PARTY_HP, PRESETS, RACES, ROLES, SKILL_TYPES } from '@app/core/game-data.js';
 import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
-import { bossSkillsOf, cfgOf, compute, rosterOf, skillHtml, whatHtml } from '@app/core/logic.js';
+import { bossSkillsOf, cfgOf, compute, inputOf, rosterOf, skillHtml, whatHtml } from '@app/core/logic.js';
 import { render, topDealer } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { pct } from '@app/ui/info-window.js';
@@ -41,7 +41,7 @@ function summarize(r, s, stopped, evs = App.events){
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
     boss: bossSpecOf(r, s),
     evCount: evs.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
-    events: evs.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette'){ o.item = e.item; if(e.target) o.target = e.target; } else if(e.type==='repair' || e.type==='buy' || e.type==='use') o.item = e.item; else if(e.type==='drop'){ o.item = e.item; if(e.salvage) o.salvage = true; } else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='fund') o.amount = e.amount; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
+    events: evs.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; o.input = e.input === 'auto' || e.input === 'manual' ? e.input : (e.auto ? 'auto' : 'manual'); if(e.auto) o.auto = true; if(e.src) o.src = e.src; if(e.games > 1) o.games = e.games; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette'){ o.item = e.item; if(e.target) o.target = e.target; } else if(e.type==='repair' || e.type==='buy' || e.type==='use') o.item = e.item; else if(e.type==='drop'){ o.item = e.item; if(e.salvage) o.salvage = true; } else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='fund') o.amount = e.amount; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
 }
 function autoArchive(s){
   if(!App.raid || s.status === 'live' || App.readOnly || !canOperate()) return;
@@ -128,6 +128,7 @@ function histDetail(h, mem){
   const dur = h.endedAt && h.startedAt ? Math.max(0, Math.round((h.endedAt - h.startedAt)/60000)) : null;
   const meta = `<div class="hd-meta">
     <span>시작 <b>${fmtDate(h.startedAt)}</b></span><span>종료 <b>${fmtDate(h.endedAt)}</b></span>${dur!==null ? `<span>진행 <b>${dur >= 60 ? Math.floor(dur/60)+'시간 '+(dur%60)+'분' : dur+'분'}</b></span>` : ''}
+    ${(()=>{ const g = (h.events||[]).filter(e=>e.type==='game' && !e.undone); if(!g.length) return ''; const a = g.filter(e=>inputOf(e)==='auto').length; return `<span>래더 기록 <b>자동 ${a}</b> · <b>수동 ${g.length - a}</b></span>`; })()}
     <span>남은 보스 HP <b>${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</b></span><span>분노 <b>${fmt(h.rage)} / ${fmt(h.maxRage)}</b></span></div>
     <h3 class="label" style="margin:10px 0 4px">보스 스펙</h3>${bossSpecHtml(specOfHist(h))}`;
   const table = `<div class="tbl-wrap"><table class="mini">

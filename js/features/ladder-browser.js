@@ -78,7 +78,7 @@ async function bcTick(){
               const delta = r.rating - (+prev.rating||0);
               if(+prev.rating > 0 && r.rating > 0){
                 const win = (dw > 0 && dl === 0) || (dw > 0 && dl > 0 && delta >= 0), pts = Math.abs(delta);
-                const ev = {raidId:rid, t:Date.now(), type:'game', member:m, points: win ? pts : -pts, multi:false, same:false, banned:false, undone:false, auto:true, src:'browser', rating:r.rating};
+                const ev = {raidId:rid, t:Date.now(), type:'game', member:m, points: win ? pts : -pts, multi:false, same:false, banned:false, undone:false, auto:true, input:'auto', src:'browser', rating:r.rating};
                 if(n > 1) ev.games = n;
                 if(App.local){ (App.localDB.events[rid] = App.localDB.events[rid] || []).push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); }
                 else await App.db.ref(base()+'/events/'+rid).push(ev);

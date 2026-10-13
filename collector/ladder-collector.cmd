@@ -24,7 +24,7 @@ $Mode        = 'coop'    # 협동 레이드 데이터 위치
 $IntervalSec = 20        # 조회 간격(초)
 $LocalApi    = ''        # 비워두면 스타크래프트가 연 주소를 자동으로 찾음 (예: http://127.0.0.1:50250)
 $ApiKey      = ''        # 비워두면 사이트의 firebase-config.js 에서 읽음 (수집기 로그인용)
-$Version     = '1.3'
+$Version     = '1.4'
 # -------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
@@ -230,7 +230,7 @@ while ($true) {
                   $win = ($dw -gt 0 -and $dl -eq 0) -or ($dw -gt 0 -and $dl -gt 0 -and $delta -ge 0)
                   $pts = [Math]::Abs($delta)
                   $ev = @{ raidId = $rid; t = (Now-Ms); type = 'game'; member = [string]$m; points = $(if ($win) { $pts } else { -$pts });
-                           multi = $false; same = $false; banned = $false; undone = $false; auto = $true; rating = $r.rating }
+                           multi = $false; same = $false; banned = $false; undone = $false; auto = $true; input = 'auto'; src = 'collector'; rating = $r.rating }
                   if ($n -gt 1) { $ev.games = $n }
                   Db-Post "$Mode/events/$rid" $ev
                   Log ("{0} {1} {2}{3}점 (점수 {4} → {5}){6}" -f $m, $(if ($win) { '승리' } else { '패배' }), $(if ($win) { '+' } else { '-' }), $pts, $prev.rating, $r.rating, $(if ($n -gt 1) { " · ${n}판 합산" } else { '' })) $(if ($win) { 'Green' } else { 'Magenta' })

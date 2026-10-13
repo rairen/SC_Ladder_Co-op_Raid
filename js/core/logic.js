@@ -439,9 +439,14 @@ function partyText(ev){
   if(ev.action === 'fee') return `지참금 ${fmt(ev.fee||0)}(으)로 변경`;
   return '공략대 변경';
 }
+/* 래더 결과 기록 유형: 자동(래더 자동 수집) / 수동(직접 입력). 예전 기록은 auto 값으로 판단 */
+const inputOf = ev => ev.input === 'auto' || ev.input === 'manual' ? ev.input : (ev.auto ? 'auto' : 'manual');
+const inputTag = ev => inputOf(ev) === 'auto'
+  ? `<span class="auto-tag" title="래더 자동 수집으로 들어온 기록${ev.src === 'browser' ? ' (브라우저 수집)' : ev.src === 'collector' ? ' (수집기 프로그램)' : ''}">자동</span>`
+  : '<span class="auto-tag manual" title="직접 입력한 기록">수동</span>';
 function whatHtml(e){
   const ev = e.ev;
-  if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${ev.auto?'<span class="auto-tag" title="래더 자동 수집으로 들어온 기록">자동</span>':''}`; }
+  if(ev.type==='game'){ const p = Number(ev.points)||0; return `<b>${esc(ev.member)}</b> ${p>0?'승리':p<0?'패배':'무승부'} <span class="num">${p>0?'+':''}${p}</span>점${ev.games>1?` <span class="wt-tag">${ev.games}판 합산</span>`:''}${inputTag(ev)}`; }
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
   if(ev.type==='repair'){ const r0 = e.repair || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 수리 · <b class="${r0.grade?'gr-'+r0.grade:''}">${esc(r0.name)}${r0.gradeLabel?` [${r0.gradeLabel}]`:''}</b>`; }
@@ -487,4 +492,4 @@ function statusTags(s, m){
   return t.join(' · ');
 }
 
-export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf };
+export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf };

@@ -22,7 +22,7 @@ function submitGame(){
   if(!App.selected){ toast('공략대원을 먼저 고르세요.'); return; }
   if(!p){ toast('래더 결과 화면의 점수 변동값을 입력하세요.'); $('points').focus(); return; }
   const ev = {raidId:App.raid.raidId, t:Date.now(), type:'game', member:App.selected, points: App.isWin ? p : -p,
-    undone:false};
+    input:'manual', undone:false};
   guard(async()=>{
     await store.addEvent(ev);
     $('points').value = '';
