@@ -79,8 +79,7 @@ function applyAccess(){
 function authMe(s){
   const n = uidName();
   if(n) return n;
-  // 운영자는 기존 공략대원 이름을 골라 그 사람으로 입력할 수도 있음 (이 브라우저에서만)
-  if(isAdmin()) return App.meName && s.members.includes(App.meName) ? App.meName : '';
+  // 운영자는 공략대에 참가하지 않음 (운영자 모드로 모든 공략대원 입력)
   return '';
 }
 

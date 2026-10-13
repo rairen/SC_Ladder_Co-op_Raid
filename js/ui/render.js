@@ -5,7 +5,7 @@
 import { App } from '@app/core/app.js';
 import { PARTY_HP, PENDING_LABEL, PRESETS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
 import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
-import { compute, gearHtml, rosterOf, skillHtml, statusTags, whatHtml, catOf, catTag, LOG_CATS } from '@app/core/logic.js';
+import { compute, gearHtml, rosterOf, skillHtml, statusTags, whatHtml, catOf, catTag, LOG_CATS, dmgByText } from '@app/core/logic.js';
 import { renderEndBtn } from '@app/ui/setup.js';
 import { renderOdds } from '@app/features/actions.js';
 import { renderGearPanel, renderJoin } from '@app/features/gear-roulette.js';
@@ -116,7 +116,7 @@ function render(){
       ${gearHtml(s, m)}
       <footer class="pc-foot">
         <span class="pc-stat"><span class="hint">전적</span><b class="num">${x.w}승 ${x.l}패</b></span>
-        <span class="pc-stat"><span class="hint">데미지</span><b class="num">${fmt(x.dmg)}</b><span class="share" style="width:${Math.round(x.dmg/maxD*48)}px"></span></span>
+        <span class="pc-stat"${x.by && Object.keys(x.by).some(k=>k !== 'ladder' && x.by[k]) ? ` title="${esc(dmgByText(x.by))}"` : ''}><span class="hint">데미지</span><b class="num">${fmt(x.dmg)}</b>${x.by && x.by.roulette ? `<span class="hint num">룰렛 ${fmt(x.by.roulette)}</span>` : ''}<span class="share" style="width:${Math.round(x.dmg/maxD*48)}px"></span></span>
         <span class="pc-stat"><span class="hint">역할</span>${roleCell}</span>
         <span class="pc-stat"><span class="hint">지참금</span>${feeCell}</span>
       </footer>

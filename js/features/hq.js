@@ -105,7 +105,8 @@ export function init(){
     const it = HQ_SUPPORT.find(x=>x.id === item);
     b.disabled = true;
     guard(async()=>{
-      await store.addEvent({raidId: App.raid.raidId, t: Date.now(), type: 'hq', member: who, slot, item, undone: false});
+      /* 본부지원은 공략대 전체 기준: 기록의 주체는 '본부'(member 없음), 누른 사람은 by 로만 남김 */
+      await store.addEvent({raidId: App.raid.raidId, t: Date.now(), type: 'hq', member: '', by: who || '', slot, item, undone: false});
       toast(`본부지원 ${slot}회차 · ${HQ_TYPES[it.type]} · ${it.name}: ${it.desc(it.v)}`);
     });
   });

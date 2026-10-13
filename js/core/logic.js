@@ -108,7 +108,7 @@ function compute(r, evs){
   const n0 = Math.max(n > 0 ? 1 : 0, n - lateJoin.size);
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
   let maxHp = bossHpOf(cfg, n0); const maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
-  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, weaken = 0, hqClaimed = {}, hqLast = null, taunt = null, skillN = 0, lastSkill = null;
+  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, weaken = 0, hqClaimed = {}, hqLast = null, hqDmg = 0, taunt = null, skillN = 0, lastSkill = null;
   const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, fund = {}, spent = {}, pots = {}, carry = {}, money = {};
   const inv = {}, eq = {};   // 인벤토리(얻은 장비 전부)와 슬롯별 착용 장비
   const itemOf = (m, id) => id ? inv[m].find(x=>x.id===id) : null;
@@ -167,7 +167,7 @@ function compute(r, evs){
       needG[m] = G.max;
       gauge[m] = Math.min(needG[m], G.start);
     }
-    return stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0,skills:0,used:0});
+    return stats[m] || (stats[m] = {w:0,l:0,dmg:0,rage:0,best:0,skills:0,used:0,by:{}});
   };
   /* 지참금 내역 한 줄 (잔액 포함) */
   const ledger = (m, t, k, a, note) => { money[m].push({t: t || 0, k, a, b: fee[m] - spent[m], ...(note ? {n: note} : {})}); };
@@ -187,10 +187,11 @@ function compute(r, evs){
   };
 
   /* 보스에게 데미지를 주고, 그만큼 분노를 올림 */
-  const hit = (m, d, entry) => {
+  /* 데미지 유형: ladder 래더 승리 · chain 체인 보너스 · roulette 룰렛 · skill 역할 스킬 */
+  const hit = (m, d, entry, src = 'ladder') => {
     if(d <= 0) return;
-    hp -= d; entry.dHp -= d;
-    if(stats[m]){ stats[m].dmg += d; }
+    hp -= d; entry.dHp -= d; entry.src = src;
+    if(stats[m]){ stats[m].dmg += d; stats[m].by[src] = (stats[m].by[src] || 0) + d; }
     let r = d * rageRate;
     const cut = gear[m] && gear[m].rageCut;
     if(cut){ const r0 = r; r = r * (1 - cut); entry.rageSaved = (entry.rageSaved||0) + (r0 - r); }
@@ -284,7 +285,7 @@ function compute(r, evs){
           if(chain.includes(m)) chain = [m]; else chain.push(m);
           if(chain.length >= 3){
             const b = Math.round(maxHp*S.chain/100);
-            hit(m, b, entry); entry.notes.push('체인 보너스 '+fmt(b)); chain = [];
+            hit(m, b, entry, 'chain'); entry.notes.push('체인 보너스 '+fmt(b)); chain = [];
           }
         }
         addGauge(m, G.win);
@@ -312,8 +313,8 @@ function compute(r, evs){
       entry.item = it;
       st(m);
       switch(it.id){
-        case 'hp2': { hit(m, Math.round(maxHp*0.02), entry); break; }
-        case 'hp7': { hit(m, Math.round(maxHp*0.07), entry); break; }
+        case 'hp2': { hit(m, Math.round(maxHp*0.02), entry, 'roulette'); break; }
+        case 'hp7': { hit(m, Math.round(maxHp*0.07), entry, 'roulette'); break; }
         case 'rage5': { const d = Math.min(Math.round(maxRage*0.05), rage); rage -= d; entry.dRage -= d; break; }
         case 'heal4': { const h = Math.min(Math.round(maxHp*0.04), maxHp-hp); hp += h; entry.dHp += h; break; }
         case 'rage7': { const d = Math.round(maxRage*0.07); rage += d; entry.dRage += d; break; }
@@ -377,7 +378,7 @@ function compute(r, evs){
         case 'fund': { for(const x of here){ fee[x] += v; ledger(x, tt, 'hq', v, it.name); } break; }
         case 'repair': { for(const x of here) for(const sl2 of ['weapon','armor','accessory']){ const e2 = itemOf(x, eq[x][sl2]); if(e2 && !e2.broken && e2.dur !== Infinity) e2.dur = Math.min(e2.maxDur, e2.dur + v); } break; }
         case 'revive': { const rv = here.filter(x => mhp[x] <= 0); for(const x of rv) mhp[x] = Math.min(maxH[x], v); if(rv.length) entry.notes.push('부활: ' + rv.join(', ')); else entry.notes.push('전투불능 공략대원 없음'); break; }
-        case 'bossHp': { const d = Math.min(hp, Math.round(maxHp * v / 100)); hp -= d; entry.dHp -= d; break; }
+        case 'bossHp': { const d = Math.min(hp, Math.round(maxHp * v / 100)); hp -= d; entry.dHp -= d; hqDmg += d; entry.src = 'hq'; break; }
         case 'rageCut': { const d = Math.min(rage, Math.round(maxRage * v / 100 * 10) / 10); rage -= d; entry.dRage -= d; break; }
         case 'weaken': { weaken += Math.round(v); break; }
       }
@@ -445,7 +446,7 @@ function compute(r, evs){
       if(gauge[m] < needG[m]){ entry.ignored = true; entry.notes.push(`게이지 부족 (${gauge[m]}/${needG[m]}) · 반영 안 됨`); continue; }
       gauge[m] = 0; stats[m].used++;
       switch(ROLES[rk].type){
-        case 'nuke': { hit(m, Math.round(maxHp*v/100), entry); entry.notes.push(`보스 HP ${v}% 감소`); break; }
+        case 'nuke': { hit(m, Math.round(maxHp*v/100), entry, 'skill'); entry.notes.push(`보스 HP ${v}% 감소`); break; }
         case 'heal': {
           let healed = 0, revived = [];
           for(const x of Object.keys(mhp)){ const before = mhp[x]; mhp[x] = Math.min(maxH[x], mhp[x] + v); healed += mhp[x]-before; if(before <= 0 && mhp[x] > 0) revived.push(x); }
@@ -463,7 +464,7 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('공략대 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast}, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
@@ -476,6 +477,9 @@ function partyText(ev){
   if(ev.action === 'fee') return `지참금 ${fmt(ev.fee||0)}(으)로 변경`;
   return '공략대 변경';
 }
+/* 데미지 유형 이름과 "래더 50 · 룰렛 6" 같은 내역 문구 */
+const DMG_SRC = {ladder:'래더', chain:'체인', roulette:'룰렛', skill:'스킬'};
+const dmgByText = by => Object.entries(DMG_SRC).filter(([k])=>by && by[k]).map(([k,l])=>`${l} ${fmt(by[k])}`).join(' · ');
 /* 전투 기록 분류: 전투(래더 결과·역할 스킬) / 룰렛 / 아이템(장비·소모품) / 지원금 / 공략대(참가·내보내기 등) */
 const LOG_CATS = {battle:'전투', roulette:'룰렛', hq:'본부지원', item:'아이템', money:'지원금', party:'공략대'};
 function catOf(ev){
@@ -500,7 +504,7 @@ function whatHtml(e){
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
   if(ev.type==='repair'){ const r0 = e.repair || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 수리 · <b class="${r0.grade?'gr-'+r0.grade:''}">${esc(r0.name)}${r0.gradeLabel?` [${r0.gradeLabel}]`:''}</b>`; }
-  if(ev.type==='hq'){ const h = e.hq || {name:'본부지원', type:'supply'}; return `<b>${esc(ev.member)}</b> 본부지원 받기 · <span class="hq-tag ${h.type}">${h.type === 'attack' ? '공격지원' : '보급'}</span> <b>${esc(h.name)}</b>`; }
+  if(ev.type==='hq'){ const h = e.hq || {name:'본부지원', type:'supply'}, by = ev.by || ev.member; return `<b>본부</b> · <span class="hq-tag ${h.type}">${h.type === 'attack' ? '공격지원' : '보급'}</span> <b>${esc(h.name)}</b>${ev.slot ? ` <span class="hint">${ev.slot}회차${by ? ` · ${esc(by)} 수령` : ''}</span>` : ''}`; }
   if(ev.type==='drop'){ const d = e.drop || {}; return `<b>${esc(ev.member)}</b> 장비 ${ev.salvage ? '분해' : '버리기'}${d.name ? ` · <b class="${d.grade?'gr-'+d.grade:''}">${esc(d.name)}${d.gradeLabel?` [${d.gradeLabel}]`:''}</b>` : ''}`; }
   if(ev.type==='buy'){ return `<b>${esc(ev.member)}</b> 소모품 구매 · ${esc((e.pot && e.pot.name) || '소모품')}`; }
   if(ev.type==='use'){ return `<b>${esc(ev.member)}</b> <b class="${ev.item==='hp'?'d-heal':'pot-mp'}">${esc((e.pot && e.pot.name) || '소모품')}</b> 사용`; }
@@ -543,4 +547,4 @@ function statusTags(s, m){
   return t.join(' · ');
 }
 
-export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf, LOG_CATS, catOf, catTag, hqEveryMin, hqSlot, hqPick };
+export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf, LOG_CATS, catOf, catTag, DMG_SRC, dmgByText, hqEveryMin, hqSlot, hqPick };

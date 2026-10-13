@@ -66,5 +66,30 @@ const BW_LOCAL = (()=>{
     if(!st) return {ok:true, rating:0, wins:0, losses:0, season, err:'이번 시즌 래더 기록 없음'};
     return {ok:true, rating:+st.rating||0, wins:+st.wins||0, losses:+st.losses||0, season, err:null};
   }
-  return {find, probe, ladder, get, PORT_KEY};
+  /* 최근 래더 경기 목록 (확인용). 경로는 공개 라이브러리 기준이며 게임 버전에 따라 다를 수 있어 몇 가지를 차례로 시도합니다.
+     /web-api/v1/matchmaker-gameinfo-by-toon/{아이디}/{서버}/{게임모드 1=1:1}/{시즌} */
+  async function matches(port, toon, gw, season){
+    const t = encodeURIComponent(toon), tries = [
+      `/web-api/v1/matchmaker-gameinfo-by-toon/${t}/${gw}/1/${season}?offset=0&limit=5`,
+      `/web-api/v1/matchmaker-gameinfo-by-toon/${t}/${gw}/1/${season}`
+    ];
+    let lastErr = null;
+    for(const p of tries){ try{ return {path: p, data: await get(port, p)}; }catch(e){ lastErr = e; } }
+    throw lastErr || new Error('경기 목록 없음');
+  }
+  /* 경기 상세 (리플레이 주소, 플레이어별 결과·나간 시점 등): /web-api/v1/matchmaker-gameinfo-playerinfo/{경기ID} */
+  async function matchInfo(port, matchId){
+    const p = `/web-api/v1/matchmaker-gameinfo-playerinfo/${encodeURIComponent(matchId)}`;
+    return {path: p, data: await get(port, p)};
+  }
+  /* 응답 안에서 경기 ID 처럼 보이는 값 찾기 (MM-... 형식 또는 match_id 필드) */
+  function findMatchIds(obj, out = []){
+    if(!obj || typeof obj !== 'object' || out.length >= 10) return out;
+    for(const [k, v] of Object.entries(obj)){
+      if(typeof v === 'string' && (/^MM-[0-9A-F-]{8,}$/i.test(v) || /^match_?id$/i.test(k)) && !out.includes(v)) out.push(v);
+      else if(v && typeof v === 'object') findMatchIds(v, out);
+    }
+    return out;
+  }
+  return {find, probe, ladder, get, matches, matchInfo, findMatchIds, PORT_KEY};
 })();

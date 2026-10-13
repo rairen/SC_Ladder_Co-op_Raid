@@ -44,6 +44,10 @@
       <button class="btn" id="look" type="button">조회</button>
     </div>
     <div class="res" id="lookRes" hidden style="margin-top:8px"></div>
+    <div class="row2" style="margin-top:10px"><button class="btn" id="mm" type="button">최근 경기 조회 (리플레이 확인)</button><span class="hint">위 아이디의 최근 래더 경기와 리플레이 정보를 가져옵니다. 결과 전체를 복사해서 운영자에게 보내 주세요.</span></div>
+    <div class="res" id="mmRes" hidden style="margin-top:8px"></div>
+    <pre id="mmRaw" hidden style="max-height:360px;overflow:auto"></pre>
+    <button class="btn" id="mmCopy" type="button" hidden>결과 전체 복사</button>
   </div>
   <pre id="detail"></pre>
 </main>
@@ -79,6 +83,29 @@ $('go').onclick = async ()=>{
   }
   $('go').disabled = false;
 };
+$('mm').onclick = async ()=>{
+  const toon = $('toon').value.trim(), gw = +$('gw').value; if(!toon || !port) return;
+  const o = $('mmRes'), raw = $('mmRaw'); o.hidden = false; o.className = 'res'; o.textContent = '최근 경기 조회 중…'; raw.hidden = true; $('mmCopy').hidden = true;
+  const dump = {toon, gw, steps: []};
+  try{
+    const x = await BW_LOCAL.ladder(port, toon, gw);
+    const season = x.season; dump.season = season;
+    const list = await BW_LOCAL.matches(port, toon, gw, season);
+    dump.steps.push({what:'경기 목록', path:list.path, data:list.data});
+    const ids = BW_LOCAL.findMatchIds(list.data);
+    let info = null;
+    if(ids.length){ info = await BW_LOCAL.matchInfo(port, ids[0]); dump.steps.push({what:'최근 경기 상세', path:info.path, data:info.data}); }
+    const reps = info && info.data && Array.isArray(info.data.replays) ? info.data.replays : [];
+    const players = info && info.data && info.data.players ? Object.values(info.data.players) : [];
+    const left = players.map(p=>{ const gr = p.game_result || {}; const rows = Object.entries(gr).filter(([k,v])=>v && typeof v === 'object' && v.attributes).map(([k,v])=>`${k || '(빈 이름)'}: ${v.result || '-'} · left=${v.attributes.left ?? '-'}`); return rows.join(' / '); }).filter(Boolean);
+    o.className = 'res ' + (ids.length ? 'ok' : 'warn');
+    o.innerHTML = ids.length
+      ? `<b>경기 ${ids.length}개 찾음</b> · 최근 경기 ID <code>${ids[0]}</code><br>리플레이 ${reps.length}개${reps[0] ? ` · <a href="${reps[0].url}" target="_blank" rel="noopener">첫 리플레이 주소</a>` : ''}${left.length ? `<br>결과·나간 시점: ${left[0].replace(/</g,'&lt;')}` : ''}`
+      : '<b>경기 목록은 받았지만 경기 ID를 찾지 못했습니다.</b> 아래 결과를 운영자에게 보내 주세요.';
+  }catch(e){ o.className = 'res bad'; o.textContent = '조회 실패: ' + e.message; dump.error = String(e && e.message || e); }
+  raw.textContent = JSON.stringify(dump, null, 2).slice(0, 60000); raw.hidden = false; $('mmCopy').hidden = false;
+};
+$('mmCopy').onclick = ()=>{ navigator.clipboard.writeText($('mmRaw').textContent).then(()=>{ $('mmCopy').textContent = '복사했습니다'; setTimeout(()=>$('mmCopy').textContent = '결과 전체 복사', 2000); }); };
 $('look').onclick = async ()=>{
   const toon = $('toon').value.trim(); if(!toon || !port) return;
   const o = $('lookRes'); o.hidden = false; o.className = 'res'; o.textContent = '조회 중…';

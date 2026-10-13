@@ -94,6 +94,7 @@ function renderJoinGear(){ const S = settingsOf(App.raid), f = Math.max(0, Numbe
 function doJoin(){
   const authed = useAuth();
   if(authed && !App.authUser){ login(); return; }
+  if(authed && isAdmin()){ toast('운영자 계정은 공략대에 참가할 수 없습니다.'); return; }
   const name = authed ? profileName() : cleanName($('joinName').value);
   if(authed && !name){ openProfile(true); return; }
   if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
@@ -135,7 +136,8 @@ function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
 }
 function renderJoin(s, me){
   const hasRaid = !!App.raid, live = hasRaid && s.status === 'live';
-  $('joinPanel').hidden = !(live && !me) || OVERLAY;
+  // 운영자 계정은 공략대에 참가할 수 없음 (운영자 모드로 입력·관리)
+  $('joinPanel').hidden = !(live && !me) || OVERLAY || (useAuth() && isAdmin());
   if(!$('joinPanel').hidden){ renderJoinGear(); renderLateJoin(); }
   const cap = hasRaid ? Number(App.raid.maxMembers) || 0 : 0, full = !!cap && s.members.length >= cap;
   $('joinBtn').disabled = full;
