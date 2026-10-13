@@ -66,7 +66,12 @@ $('go').onclick = async ()=>{
   const sec = Math.round((Date.now()-t0)/1000);
   const r = $('result'); r.hidden = false;
   const ua = navigator.userAgent.match(/(Edg|Chrome|Firefox|Safari)\/[\d.]+/g);
-  $('detail').textContent = `브라우저: ${(ua||[]).join(' ')}\n걸린 시간: ${sec}초\n열린 포트: ${out.open.join(', ') || '없음'}\n` + (out.results||[]).map(x=>`  ${x.port}: ${x.readable ? '읽기 성공' : x.reason}`).join('\n') + (out.error ? `\n오류: ${out.error}` : '');
+  /* 크롬의 "로컬 네트워크 접근" 권한 상태 (거부되어 있으면 모든 포트가 읽기 차단으로 보임) */
+  let lna = '확인 불가';
+  for(const name of ['local-network-access', 'local-network', 'private-network-access']){
+    try{ const st = await navigator.permissions.query({name}); lna = {granted:'허용', denied:'거부', prompt:'아직 묻지 않음'}[st.state] || st.state; break; }catch(_){}
+  }
+  $('detail').textContent = `브라우저: ${(ua||[]).join(' ')}\n로컬 네트워크 접근 권한: ${lna}\n걸린 시간: ${sec}초\n열린 포트: ${out.open.join(', ') || '없음'}\n` + (out.results||[]).map(x=>`  ${x.port}: ${x.readable ? '읽기 성공' : x.reason}`).join('\n') + (out.error ? `\n오류: ${out.error}` : '');
   if(out.found){
     port = out.found.port;
     r.className = 'res ok';
@@ -74,7 +79,9 @@ $('go').onclick = async ()=>{
     $('status').textContent = '완료'; $('lookup').hidden = false;
   } else if(out.open.length){
     r.className = 'res bad';
-    r.innerHTML = `<b>읽기 차단</b> · 열린 포트는 찾았지만 브라우저 보안에 막혀 래더 정보를 읽지 못했습니다. 이 PC에서는 수집기 프로그램이 필요합니다.`;
+    r.innerHTML = lna === '거부'
+      ? `<b>로컬 네트워크 접근이 거부되어 있습니다</b> · 주소창 왼쪽 아이콘 → 사이트 설정 → <b>로컬 네트워크 접근</b>을 <b>허용</b>으로 바꾸고 새로고침한 뒤 다시 테스트하세요.`
+      : `<b>읽기 차단</b> · 열린 포트는 찾았지만 브라우저 보안(CORS)에 막혀 래더 정보를 읽지 못했습니다. 스타크래프트 쪽에서 웹 페이지의 읽기를 허용하지 않는 것이라 이 PC에서는 브라우저만으로는 수집할 수 없고, 수집기 프로그램(설치 없이 실행)이 필요합니다.`;
     $('status').textContent = '완료';
   } else {
     r.className = 'res warn';
