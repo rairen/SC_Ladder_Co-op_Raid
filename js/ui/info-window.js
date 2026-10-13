@@ -163,6 +163,11 @@ function renderSkillModal(){
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>서로 다른 3명 연속 승리</b></td><td class="r">${num('chain', SD.chain, 0.5, '체인 보너스')}</td><td class="desc">보스 최대 HP의 % 만큼 추가 데미지</td></tr></tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">패배 피해</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>패배 피해 배율</b></td><td class="r">${num('lossDmg', SD.lossDmg, 0.1, '패배 피해 배율')}</td><td class="desc">래더에서 지면 잃은 점수 × 이 값만큼 그 공략대원 체력이 줄어듭니다. 예: −20점 × ${SD.lossDmg} = 체력 −${Math.round(20*SD.lossDmg)}. 0이면 피해 없음</td></tr></tbody></table></div>
+    <h3 class="label" style="margin:4px 0 0">본부지원</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody>
+      <tr><td><b>본부지원 사용</b></td><td class="r">${edit ? `<label class="toggle"><input type="checkbox" data-sp="hq.on"${SD.hq.on ? ' checked' : ''}><span class="tg-knob"></span><span class="tg-tx">${SD.hq.on ? '사용' : '사용 안 함'}</span></label>` : `<b>${SD.hq.on ? '사용' : '사용 안 함'}</b>`}</td><td class="desc">난이도별 간격(라이트 ${PRESETS.light.hqMin}분 · 노멀 ${PRESETS.normal.hqMin}분 · 하드 ${PRESETS.hard.hqMin}분)마다 보급·공격지원 중 하나를 받습니다. <button type="button" class="linkbtn" id="hqListBtn">지원 목록</button></td></tr>
+      <tr><td><b>받을 수 있는 시간</b></td><td class="r">${num('hq.claimMin', SD.hq.claimMin, 1, '본부지원 받을 수 있는 시간')}</td><td class="desc">도착 후 이 시간(분) 안에 받지 않으면 그 회차는 사라집니다</td></tr>
+    </tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
@@ -217,7 +222,8 @@ export function init(){
     }
     if(t.dataset.sp !== undefined || t.dataset.gs !== undefined){
       App.setDraft = App.setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
-      const val = Math.max(0, Number(t.value)||0);
+      const val = t.type === 'checkbox' ? t.checked : Math.max(0, Number(t.value)||0);
+      if(t.type === 'checkbox'){ const tx = t.parentElement.querySelector('.tg-tx'); if(tx) tx.textContent = t.checked ? '사용' : '사용 안 함'; }
       if(t.dataset.sp){
         const [a,b] = t.dataset.sp.split('.');
         if(b) App.setDraft[a][b] = val; else App.setDraft[a] = val;
@@ -257,14 +263,14 @@ export function init(){
     if(sr){
       App.setDraft = App.setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
       const D = JSON.parse(JSON.stringify(settingsOf(null)));
-      if(sr.dataset.setreset === 'gear'){ App.setDraft.gear = D.gear; App.setDraft.gearRoll = D.gearRoll; App.setDraft.gearCost = D.gearCost; App.setDraft.grades = D.grades; } else { App.setDraft.win = D.win; App.setDraft.chain = D.chain; App.setDraft.lossDmg = D.lossDmg; App.setDraft.roulette = D.roulette; }
+      if(sr.dataset.setreset === 'gear'){ App.setDraft.gear = D.gear; App.setDraft.gearRoll = D.gearRoll; App.setDraft.gearCost = D.gearCost; App.setDraft.grades = D.grades; } else { App.setDraft.win = D.win; App.setDraft.chain = D.chain; App.setDraft.lossDmg = D.lossDmg; App.setDraft.hq = D.hq; App.setDraft.roulette = D.roulette; }
       App.setDirty = true; renderSkillModal(); return;
     }
     if(e.target.closest('[data-setsave]') && App.setDraft){
       const g = {}; for(const k in App.setDraft.gear) g[k] = App.setDraft.gear[k].map(x=>({min: Math.max(0, Math.round(Number(x.min)||0)), v: Math.max(0, Number(x.v)||0)}));
       const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(App.setDraft.roulette[it.id])||0);
       if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
-      const settings = {win:{multi:+App.setDraft.win.multi||0, same:+App.setDraft.win.same||0, banned:+App.setDraft.win.banned||0}, chain:+App.setDraft.chain||0, lossDmg: Math.max(0, +App.setDraft.lossDmg||0), gearCost: Math.max(0, Math.round(+App.setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +App.setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: App.setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0), repair: Math.max(0, Math.round(+x.repair||0)), salvage: Math.max(0, Math.round(+x.salvage||0))})), potions: JSON.parse(JSON.stringify(settingsOf(null).potions))};
+      const settings = {win:{multi:+App.setDraft.win.multi||0, same:+App.setDraft.win.same||0, banned:+App.setDraft.win.banned||0}, chain:+App.setDraft.chain||0, lossDmg: Math.max(0, +App.setDraft.lossDmg||0), hq: {on: !!App.setDraft.hq.on, claimMin: Math.max(1, Math.round(+App.setDraft.hq.claimMin||10))}, gearCost: Math.max(0, Math.round(+App.setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +App.setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: App.setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0), repair: Math.max(0, Math.round(+x.repair||0)), salvage: Math.max(0, Math.round(+x.salvage||0))})), potions: JSON.parse(JSON.stringify(settingsOf(null).potions))};
       guard(async()=>{ await saveSrc({settings}); App.setDraft = null; App.setDirty = false; renderSkillModal(); updateSetupPreview(); toast('수치를 적용했습니다. 레이드 시작 시 반영됩니다.'); });
       return;
     }

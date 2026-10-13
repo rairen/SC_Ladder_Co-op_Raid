@@ -740,3 +740,17 @@ html.testmode body::before{content:"테스트 모드 · 이 탭에서만 유지�
 #log[data-f="money"] li[data-cat]:not([data-cat="money"]),
 #log[data-f="party"] li[data-cat]:not([data-cat="party"]){display:none}
 #log.nomatch::after{content:"이 분류의 기록이 없습니다.";display:block;padding:10px 4px;color:var(--muted);font-size:13px}
+/* 본부지원 */
+.hq-box{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);font-size:13px}
+.hq-box.ready{border-color:color-mix(in srgb,var(--accent) 70%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 35%,transparent),0 0 18px color-mix(in srgb,var(--accent) 22%,transparent);animation:hqPulse 1.6s ease-in-out infinite}
+@keyframes hqPulse{50%{box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 55%,transparent),0 0 26px color-mix(in srgb,var(--accent) 35%,transparent)}}
+@media (prefers-reduced-motion:reduce){.hq-box.ready{animation:none}}
+.hq-title{font-family:var(--f-display);font-size:16px;color:var(--accent)}
+.hq-ready{color:var(--fg)}
+.hq-last{flex-basis:100%}
+.hq-list{margin-left:auto;font-size:12px}
+.hq-tag{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:4px;line-height:17px}
+.hq-tag.supply{background:#1f4a35;color:#9ee6bf}
+.hq-tag.attack{background:#5a2323;color:#ffb0a0}
+.cat-hq{color:#ffb070}
+#log[data-f="hq"] li[data-cat]:not([data-cat="hq"]){display:none}

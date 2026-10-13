@@ -3,12 +3,18 @@
    ===================================================================== */
 /* ---------- Game logic ---------- */
 import { App } from '@app/core/app.js';
-import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, ITEM, PARTY_HP, PENDING_LABEL, POTIONS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
+import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, HQ, HQ_SUPPORT, ITEM, PARTY_HP, PENDING_LABEL, POTIONS, PRESETS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
 import { esc, fmt } from '@app/core/state.js';
 
 function cfgOf(r){ return r && r.cfg ? {bonus:0, rageRate:0.5, ...r.cfg} : {hp:220, bonus:20, rage:80, rageRate:0.5, rec:40}; }
 /* 보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1) */
 function bossHpOf(cfg, n){ return n > 0 ? n*cfg.hp + (Number(cfg.bonus)||0)*(n-1) : 0; }
+
+/* 본부지원 간격(분): 레이드에 저장된 값, 없으면 난이도 기본값 */
+function hqEveryMin(r){ const c = (r && r.cfg) || {}; return Math.max(1, Number(c.hqMin) || (PRESETS[r && r.diff] && PRESETS[r.diff].hqMin) || 30); }
+/* 본부지원 회차 정보: k 번째(1부터) 도착 시각과 받을 수 있는 마감 시각 */
+function hqSlot(r, S, k){ const start = (r && r.startedAt) || 0, every = hqEveryMin(r) * 60000, claim = Math.max(1, Number(S.hq.claimMin) || 10) * 60000; const at = start + k * every; return {k, at, until: at + claim, every, claim}; }
+function hqPick(){ const tot = HQ_SUPPORT.reduce((a,x)=>a+x.w,0); const r = new Uint32Array(1); crypto.getRandomValues(r); let v = r[0] / 4294967296 * tot; for(const x of HQ_SUPPORT){ if((v -= x.w) < 0) return x.id; } return HQ_SUPPORT[0].id; }
 
 function bossSkillsOf(r){ return (r && Array.isArray(r.bossSkills) && r.bossSkills.length) ? r.bossSkills : BOSS_SETS.mixed; }
 
@@ -46,6 +52,7 @@ function settingsOf(r){
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
     gearCost: x.gearCost ?? DEFAULT_SETTINGS.gearCost,
     lossDmg: x.lossDmg ?? DEFAULT_SETTINGS.lossDmg,
+    hq: {...DEFAULT_SETTINGS.hq, ...(x.hq || {})},
     gearRoll: {...DEFAULT_SETTINGS.gearRoll, ...(x.gearRoll || {})},
     roulette: {...DEFAULT_SETTINGS.roulette, ...(x.roulette || {})},
     gear: {}
@@ -101,7 +108,7 @@ function compute(r, evs){
   const n0 = Math.max(n > 0 ? 1 : 0, n - lateJoin.size);
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
   let maxHp = bossHpOf(cfg, n0); const maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
-  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, taunt = null, skillN = 0, lastSkill = null;
+  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, weaken = 0, hqClaimed = {}, hqLast = null, taunt = null, skillN = 0, lastSkill = null;
   const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, fund = {}, spent = {}, pots = {}, carry = {}, money = {};
   const inv = {}, eq = {};   // 인벤토리(얻은 장비 전부)와 슬롯별 착용 장비
   const itemOf = (m, id) => id ? inv[m].find(x=>x.id===id) : null;
@@ -267,6 +274,7 @@ function compute(r, evs){
           if(curse[m]){ mult *= curse[m]; entry.notes.push(`저주 ×${curse[m]}`); delete curse[m]; }
           if(barrier > 0){ mult *= 0.5; barrier--; entry.notes.push('보스 보호막 ×0.5'); }
           if(rally > 0){ mult *= 1.5; rally--; entry.notes.push('전투 자극 ×1.5'); }
+          if(weaken > 0){ mult *= 1.3; weaken--; entry.notes.push('약점 분석 ×1.3'); }
           const d = Math.round(p*mult);
           hit(m, d, entry); if(d > s.best) s.best = d;
           if(d > 0){ wear(m, 'weapon', entry); if(gear[m].rageCut) wear(m, 'accessory', entry); }
@@ -345,6 +353,32 @@ function compute(r, evs){
         else { equip(m, it.slot, it); entry.notes.push(`${GEAR_SLOT[it.slot]} ${it.name}${it.gradeLabel?`[${it.gradeLabel}]`:''} 장착 (내구 ${it.dur === Infinity ? '∞' : it.dur+'/'+it.maxDur})`); }
       }
       entry.equip = true;
+    } else if(ev.type === 'hq'){
+      /* 본부지원: 레이드 설정에서 켰을 때, 도착 후 받을 수 있는 시간 안에 받은 첫 기록만 반영 */
+      const it = HQ[ev.item], k = Math.round(Number(ev.slot) || 0);
+      entry.hq = it ? {name: it.name, type: it.type, desc: it.desc(it.v)} : null;
+      if(!S.hq.on || !it || k < 1){ entry.ignored = true; entry.notes.push('본부지원을 쓰지 않는 레이드 · 반영 안 됨'); continue; }
+      const sl = hqSlot(r, S, k), tt = ev.t || 0;
+      if(hqClaimed[k]){ entry.ignored = true; entry.notes.push(`${k}회차 본부지원은 이미 받음 · 반영 안 됨`); continue; }
+      if(tt < sl.at - 60000 || tt > sl.until + 60000){ entry.ignored = true; entry.notes.push(`${k}회차 본부지원을 받을 수 있는 시간이 아님 · 반영 안 됨`); continue; }
+      hqClaimed[k] = it.id; hqLast = {k, id: it.id, t: tt};
+      // 그 시점에 공략대에 있던 공략대원 (나중에 합류한 사람 제외)
+      const here = members.filter(x => !lateJoin.has(x) || (lateJoin.get(x).t || 0) <= tt);
+      here.forEach(st);
+      const alive = here.filter(x => mhp[x] > 0), v = it.v;
+      switch(it.id){
+        case 'heal': { let tot = 0; for(const x of alive){ const b = mhp[x]; mhp[x] = Math.min(maxH[x], mhp[x] + v); tot += mhp[x] - b; } entry.healed = tot; break; }
+        case 'gauge': { for(const x of alive) gauge[x] = Math.min(needG[x], gauge[x] + v); break; }
+        case 'hpPot': { for(const x of here) pots[x].hp = (pots[x].hp || 0) + v; break; }
+        case 'mpPot': { for(const x of here) pots[x].mp = (pots[x].mp || 0) + v; break; }
+        case 'fund': { for(const x of here){ fee[x] += v; ledger(x, tt, 'hq', v, it.name); } break; }
+        case 'repair': { for(const x of here) for(const sl2 of ['weapon','armor','accessory']){ const e2 = itemOf(x, eq[x][sl2]); if(e2 && !e2.broken && e2.dur !== Infinity) e2.dur = Math.min(e2.maxDur, e2.dur + v); } break; }
+        case 'revive': { const rv = here.filter(x => mhp[x] <= 0); for(const x of rv) mhp[x] = Math.min(maxH[x], v); if(rv.length) entry.notes.push('부활: ' + rv.join(', ')); else entry.notes.push('전투불능 공략대원 없음'); break; }
+        case 'bossHp': { const d = Math.min(hp, Math.round(maxHp * v / 100)); hp -= d; entry.dHp -= d; break; }
+        case 'rageCut': { const d = Math.min(rage, Math.round(maxRage * v / 100 * 10) / 10); rage -= d; entry.dRage -= d; break; }
+        case 'weaken': { weaken += Math.round(v); break; }
+      }
+      entry.notes.push(it.desc(v));
     } else if(ev.type === 'repair'){
       /* 내구도 수리: 등급별 비용을 지참금에서 내고 내구도를 최대로. 파괴된 장비도 고침 */
       st(m);
@@ -426,7 +460,7 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('공략대 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast}, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
 }
 
@@ -440,11 +474,12 @@ function partyText(ev){
   return '공략대 변경';
 }
 /* 전투 기록 분류: 전투(래더 결과·역할 스킬) / 룰렛 / 아이템(장비·소모품) / 지원금 / 공략대(참가·내보내기 등) */
-const LOG_CATS = {battle:'전투', roulette:'룰렛', item:'아이템', money:'지원금', party:'공략대'};
+const LOG_CATS = {battle:'전투', roulette:'룰렛', hq:'본부지원', item:'아이템', money:'지원금', party:'공략대'};
 function catOf(ev){
   const t = ev && ev.type;
   if(t === 'game' || t === 'role') return 'battle';
   if(t === 'roulette') return 'roulette';
+  if(t === 'hq') return 'hq';
   if(t === 'gear' || t === 'equip' || t === 'repair' || t === 'drop' || t === 'buy' || t === 'use') return 'item';
   if(t === 'fund') return 'money';
   if(t === 'party') return 'party';
@@ -462,6 +497,7 @@ function whatHtml(e){
   if(ev.type==='gear'){ const g0 = e.gear || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 룰렛 · <b class="${g0.grade?'gr-'+g0.grade:''}">${esc(g0.name)}</b>`; }
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
   if(ev.type==='repair'){ const r0 = e.repair || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 수리 · <b class="${r0.grade?'gr-'+r0.grade:''}">${esc(r0.name)}${r0.gradeLabel?` [${r0.gradeLabel}]`:''}</b>`; }
+  if(ev.type==='hq'){ const h = e.hq || {name:'본부지원', type:'supply'}; return `<b>${esc(ev.member)}</b> 본부지원 받기 · <span class="hq-tag ${h.type}">${h.type === 'attack' ? '공격지원' : '보급'}</span> <b>${esc(h.name)}</b>`; }
   if(ev.type==='drop'){ const d = e.drop || {}; return `<b>${esc(ev.member)}</b> 장비 ${ev.salvage ? '분해' : '버리기'}${d.name ? ` · <b class="${d.grade?'gr-'+d.grade:''}">${esc(d.name)}${d.gradeLabel?` [${d.gradeLabel}]`:''}</b>` : ''}`; }
   if(ev.type==='buy'){ return `<b>${esc(ev.member)}</b> 소모품 구매 · ${esc((e.pot && e.pot.name) || '소모품')}`; }
   if(ev.type==='use'){ return `<b>${esc(ev.member)}</b> <b class="${ev.item==='hp'?'d-heal':'pot-mp'}">${esc((e.pot && e.pot.name) || '소모품')}</b> 사용`; }
@@ -504,4 +540,4 @@ function statusTags(s, m){
   return t.join(' · ');
 }
 
-export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf, LOG_CATS, catOf, catTag };
+export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf, LOG_CATS, catOf, catTag, hqEveryMin, hqSlot, hqPick };

@@ -22,6 +22,7 @@ function formulaHtml(s, m){
   if(s.curse[m]) mul.push([s.curse[m], '저주']);
   if(s.barrier) mul.push([0.5, '보스 보호막']);
   if(s.rally) mul.push([1.5, '전투 자극']);
+  if(s.weaken) mul.push([1.3, '약점 분석']);
   const mulTx = mul.map(([v, why])=>` × <b>${num(v)}</b> <small>${esc(why)}</small>`).join('');
   const rr = s.cfg.rageRate ?? 0.5, cut = g.rageCut || 0;
   const loss = Math.round((Number(s.S.lossDmg) || 0) * 100);

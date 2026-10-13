@@ -13,6 +13,7 @@ import { renderDmgMeter, renderTicker } from '@app/ui/overlay.js';
 import { renderRoleBar } from '@app/features/role-skill.js';
 import { renderMeInfo } from '@app/ui/me-info.js';
 import { renderAdminBtn } from '@app/ui/admin-tools.js';
+import { renderHq } from '@app/features/hq.js';
 import { renderSkillModal } from '@app/ui/info-window.js';
 import { autoOn, renderLadderPanel } from '@app/features/ladder.js';
 import { renderInvite } from '@app/features/party.js';
@@ -165,6 +166,7 @@ function render(){
   renderGearPanel(s, canAct, me);
   renderMeInfo(s, me, canAct);
   renderAdminBtn();
+  renderHq(s);
   renderRoleBar(s, me, canAct);
   if(typeof renderLadderPanel === 'function') renderLadderPanel(s, me);
   if(typeof renderBrowserCollect === 'function') renderBrowserCollect();
@@ -196,6 +198,7 @@ function updateGamePreview(){
     if(s.curse[App.selected]) mult *= s.curse[App.selected];
     if(s.barrier) mult *= 0.5;
     if(s.rally) mult *= 1.5;
+    if(s.weaken) mult *= 1.3;
     mult = Math.round(mult*100)/100;
     const chainNext = !s.chain.includes(App.selected) && s.chain.length===2;
     const dmgP = Math.round(p*mult), rr = Math.round(dmgP * (s.cfg.rageRate ?? 0.5) * (1 - ((s.gear[App.selected]||{}).rageCut||0)) * 10)/10, boomW = s.maxRage && s.rage + rr >= s.maxRage;

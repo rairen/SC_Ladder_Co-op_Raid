@@ -31,8 +31,8 @@ function addSetupMember(){
   App.setupList.push(name); App.setupRoles[name] = $('memberAddRole').value; $('memberAdd').value = ''; $('memberAdd').focus(); renderSetupMembers();
 }
 function setupCfg(){
-  if(App.diff !== 'custom'){ const p = PRESETS[App.diff]; return {hp:p.hp, bonus:p.bonus, rage:p.rage, rageRate:p.rageRate, rec:p.rec}; }
-  return {hp:Math.max(5, +$('cHp').value||220), bonus:Math.max(0, +$('cBonus').value||0), rage:Math.max(5, +$('cRage').value||80), rageRate:Math.max(0, +$('cRageRate').value||0), rec:Math.max(0, +$('cRec').value||0)};
+  if(App.diff !== 'custom'){ const p = PRESETS[App.diff]; return {hp:p.hp, bonus:p.bonus, rage:p.rage, rageRate:p.rageRate, rec:p.rec, hqMin:p.hqMin}; }
+  return {hp:Math.max(5, +$('cHp').value||220), bonus:Math.max(0, +$('cBonus').value||0), rage:Math.max(5, +$('cRage').value||80), rageRate:Math.max(0, +$('cRageRate').value||0), rec:Math.max(0, +$('cRec').value||0), hqMin:30};
 }
 function updateSetupPreview(){
   const ms = parseMembers(), c = setupCfg(), n = ms.length;

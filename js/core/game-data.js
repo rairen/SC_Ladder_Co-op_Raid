@@ -25,13 +25,14 @@
    bonus    : 인원이 한 명 늘 때마다 붙는 추가 HP
    rage     : 분노 최대치 (인원과 무관). 가득 차면 보스 스킬 1회
    rageRate : 보스가 받은 데미지 1당 오르는 분노 (0.5 = 20 데미지에 분노 +10)
-   rec      : 보스 HP 50% 이하일 때 패배하면, 잃은 점수의 rec% 만큼 보스 회복 */
+   rec      : 보스 HP 50% 이하일 때 패배하면, 잃은 점수의 rec% 만큼 보스 회복
+   hqMin    : 본부지원 간격(분). 레이드 설정에서 본부지원을 켰을 때만 씀 */
 import { App } from '@app/core/app.js';
 
 const PRESETS = {
-  light: {label:'라이트', hp:150, bonus:10, rage:100, rageRate:0.5, rec:25, desc:'가볍게'},
-  normal:{label:'노멀',   hp:275, bonus:20, rage:85,  rageRate:0.5, rec:40, desc:'보통'},
-  hard:  {label:'하드',   hp:350, bonus:30, rage:70,  rageRate:0.5, rec:60, desc:'어렵게'},
+  light: {label:'라이트', hp:150, bonus:10, rage:100, rageRate:0.5, rec:25, hqMin:20, desc:'가볍게'},
+  normal:{label:'노멀',   hp:275, bonus:20, rage:85,  rageRate:0.5, rec:40, hqMin:30, desc:'보통'},
+  hard:  {label:'하드',   hp:350, bonus:30, rage:70,  rageRate:0.5, rec:60, hqMin:40, desc:'어렵게'},
   custom:{label:'커스텀', desc:'직접 입력'}
 };
 
@@ -204,6 +205,29 @@ const DEFAULT_GEAR_ROLL = {
 };
 
 
+/* ---------- 본부지원 ----------
+   레이드 설정에서 켜면(기본은 끔), 레이드 시작부터 난이도별 간격(PRESETS 의 hqMin 분)마다 본부지원이 도착합니다.
+   도착 후 claimMin 분 안에 공략대원 누구든 "본부지원 받기"를 누르면 아래 목록에서 비중(w)대로 하나가 정해져 적용됩니다.
+   제때 받지 않으면 그 회차는 사라집니다.
+   type  : supply = 보급 (공략대원에게 도움), attack = 공격지원 (보스 약화)
+   v     : 수치 (항목마다 의미가 다름, desc 참고)
+   효과 자체는 js/core/logic.js 의 hq 부분에서 id 로 처리합니다. */
+const HQ_TYPES = {supply:'보급', attack:'공격지원'};
+const HQ_SUPPORT = [
+  {id:'heal',    type:'supply', w:22, v:20, name:'구급 상자',     desc:v=>`공략대원 전원 체력 +${v}`},
+  {id:'gauge',   type:'supply', w:18, v:20, name:'전술 교본',     desc:v=>`공략대원 전원 스킬 게이지 +${v}`},
+  {id:'hpPot',   type:'supply', w:14, v:1,  name:'힐링 포션 보급', desc:v=>`공략대원 전원 힐링 포션 +${v}개`},
+  {id:'mpPot',   type:'supply', w:10, v:1,  name:'마나 포션 보급', desc:v=>`공략대원 전원 마나 포션 +${v}개`},
+  {id:'fund',    type:'supply', w:12, v:50, name:'군자금',        desc:v=>`공략대원 전원 지참금 +${v}`},
+  {id:'repair',  type:'supply', w:10, v:3,  name:'정비 지원',     desc:v=>`공략대원 전원 착용 장비 내구도 +${v} (부서진 장비 제외)`},
+  {id:'revive',  type:'supply', w:4,  v:30, name:'긴급 구조',     desc:v=>`전투불능 공략대원 전원 체력 ${v}으로 부활`},
+  {id:'bossHp',  type:'attack', w:5,  v:3,  name:'궤도 폭격',     desc:v=>`보스 HP ${v}% 감소`},
+  {id:'rageCut', type:'attack', w:3,  v:30, name:'교란 작전',     desc:v=>`보스 분노 게이지 ${v}% 감소`},
+  {id:'weaken',  type:'attack', w:2,  v:3,  name:'약점 분석',     desc:v=>`공략대의 다음 승리 ${v}번 데미지 ×1.3`}
+];
+const HQ = Object.fromEntries(HQ_SUPPORT.map(x=>[x.id, x]));
+
+
 /* ---------- 레이드 설정 기본값 ----------
    win        : (사용 안 함) 예전 승리 유형 배율. 예전 기록을 다시 계산할 때만 쓰임
    chain      : 서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지 %
@@ -213,7 +237,8 @@ const DEFAULT_SETTINGS = {
   win: {multi:1.5, same:0.5, banned:0},
   chain: 2,
   gearCost: 100,
-  lossDmg: 0.5,  // 패배 피해 배율: 래더에서 진 점수 × 이 값만큼 그 공략대원 체력이 줄어듦 (0.5 = 잃은 점수의 50%, 0 이면 피해 없음)
+  lossDmg: 0.5,
+  hq: {on:false, claimMin:10},   // 본부지원: on = 사용 여부 (기본 사용 안 함), claimMin = 도착 후 받을 수 있는 시간(분)  // 패배 피해 배율: 래더에서 진 점수 × 이 값만큼 그 공략대원 체력이 줄어듦 (0.5 = 잃은 점수의 50%, 0 이면 피해 없음)
   gearRoll: {...DEFAULT_GEAR_ROLL},
   roulette: Object.fromEntries(ITEMS.map(i=>[i.id, i.w])),
   gear: Object.fromEntries(Object.entries(GEAR).map(([k,list])=>[k, list.map(x=>({v:x.v}))])),
@@ -236,4 +261,4 @@ const PARTY_SKILL_PLAN = [
   {tier:'전설', name:'보호막 파괴', desc:'보스 보호막 제거, 분노 게이지 비우기'}
 ];
 
-export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, POTIONS, ROULETTE_PLAN, PARTY_SKILL_PLAN };
+export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, POTIONS, HQ_TYPES, HQ_SUPPORT, HQ, ROULETTE_PLAN, PARTY_SKILL_PLAN };

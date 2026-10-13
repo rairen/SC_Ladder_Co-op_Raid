@@ -13,7 +13,7 @@ import { compute, listOf } from '@app/core/logic.js';
 import { eventsOf } from '@app/core/boot.js';
 import { fmtDate, RES_LABEL } from '@app/ui/history.js';
 
-const KIND = {carry:'이월', deposit:'가져온 지참금', fund:'추가 지원금', gear:'장비 룰렛', repair:'장비 수리', buy:'소모품 구매', salvage:'장비 분해'};
+const KIND = {carry:'이월', deposit:'가져온 지참금', fund:'추가 지원금', gear:'장비 룰렛', repair:'장비 수리', buy:'소모품 구매', salvage:'장비 분해', hq:'본부지원'};
 const tm = t => { if(!t) return ''; const d = new Date(t); return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0'); };
 
 function groupHtml(g){
