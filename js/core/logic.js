@@ -134,7 +134,7 @@ function compute(r, evs){
   const n0 = Math.max(n > 0 ? 1 : 0, n - lateJoin.size);
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
   let maxHp = bossHpOf(cfg, n0); const maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
-  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, weaken = 0, hqClaimed = {}, hqLast = null, hqDmg = 0, taunt = null, skillN = 0, lastSkill = null;
+  let hp = maxHp, rage = 0, status = 'live', chain = [], barrier = 0, rally = 0, weaken = 0, hqClaimed = {}, hqLast = null, hqDmg = 0, guards = [], skillN = 0, lastSkill = null;
   const stats = {}, pending = {}, curse = {}, log = [], mhp = {}, maxH = {}, gauge = {}, needG = {}, gear = {}, role = {}, immUsed = {}, fee = {}, fund = {}, spent = {}, pots = {}, carry = {}, money = {};
   const inv = {}, eq = {};   // 인벤토리(얻은 장비 전부)와 슬롯별 착용 장비
   const itemOf = (m, id) => id ? inv[m].find(x=>x.id===id) : null;
@@ -236,14 +236,20 @@ function compute(r, evs){
     const v = Number(sk.v)||0;
     const live = alive(), target = live.length ? live[Math.floor(roll2 * live.length)] : null;
     const out = {name:sk.name, type:sk.type, target:null};
-    const tauntOn = taunt && mhp[taunt.m] > 0 && (sk.type === 'smash' || sk.type === 'flame');
+    /* 탱커 가드: 가드 중인(살아 있는) 탱커들이 공략대 전체 피해를 나눠 받고, 각자 감소율만큼 줄여서 받음
+       받는 피해 = 스킬 피해 × (맞을 인원 ÷ 가드 탱커 수) × (1 − 감소%)   · 광역은 맞을 인원 = 생존자 수, 단일은 1 */
+    const gs = guards.filter(g=>mhp[g.m] > 0);
+    const tauntOn = gs.length > 0 && (sk.type === 'smash' || sk.type === 'flame');
     switch(sk.type){
       case 'regen': { const h = Math.min(Math.round(maxHp*v/100), maxHp-hp); hp += h; entry.dHp += h; out.text = h ? `보스 HP +${fmt(h)} 회복` : '보스 HP가 가득 차 있어 효과 없음'; break; }
       case 'smash':
       case 'flame': {
         if(tauntOn){
-          const d = Math.round(v * (1 - taunt.v/100));
-          hurt(taunt.m, d, entry); out.target = taunt.m; out.text = `${taunt.m}가 도발로 대신 받음 · 체력 −${d}`; taunt = null;
+          const hitN = sk.type === 'flame' ? live.length : 1, share = v * hitN / gs.length;
+          const parts = gs.map(g=>{ const d = Math.round(share * (1 - (Number(g.v)||0)/100)); hurt(g.m, d, entry); return `${g.m} −${d}`; });
+          out.target = gs.map(g=>g.m).join(', ');
+          out.text = `탱커 가드 ${gs.length}명이 막음 (${fmt(v)} × ${hitN}명 ÷ ${gs.length} × ${100 - (Number(gs[0].v)||0)}%) · ${parts.join(', ')}`;
+          guards = [];
         } else if(sk.type === 'smash'){
           if(target){ hurt(target, v, entry); out.target = target; out.text = `${target} 체력 −${v}`; } else out.text = '대상 없음';
         } else { live.forEach(m=>hurt(m, v, entry)); out.text = `생존자 ${live.length}명 체력 −${v}`; }
@@ -545,7 +551,7 @@ function compute(r, evs){
           entry.healed = healed;
           entry.notes.push(`공략대 체력 +${fmt(healed)}${revived.length ? ' · 부활: '+revived.join(', ') : ''}`); break;
         }
-        case 'taunt': { taunt = {m, v}; entry.notes.push(`다음 보스 공격을 ${m}가 대신 받음 (피해 ${v}% 감소)`); break; }
+        case 'taunt': { guards = guards.filter(g=>g.m !== m).concat([{m, v}]); entry.notes.push(`${m} 가드 · 다음 보스 공격(단일·광역)을 가드 중인 탱커${guards.length > 1 ? ` ${guards.length}명` : ''}가 나눠 막음 (피해 ${v}% 감소)`); break; }
         case 'rally': { rally = Math.max(rally, Math.round(v)); const cleared = Object.keys(curse).length; for(const k in curse) delete curse[k]; entry.notes.push(`다음 승리 ${Math.round(v)}번 데미지 ×1.5${cleared ? ' · 저주 해제' : ''}`); break; }
       }
     }
@@ -556,7 +562,7 @@ function compute(r, evs){
       if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('공략대 전멸 · 레이드 실패'); }
     }
   }
-  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
+  return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, guards, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
           log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, power, sellRate, goneHp: {...savedHp}, endedAt: status !== 'live' ? (endedAt || prevT) : 0, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
 }
 

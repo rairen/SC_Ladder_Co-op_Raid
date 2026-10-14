@@ -141,13 +141,13 @@ const BOSS_BY_RACE = {
    - 힐러 v : 회복량
    - 서포터 v : 데미지 ×1.5 가 적용되는 승리 횟수 */
 const ROLES = {
-  tank:   {label:'탱커',   short:'T', type:'taunt', desc:v=>`다음 보스 공격(단일·광역)을 혼자 받고 피해 ${v}% 감소`},
+  tank:   {label:'탱커',   short:'T', type:'taunt', desc:v=>`가드: 다음 보스 공격(단일·광역)의 공략대 피해를 대신 막고 ${v}% 감소해서 받음 (가드한 탱커가 여럿이면 나눠 받음)`},
   dealer: {label:'딜러',   short:'D', type:'nuke',  desc:v=>`보스 HP ${v}% 즉시 감소`},
   healer: {label:'힐러',   short:'H', type:'heal',  desc:v=>`공략대원 전원 체력 +${v} (전투불능도 부활)`},
   support:{label:'서포터', short:'S', type:'rally', desc:v=>`공략대의 다음 승리 ${v}번 데미지 ×1.5, 저주 해제`}
 };
 const DEFAULT_ROLE_SKILLS = {
-  tank:   {name:'도발',      v:50},
+  tank:   {name:'가드',      v:50},
   dealer: {name:'집중 포화', v:5},
   healer: {name:'치유의 빛', v:30},
   support:{name:'전투 자극', v:2}
@@ -189,10 +189,10 @@ const GEAR_SLOT = {weapon:'무기', armor:'갑옷', accessory:'장신구'};
    repair : 내구도 수리 비용 (지참금에서 빠짐). 내구도를 최대로 되돌리고, 파괴된 장비도 고칩니다.
    salvage: 판매 기준가 (예전 이름 분해). 실제 판매가 = 기준가 × 판매 배율(SELL 참고). 상위 장비(마력 검·판금 갑옷·불사의 목걸이)는 1.5배, 파괴된 장비는 절반 */
 const GEAR_GRADES = [
-  {id:'common', label:'일반', w:50, dur:5,  stat:1.00, repair:50,  salvage:20},
+  {id:'common', label:'일반', w:45, dur:5,  stat:1.00, repair:50,  salvage:20},
   {id:'rare',   label:'고급', w:30, dur:9,  stat:1.10, repair:75,  salvage:30},
-  {id:'epic',   label:'희귀', w:15, dur:15, stat:1.20, repair:100, salvage:50},
-  {id:'legend', label:'전설', w:5,  dur:24, stat:1.30, repair:150, salvage:80}
+  {id:'epic',   label:'희귀', w:15, dur:13, stat:1.20, repair:100, salvage:50},
+  {id:'legend', label:'전설', w:10, dur:17, stat:1.30, repair:150, salvage:80}
 ];
 
 
@@ -201,8 +201,8 @@ const GEAR_GRADES = [
    cost : 1개 가격 (지참금에서 빠짐)
    v    : 효과량. hp = 체력 회복, mp = 역할 스킬 게이지 충전 (전투불능일 때는 못 씀) */
 const POTIONS = {
-  hp: {name:'힐링 포션', cost:50, v:25, unit:'체력'},
-  mp: {name:'마나 포션', cost:50, v:25, unit:'스킬 게이지'}
+  hp: {name:'힐링 포션', cost:50, v:20, unit:'체력'},
+  mp: {name:'마나 포션', cost:50, v:20, unit:'스킬 게이지'}
 };
 
 
