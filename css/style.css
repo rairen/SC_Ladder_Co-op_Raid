@@ -228,8 +228,6 @@ html.overlay .info-btns{display:none}
 .end-confirm span{flex:1 1 240px;min-width:0}
 html.overlay .end-confirm{display:none!important}
 .seg.small{flex-wrap:wrap}
-.calc-in{display:flex;flex-wrap:wrap;gap:10px}
-.calc-in .field input{width:96px;font-size:14px;padding:6px 8px}
 .plan-tag{font-size:11px;font-weight:700;color:#1d1600;background:#ffd34d;padding:1px 6px;border-radius:4px;margin-left:6px;vertical-align:middle}
 .sk-table td.hl{font-weight:700;color:var(--fg)}
 .rolebar .gear{margin-top:6px}

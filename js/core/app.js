@@ -48,7 +48,6 @@ export const App = {
   gDraft: undefined,
   setDraft: undefined,
   setDirty: undefined,
-  calcIn: undefined,
   inviteCode: undefined,
   inviteFor: undefined,
   unsubInvite: undefined,

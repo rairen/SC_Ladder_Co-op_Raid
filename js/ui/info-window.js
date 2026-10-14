@@ -37,29 +37,13 @@ function openSkillModal(mode, tab){
   $('skillClose').focus();
 }
 function closeSkillModal(){ $('skillModal').hidden = true; App.skDirty = false; }
-function clearTime(p, c){
-  const n = Math.max(1, c.n), perHr = 60 / Math.max(1, c.min), wr = c.wr/100;
-  const hpT = bossHpOf(p, n);
-  const g = n * perHr * wr * c.pts * c.mult;
-  const h = g - n * perHr * (1-wr) * c.loss * (p.rec/100);
-  if(g <= 0 || h <= 0) return {hp:hpT, time:null, skills:null};
-  const t = hpT/2/g + hpT/2/h;
-  return {hp:hpT, time:t, skills: g * t * (p.rageRate ?? 0.5) / p.rage};
-}
-function fmtHours(t){ if(t == null) return '클리어 어려움'; const m = Math.round(t*60); return m >= 60 ? `${Math.floor(m/60)}시간 ${m%60}분` : `${m}분`; }
 function renderRulesTab(){
   const box = $('skTabRules'); if(box.hidden) return;
   const G = gaugeOf(SRC()), S = settingsOf(SRC());
-  const rows = ['light','normal','hard'].map(k=>{ const p = PRESETS[k], r = clearTime(p, App.calcIn);
-    return `<tr><td><b>${p.label}</b></td><td class="r num">${p.hp}</td><td class="r num">${p.bonus}</td><td class="r num">${p.rage}</td><td class="r num">${p.rageRate}</td><td class="r num">${p.rec}%</td>
-      <td class="r num hl">${fmt(r.hp)}</td><td class="r hl">${fmtHours(r.time)}</td><td class="r num">${r.skills==null?'-':(Math.round(r.skills*10)/10)+'회'}</td></tr>`; }).join('');
-  const inp = (k,label,step,suffix) => `<div class="field"><label class="label" for="ci_${k}">${label}</label><input type="number" id="ci_${k}" data-ci="${k}" min="0" step="${step}" value="${App.calcIn[k]}">${suffix?`<span class="hint">${suffix}</span>`:''}</div>`;
-  const perHr = 60/Math.max(1,App.calcIn.min), avgG = (G.win*App.calcIn.wr + G.loss*(100-App.calcIn.wr))/100;
-  box.innerHTML = `<p class="sk-note">보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1). 분노는 보스가 받은 데미지 × 상승률만큼 오르고, 최대치에 닿으면 보스 스킬이 나갑니다.</p>
-    <h3 class="label" style="margin:4px 0 0">클리어 시간 계산 가정 (이 화면에서만 쓰는 값)</h3>
-    <div class="calc-in">${inp('n','공략대 인원',1,'')}${inp('min','한 판 시간(분)',1,'')}${inp('wr','승률(%)',5,'')}${inp('pts','평균 승리 점수',1,'')}${inp('loss','평균 패배 점수',1,'')}${inp('mult','승리 보너스 배율',0.1,'')}</div>
-    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>난이도</th><th class="r">1인당 HP</th><th class="r">인원당 추가</th><th class="r">분노 최대</th><th class="r">분노 상승률</th><th class="r">보스 회복률</th><th class="r">보스 총 HP</th><th class="r">예상 클리어</th><th class="r">예상 보스 스킬</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="sk-note">룰렛, 체인 보너스, 역할 스킬 때문에 실제로는 조금 더 빨리 끝납니다. 역할 스킬은 평균 ${Math.round(G.max / Math.max(1,avgG) * 10)/10}판(약 ${fmtHours(G.max/Math.max(1,avgG)/perHr)})에 한 번 쓸 수 있습니다.</p>
+  const rows = ['light','normal','hard'].map(k=>{ const p = PRESETS[k];
+    return `<tr><td><b>${p.label}</b></td><td class="r num">${p.hp}</td><td class="r num">${p.bonus}</td><td class="r num">${p.rage}</td><td class="r num">${p.rageRate}</td><td class="r num">${p.rec}%</td></tr>`; }).join('');
+  box.innerHTML = `<p class="sk-note">보스 HP = 1인당 HP × 인원 + 인원당 추가 HP × (인원 − 1). 분노는 보스가 받은 데미지 × 상승률만큼 오르고, 최대치에 닿으면 보스 스킬이 나갑니다. 레이드는 정해진 시간이 없고, 공략대원이 래더를 할 수 있을 때마다 한 판씩 쌓아 가면 됩니다.</p>
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>난이도</th><th class="r">1인당 HP</th><th class="r">인원당 추가</th><th class="r">분노 최대</th><th class="r">분노 상승률</th><th class="r">보스 회복률</th></tr></thead><tbody>${rows}</tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">기본 규칙 수치</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody>
       <tr><td><b>공략대원 기본 체력</b></td><td class="r num">${PARTY_HP}</td><td class="desc">갑옷 보너스가 더해짐. 0이 되면 전투불능</td></tr>
@@ -199,15 +183,6 @@ export function init(){
     renderSkillModal();
   });
   /* ---------- 규칙·난이도 탭 (구글 시트 내용) ---------- */
-  App.calcIn = {min:20, wr:50, pts:20, loss:20, mult:1.2, n:2};
-  try{ Object.assign(App.calcIn, JSON.parse(localStorage.getItem('sc-boss-raid:calc') || '{}')); }catch(_){}
-  $('skillModal').addEventListener('input', e=>{
-    const k = e.target.dataset && e.target.dataset.ci; if(!k) return;
-    App.calcIn[k] = Math.max(0, Number(e.target.value)||0);
-    try{ localStorage.setItem('sc-boss-raid:calc', JSON.stringify(App.calcIn)); }catch(_){}
-    const id = e.target.id, pos = e.target.selectionStart; renderRulesTab();
-    const el = $(id); if(el){ el.focus(); try{ el.setSelectionRange(pos,pos); }catch(_){} }
-  });
   $('skillModal').addEventListener('input', e=>{
     const t = e.target;
     if(t.dataset.gr !== undefined){
@@ -302,4 +277,4 @@ export function init(){
 }
 
 
-export { SRC, freshSetupSrc, saveSrc, canEditSkills, pct, openSkillModal, closeSkillModal, clearTime, fmtHours, renderRulesTab, renderRouletteTab, renderSkillModal };
+export { SRC, freshSetupSrc, saveSrc, canEditSkills, pct, openSkillModal, closeSkillModal, renderRulesTab, renderRouletteTab, renderSkillModal };
