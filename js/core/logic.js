@@ -354,6 +354,27 @@ function compute(r, evs){
         case 'rage5': { const d = Math.min(Math.round(maxRage*0.05), rage); rage -= d; entry.dRage -= d; break; }
         case 'heal4': { const h = Math.min(Math.round(maxHp*0.04), maxHp-hp); hp += h; entry.dHp += h; break; }
         case 'rage7': { const d = Math.round(maxRage*0.07); rage += d; entry.dRage += d; break; }
+        /* 공략대원 1명에게: 룰렛 돌릴 때 정한 target (살아 있는 공략대원 중 무작위) */
+        case 'pot': case 'gear': case 'gaugeUp': case 'gaugeDn': case 'heal': case 'hurt': {
+          const tg = ev.target && members.includes(ev.target) && !gone.has(ev.target) && mhp[ev.target] !== undefined ? ev.target : m;
+          st(tg); entry.target = tg;
+          const v = Number(it.v) || 0;
+          if(it.id === 'pot'){ const k = POTIONS[ev.pot] ? ev.pot : 'hp'; pots[tg][k] = (pots[tg][k] || 0) + 1; entry.notes.push(`${tg} ${POTIONS[k].name} +1 (보유 ${pots[tg][k]}개)`); }
+          else if(it.id === 'gear'){
+            if(!ev.gear || ev.gear === 'none'){ entry.notes.push('보급품이 비어 있음'); break; }
+            const item = makeItem(S, (ev._id || seedBase) + ':r', ev.gear, ev.grade);
+            inv[tg].push(item);
+            const nm = gearItemName(S, ev.gear, ev.grade), cur = itemOf(tg, eq[tg][item.slot]);
+            entry.gear = {key: ev.gear, name: nm, grade: ev.grade || '', cost: 0};
+            if(itemScore(item) > itemScore(cur)){ equip(tg, item.slot, item); entry.notes.push(`${tg} ${GEAR_SLOT[item.slot]} ${nm} 획득 · 장착`); }
+            else entry.notes.push(`${tg} ${nm} 획득 · 인벤토리에 보관`);
+          }
+          else if(it.id === 'gaugeUp'){ if(mhp[tg] > 0){ const b = gauge[tg]; gauge[tg] = Math.min(needG[tg], gauge[tg] + v); entry.notes.push(`${tg} 스킬 게이지 +${gauge[tg]-b} (${gauge[tg]}/${needG[tg]})`); } else entry.notes.push(`${tg} 전투불능 · 반영 안 됨`); }
+          else if(it.id === 'gaugeDn'){ const b = gauge[tg]; gauge[tg] = Math.max(0, gauge[tg] - v); entry.notes.push(`${tg} 스킬 게이지 −${b-gauge[tg]} (${gauge[tg]}/${needG[tg]})`); }
+          else if(it.id === 'heal'){ if(mhp[tg] > 0){ const b = mhp[tg]; mhp[tg] = Math.min(maxH[tg], mhp[tg] + v); entry.healed = mhp[tg] - b; entry.notes.push(`${tg} 체력 +${mhp[tg]-b} (${mhp[tg]}/${maxH[tg]})`); } else entry.notes.push(`${tg} 전투불능 · 반영 안 됨`); }
+          else if(it.id === 'hurt'){ if(mhp[tg] > 0){ hurt(tg, v, entry); entry.notes.push(`${tg} 체력 −${v}${mhp[tg] <= 0 ? ' · 전투불능' : ''}`); } }
+          break;
+        }
         default:
           if(it.next){
             /* 다음 판 효과는 룰렛을 돌릴 때 무작위로 뽑힌 공략대원(target)에게. 예전 기록은 돌린 사람에게 */
@@ -550,7 +571,8 @@ function whatHtml(e){
   if(ev.type==='party'){ return `<b>${esc(ev.member)}</b> ${partyText(ev)}`; }
   if(ev.type==='role'){ const r0 = e.role || {key:'dealer', name:'역할 스킬'}; return `<b>${esc(ev.member)}</b> <span class="role-tag ${r0.key}">${ROLES[r0.key].short}</span>역할 스킬 <b style="color:#ffd34d">${esc(r0.name)}</b>`; }
   const it = ITEM[ev.item] || ITEM.none;
-  return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${esc(it.name)}${ev.target ? ` → <b>${esc(ev.target)}</b>` : ''}`;
+  const nm = it.id === 'gear' && e.gear ? `장비 ${e.gear.name}` : it.id === 'pot' && POTIONS[ev.pot] ? POTIONS[ev.pot].name + ' 1개' : it.name;
+  return `<b>${esc(ev.member)}</b> 룰렛 · <span class="tier-${it.tier}" style="color:var(--tc)">[${it.tier}]</span> ${it.title ? `<b class="rl-title">${esc(it.title)}</b> · ` : ''}${esc(nm)}${ev.target ? ` → <b>${esc(ev.target)}</b>` : ''}`;
 }
 function skillHtml(e){
   if(!e.skills || !e.skills.length) return '';

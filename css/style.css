@@ -160,6 +160,8 @@ textarea{width:100%;resize:vertical;min-height:84px}
 .reel{height:86px;border-radius:10px;border:1px solid var(--line);background:var(--bg);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;text-align:center;padding:8px;transition:border-color .2s}
 .reel .t{font-family:var(--f-display);font-size:14px;letter-spacing:.08em}
 .reel .n{font-weight:700;font-size:17px}
+.reel .rt{font-size:13px;font-weight:700;color:var(--tc,var(--accent));letter-spacing:.02em}
+.rl-title{color:var(--tc,inherit)}
 .tier-꽝{--tc:var(--muted)} .tier-일반{--tc:var(--fg)} .tier-희귀{--tc:var(--rare)} .tier-전설{--tc:var(--legend)} .tier-함정{--tc:var(--trap)}
 .reel[class*="tier-"]{border-color:var(--tc)} .reel[class*="tier-"] .t{color:var(--tc)}
 .odds{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:10px}

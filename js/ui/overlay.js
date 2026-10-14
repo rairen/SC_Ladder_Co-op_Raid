@@ -21,7 +21,7 @@ function evText(e){
   if(ev.type === 'equip'){ return `${ev.member} ${e.notes.join(' · ')}`; }
   if(ev.type === 'role'){ const r0 = e.role || {name:'역할 스킬'}; return `${ev.member} 역할 스킬 ${r0.name}! ${e.notes.join(' · ')}`; }
   const it = ITEM[ev.item] || ITEM.none;
-  return `${ev.member} 룰렛 [${it.tier}] ${it.name}`;
+  return `${ev.member} 룰렛 [${it.tier}] ${it.title ? it.title + ' · ' : ''}${it.name}${ev.target ? ' → ' + ev.target : ''}`;
 }
 function popAt(gaugeSel, text, cls){
   const m = document.querySelector(gaugeSel); const g = m && m.parentElement; if(!g) return;

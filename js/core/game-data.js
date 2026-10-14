@@ -43,15 +43,23 @@ const PRESETS = {
    next : true 면 살아 있는 공략대원 중 무작위 한 명의 "다음 래더 결과"에 적용, 없으면 즉시 적용
    효과 자체는 js/logic.js 의 roulette 부분에서 id 로 처리합니다. */
 const ITEMS = [
-  {id:'none',    tier:'꽝',   w:30,  name:'꽝'},
-  {id:'hp2',     tier:'일반', w:20,  name:'보스 HP 2% 감소'},
-  {id:'rage5',   tier:'일반', w:20,  name:'분노 게이지 5% 감소'},
-  {id:'double',  tier:'희귀', w:10,  name:'다음 판 데미지 2배', next:true},
-  {id:'shield',  tier:'희귀', w:10,  name:'다음 판 패배 보호 (보스 회복 없음)', next:true},
-  {id:'hp7',     tier:'전설', w:5,   name:'보스 HP 7% 감소'},
-  {id:'heal4',   tier:'함정', w:2.5, name:'보스 HP 4% 회복'},
-  {id:'rage7',   tier:'함정', w:2.5, name:'분노 게이지 7% 증가'}
+  {id:'none',    tier:'꽝',   w:20,  title:'보급 지연',          name:'꽝'},
+  {id:'hp2',     tier:'일반', w:12,  title:'본부 공격지원 타격',   name:'보스 HP 2% 감소'},
+  {id:'rage5',   tier:'일반', w:9,   title:'본부 진정 작전',      name:'분노 게이지 5% 감소'},
+  {id:'pot',     tier:'일반', w:10,  title:'본부 보급품 획득',    name:'소모품 1개 (힐링·마나 포션 중 하나)', who:true},
+  {id:'gaugeUp', tier:'일반', w:8,   title:'본부 전술 지원',      name:'스킬 게이지 +25', who:true, v:25},
+  {id:'heal',    tier:'일반', w:8,   title:'본부 의무 지원',      name:'체력 +30', who:true, v:30},
+  {id:'double',  tier:'희귀', w:8,   title:'본부 전투 자극제',    name:'다음 판 데미지 2배', next:true},
+  {id:'shield',  tier:'희귀', w:6,   title:'본부 방어막 지원',    name:'다음 판 패배 보호 (보스 회복 없음)', next:true},
+  {id:'gear',    tier:'희귀', w:6,   title:'본부 보급품 획득',    name:'장비 1개 (등급 확률은 장비 룰렛과 같음)', who:true},
+  {id:'hp7',     tier:'전설', w:5,   title:'본부 공격지원 집중 타격', name:'보스 HP 7% 감소'},
+  {id:'heal4',   tier:'함정', w:2,   title:'보스 재생',          name:'보스 HP 4% 회복'},
+  {id:'rage7',   tier:'함정', w:2,   title:'보스 격노',          name:'분노 게이지 7% 증가'},
+  {id:'gaugeDn', tier:'함정', w:2,   title:'통신 교란',          name:'스킬 게이지 −20', who:true, v:20},
+  {id:'hurt',    tier:'함정', w:2,   title:'보스 기습',          name:'체력 −20', who:true, v:20}
 ];
+/* title: 룰렛 항목명 (본부 작전 느낌), name: 효과
+   who : 공략대원 1명에게 적용 (룰렛을 돌릴 때 살아 있는 공략대원 중 무작위), next: 그 공략대원의 다음 판에 적용 */
 /* 룰렛에서 뺀 결과. 예전 레이드 기록을 다시 계산할 때만 씀 (스타 플레이 제한 같은 미션류는 지금은 사용 안 함) */
 const LEGACY_ITEMS = [
   {id:'mission', tier:'전설', w:0, name:'도전 미션 (유닛 1종 금지, 승리 시 3배)', next:true, legacy:true}

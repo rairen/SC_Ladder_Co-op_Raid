@@ -81,8 +81,8 @@ function renderRouletteTab(){
   const box = $('skTabRoulette'); if(box.hidden) return;
   const ws = rouletteWeights(settingsOf(SRC())), tot = ws.reduce((a,x)=>a+x.w,0) || 1;
   box.innerHTML = `<p class="sk-note">룰렛은 1회 <b>${fmt(settingsOf(SRC()).rouletteCost)}</b>를 돌린 공략대원의 지참금에서 냅니다. 룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 살아 있는 공략대원 중 무작위로 한 명이 뽑혀 그 공략대원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
-    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
-      ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
+    <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>항목</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
+      ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td><b>${esc(x.it.title || '')}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '무작위 1명 다음 판' : x.it.who ? '무작위 1명 즉시' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>`;
 }
 
@@ -171,7 +171,7 @@ function renderSkillModal(){
     <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
     <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>룰렛 1회 비용</b></td><td class="r">${num('rouletteCost', SD.rouletteCost, 10, '룰렛 비용')}</td><td class="desc">돌린 공략대원의 남은 지참금에서 빠집니다. 0이면 무료</td></tr></tbody></table></div>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
-      ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
+      ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td><b>${esc(x.it.title || '')}</b> · ${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>
     ${edit ? `<div class="sk-actions"><button type="button" class="btn" data-setreset="settings">기본값으로 되돌리기</button><span style="flex:1"></span><button type="button" class="btn primary" data-setsave="1"${App.setDirty?'':' disabled'}>적용</button></div>` : ''}`;
 }

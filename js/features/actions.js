@@ -11,6 +11,7 @@ import { render, updateGamePreview } from '@app/ui/render.js';
 import { openSetup, parseMembers, raceOfName, randomBossName, renderDiffs, setupCfg, updateSetupPreview } from '@app/ui/setup.js';
 import { newInvite } from '@app/features/party.js';
 import { useAuth } from '@app/features/auth.js';
+import { pickGear, pickGrade } from '@app/features/gear-roulette.js';
 import { setHistTab, summarize } from '@app/ui/history.js';
 import { selectRaid } from '@app/core/boot.js';
 
@@ -51,7 +52,7 @@ function pick(){
 function showReel(it, label){
   const reel = $('reel');
   reel.className = 'reel tier-'+it.tier;
-  reel.innerHTML = `<span class="t">${label || it.tier}</span><span class="n">${esc(it.name)}</span>`;
+  reel.innerHTML = `<span class="t">${label || it.tier}</span>${it.title ? `<span class="rt">${esc(it.title)}</span>` : ''}<span class="n">${esc(it.name)}</span>`;
 }
 
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
@@ -112,18 +113,23 @@ export function init(){
     const steps = reduce ? 0 : 16; let i = 0;
     const tick = ()=>{
       if(i < steps){ showReel(ITEMS[Math.floor(Math.random()*ITEMS.length)]); i++; setTimeout(tick, 50 + i*i*1.6); return; }
-      /* 공략대원에게 적용되는 결과(다음 판 효과)는 적용 대상도 무작위: 살아 있는 공략대원 중 하나 */
-      let target = '';
-      if(result.next){
+      /* 공략대원에게 적용되는 결과(다음 판 효과, 보급품, 게이지, 체력)는 적용 대상도 무작위: 살아 있는 공략대원 중 하나 */
+      let target = '', extra = {};
+      if(result.next || result.who){
         const s = App.lastState, pool = s ? s.members.filter(m=>(s.mhp[m] ?? 1) > 0) : [];
-        const list = pool.length ? pool : (s ? s.members : [who]);
+        // 회복·게이지 충전은 받을 수 있는 공략대원 중에서 우선 (가득 찬 사람에게 가서 헛되지 않게)
+        const need = result.id === 'heal' ? pool.filter(m=>s.mhp[m] < s.maxH[m]) : result.id === 'gaugeUp' ? pool.filter(m=>s.gauge[m] < s.needG[m]) : pool;
+        const list = need.length ? need : pool.length ? pool : (s ? s.members : [who]);
         const r = new Uint32Array(1); crypto.getRandomValues(r);
         target = list[r[0] % list.length] || who;
       }
-      showReel(result, result.tier + (target ? ` · ${target} 다음 판` : ''));
+      // 보급품: 장비는 장비 룰렛과 같은 확률(꽝 제외)·등급 확률, 소모품은 힐링·마나 중 하나
+      if(result.id === 'gear'){ let k = 'none', n = 0; while(k === 'none' && n++ < 50) k = pickGear(); if(k !== 'none') extra = {gear: k, grade: pickGrade()}; }
+      if(result.id === 'pot'){ const r2 = new Uint32Array(1); crypto.getRandomValues(r2); extra = {pot: r2[0] % 2 ? 'mp' : 'hp'}; }
+      showReel(result, result.tier + (target ? ` · ${target}${result.next ? ' 다음 판' : ''}` : ''));
       App.spinning = false;
-      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, ...(target ? {target} : {}), ...(cost ? {cost} : {}), undone:false}));
-      if(target) toast(`룰렛 대상: ${target} · ${result.name}`);
+      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, ...(target ? {target} : {}), ...extra, ...(cost ? {cost} : {}), undone:false}));
+      if(target) toast(`룰렛 ${result.title || ''} → ${target} · ${result.name}`);
       render();
     };
     tick();
