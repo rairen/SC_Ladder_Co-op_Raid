@@ -23,15 +23,15 @@ function renderSkillBoard(s){
 
 /* ---------- Raid history ---------- */
 function summarize(r, s, stopped, evs = App.events){
-  const members = {};
-  for(const m of s.members){
+  const members = {}, gone = s.gone || [];
+  for(const m of s.members.concat(gone)){
     const x = s.stats[m] || {w:0,l:0,dmg:0,rage:0,best:0}, ro = rosterOf(r, m), g = s.gear[m];
     const join = evs.find(e=>e.type==='party' && e.action==='join' && e.member===m && !e.undone);
     const itemName = it => it && !it.base ? it.name + (it.gradeLabel ? `[${it.gradeLabel}]` : '') : '';
     members[m] = {w:x.w, l:x.l, dmg:x.dmg, by:{...(x.by || {})}, rage:x.rage, best:x.best||0, taken:x.skills||0, hp:s.mhp[m] ?? PARTY_HP, maxHp:s.maxH[m] ?? PARTY_HP,
       role: s.role[m] || ro.role, fee: s.fee[m] ?? ro.fee, spent: s.spent[m] || 0, ladder: ro.ladder || '', joinedAt: join ? join.t : (r.startedAt||0),
       gear: g ? [itemName(g.weapon), itemName(g.armor), itemName(g.accessory)].filter(Boolean) : [],
-      items: ((s.inv && s.inv[m]) || []).length};
+      items: ((s.inv && s.inv[m]) || []).length, ...(gone.includes(m) ? {gone: true} : {})};
   }
   const left = [...new Set(evs.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
   const tot = Object.values(members).reduce((a,x)=>({w:a.w+x.w, l:a.l+x.l}), {w:0,l:0});
@@ -134,11 +134,11 @@ function histDetail(h, mem){
     <h3 class="label" style="margin:10px 0 4px">보스 스펙</h3>${bossSpecHtml(specOfHist(h))}`;
   const table = `<div class="tbl-wrap"><table class="mini">
     <thead><tr><th>공략대원</th><th>역할</th><th class="r">지참금</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th><th class="r">최종 체력</th><th>장비</th></tr></thead>
-    <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${h.lead===m?'<span class="lead-tag" title="공략대장">대장</span>':''}${h.mvp===m?'<span class="mvp">MVP</span>':''}${x.ladder?`<div class="hint">${esc(x.ladder)}</div>`:''}</td>
+    <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${x.gone?'<span class="gone-tag" title="레이드 도중 공략대를 떠남">떠남</span>':''}${h.lead===m?'<span class="lead-tag" title="공략대장">대장</span>':''}${h.mvp===m?'<span class="mvp">MVP</span>':''}${x.ladder?`<div class="hint">${esc(x.ladder)}</div>`:''}</td>
       <td>${x.role && ROLES[x.role] ? `<span class="role-tag ${x.role}">${ROLES[x.role].short}</span>${ROLES[x.role].label}` : '-'}</td>
       <td class="r num">${x.fee != null ? fmt(x.fee) + (x.spent ? `<div class="hint">사용 ${fmt(x.spent)}</div>` : '') : '-'}</td>
       <td class="r num">${x.w}</td><td class="r num">${x.l}</td><td class="r num">${fmt(x.dmg)}${x.by && Object.keys(x.by).some(k=>k !== 'ladder' && x.by[k]) ? `<div class="hint">${esc(dmgByText(x.by))}</div>` : ''}</td><td class="r num">${fmt(x.best||0)}</td><td class="r num">${fmt(x.rage)}</td>
-      <td class="r num">${x.hp != null ? (x.hp <= 0 ? '<span class="d-hp">전투불능</span>' : `${fmt(x.hp)}${x.maxHp ? '/'+fmt(x.maxHp) : ''}`) : '-'}</td>
+      <td class="r num">${x.hp != null ? (x.gone ? '<span class="hint">떠남</span>' : x.hp <= 0 ? '<span class="d-hp">전투불능</span>' : `${fmt(x.hp)}${x.maxHp ? '/'+fmt(x.maxHp) : ''}`) : '-'}</td>
       <td>${x.gear && x.gear.length ? esc(x.gear.join(', ')) : '<span class="hint">기본</span>'}</td></tr>`).join('') : '<tr><td colspan="10" class="empty">참가한 공략대원이 없었습니다.</td></tr>'}</tbody>
   </table></div>${h.left && h.left.length ? `<p class="hint" style="margin:6px 0 0">중간에 내보낸 공략대원: ${esc(h.left.join(', '))}</p>` : ''}`;
   let logHtml = '<p class="empty">이 레이드는 전투 기록이 저장되지 않았습니다.</p>';

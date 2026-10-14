@@ -821,10 +821,22 @@ html.raid-locked #skillBoard,html.raid-locked .col-mid,html.raid-locked .col-rig
 html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"left"!important}
 .locked-box{margin:12px 0 4px;padding:12px 14px;border-radius:6px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
 .locked-note{margin:0;font-size:14px}
-.dcard.locked{opacity:.92}
+/* 비공개 공략대 카드: 살짝 빗금 + 연하게 */
+.dcard.locked{opacity:.6;background-image:repeating-linear-gradient(135deg,color-mix(in srgb,var(--fg) 7%,transparent) 0 2px,transparent 2px 10px),linear-gradient(180deg,#22293b,#181d2b);transition:opacity .15s}
+.dcard.locked:hover,.dcard.locked:focus-visible,.dcard.locked.on{opacity:.88}
 .dc-lock{margin-right:5px}
-.dc-hp-lock{background:repeating-linear-gradient(135deg,#ffffff14 0 6px,transparent 6px 12px);box-shadow:0 0 0 1px #ffffff22}
+.dc-hp-lock{background:color-mix(in srgb,var(--fg) 10%,transparent);box-shadow:0 0 0 1px #ffffff1a}
 .dc-hp-lock i{display:none}
+/* 참가 팝업 · 공략대 떠나기 */
+.join-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.join-cta .btn{min-width:140px}
+.jc-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.jc-fields[hidden]{display:none}
+.jc-fields .field{margin:0}.jc-fields input{width:100%}
+@media (max-width:480px){.jc-fields{grid-template-columns:minmax(0,1fr)}}
+.leave-btn{margin-left:auto}
+.gone-tag{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:0 5px;border-radius:4px;margin-left:6px}
+#setupModal .modal-box{max-width:min(1100px,100%)}
 
 /* 공략대장 · 공략대 별칭 */
 .lead-tag{font-size:11px;color:#fff;background:linear-gradient(180deg,#6aa8ff,#2f6fd6);padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:700;font-family:var(--f-body,inherit)}

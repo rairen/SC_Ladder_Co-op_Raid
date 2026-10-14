@@ -74,7 +74,8 @@ const listOf = v => Array.isArray(v) ? v.filter(Boolean) : (v && typeof v === 'o
 /* 레이드가 끝날 때 남기는 공략대원 가방 (장비 + 소모품). 다음 레이드에 참가할 때 그대로 가져옴 */
 function bagsOf(s){
   const out = {};
-  for(const m of s.members){
+  // 떠난 공략대원도 떠날 때까지의 장비·지참금·소모품을 가져감
+  for(const m of s.members.concat(s.gone || [])){
     const eqm = (s.eq && s.eq[m]) || {};
     out[m] = {
       items: ((s.inv && s.inv[m]) || []).map(it=>({id: it.id, key: it.key, grade: it.grade || '', dur: it.dur === Infinity ? null : it.dur, eq: eqm[it.slot] === it.id})),
@@ -97,11 +98,15 @@ function seeded(str){
 }
 
 function compute(r, evs){
-  const members = (r && r.members) || [];
+  const cur = (r && r.members) || [];
+  const liveEvs = (evs||[]).filter(e=>!e.undone);
+  /* 공략대를 떠난 공략대원: 떠나기 전 기록은 그대로 두고, 떠나는 순간부터 공략대에서 빠짐 */
+  const leaveEv = new Map();
+  for(const e of liveEvs) if(e.type==='party' && e.action==='leave' && e.member && !cur.includes(e.member)) leaveEv.set(e.member, e);
+  const members = cur.concat([...leaveEv.keys()]), gone = new Set();
   const cfg = cfgOf(r), G = gaugeOf(r), BS = bossSkillsOf(r), RS = roleSkillsOf(r), S = settingsOf(r);
   const n = members.length;
   /* 중간 합류: 첫 래더 결과가 나온 뒤에 참가한 공략대원은 시작 HP 에 넣지 않고, 합류하는 순간 보스 HP 를 늘림 */
-  const liveEvs = (evs||[]).filter(e=>!e.undone);
   const firstGameT = Math.min(Infinity, ...liveEvs.filter(e=>e.type==='game').map(e=>e.t||0));
   const lateJoin = new Map();
   for(const e of liveEvs) if(e.type==='party' && e.action==='join' && (e.t||0) > firstGameT && members.includes(e.member) && !lateJoin.has(e.member)) lateJoin.set(e.member, e);
@@ -251,9 +256,17 @@ function compute(r, evs){
         maxHp += inc; const add = before > 0 ? Math.round(inc * hp / before) : inc; hp += add; entry.dHp += add;
         entry.late = true; entry.notes.push(`중간 합류 · 보스 최대 HP +${fmt(inc)}, 현재 HP +${fmt(add)}`);
       }
+      /* 떠남: 체력·게이지 대상에서 빠지고, 보스 최대 HP 는 1인분 줄어듦 (HP% 는 그대로) */
+      if(leaveEv.get(m) === ev && mhp[m] !== undefined){
+        gone.add(m); delete mhp[m];
+        const inc = (Number(cfg.hp)||0) + (Number(cfg.bonus)||0), before = maxHp;
+        if(members.length - gone.size > 0 && maxHp - inc > 0){ maxHp -= inc; const nh = Math.max(1, Math.round(hp * maxHp / before)); entry.dHp += nh - hp; hp = nh; entry.notes.push(`공략대를 떠남 · 보스 최대 HP −${fmt(inc)}`); }
+        else entry.notes.push('공략대를 떠남');
+      }
       continue;
     }
     if(m && !members.includes(m)){ entry.ignored = true; entry.notes.push('공략대에 없는 공략대원 · 반영 안 됨'); continue; }
+    if(m && gone.has(m)){ entry.ignored = true; entry.notes.push('공략대를 떠난 공략대원 · 반영 안 됨'); continue; }
     const seedBase = `${ev.t}|${m}|${ev.type}|${ev.points ?? ev.item ?? ''}`;
     if(ev.type === 'game'){
       const s = st(m);
@@ -321,7 +334,7 @@ function compute(r, evs){
         default:
           if(it.next){
             /* 다음 판 효과는 룰렛을 돌릴 때 무작위로 뽑힌 공략대원(target)에게. 예전 기록은 돌린 사람에게 */
-            const tg = ev.target && members.includes(ev.target) ? ev.target : m;
+            const tg = ev.target && members.includes(ev.target) && !gone.has(ev.target) ? ev.target : m;
             st(tg); entry.target = tg;
             if(pending[tg] && pending[tg] !== it.id) entry.notes.push(`${tg} ${PENDING_LABEL[pending[tg]]} → 교체`);
             pending[tg] = it.id;
@@ -367,7 +380,7 @@ function compute(r, evs){
       if(tt < sl.at - 60000 || tt > sl.until + 60000){ entry.ignored = true; entry.notes.push(`${k}회차 본부지원을 받을 수 있는 시간이 아님 · 반영 안 됨`); continue; }
       hqClaimed[k] = it.id; hqLast = {k, id: it.id, t: tt};
       // 그 시점에 공략대에 있던 공략대원 (나중에 합류한 사람 제외)
-      const here = members.filter(x => !lateJoin.has(x) || (lateJoin.get(x).t || 0) <= tt);
+      const here = members.filter(x => !gone.has(x) && (!lateJoin.has(x) || (lateJoin.get(x).t || 0) <= tt));
       here.forEach(st);
       const alive = here.filter(x => mhp[x] > 0), v = it.v;
       switch(it.id){
@@ -465,7 +478,7 @@ function compute(r, evs){
     }
   }
   return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
-          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members};
+          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members: cur, gone: [...leaveEv.keys()]};
 }
 
 /* 공략대 구성 기록 문구 */
@@ -473,6 +486,7 @@ function partyText(ev){
   const rl = ROLES[ev.role] ? ROLES[ev.role].label : '';
   if(ev.action === 'join') return `공략대 참가${rl ? ' · '+rl : ''}${ev.fee ? ' · 지참금 '+fmt(ev.fee) : ''}`;
   if(ev.action === 'kick') return '공략대에서 내보냄';
+  if(ev.action === 'leave') return '공략대를 떠남';
   if(ev.action === 'role') return `역할 변경 → ${rl}`;
   if(ev.action === 'fee') return `지참금 ${fmt(ev.fee||0)}(으)로 변경`;
   return '공략대 변경';

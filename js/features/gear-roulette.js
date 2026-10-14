@@ -4,7 +4,7 @@
 /* ---------- 장비 룰렛 ---------- */
 import { App } from '@app/core/app.js';
 import { DEFAULT_GEAR_ROLL, GEAR_GRADES, GEAR_SLOT, PARTY_HP, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, ROOM, TEST, esc, fmt, squadLabel, bindModal, openModal } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, TEST, esc, fmt, squadLabel, squadAlias, bindModal, openModal } from '@app/core/state.js';
 import { guard, rpath, store, toast } from '@app/core/store.js';
 import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, salvageValue, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
@@ -91,28 +91,46 @@ function setMe(name){
   render();
 }
 function renderJoinGear(){ const S = settingsOf(App.raid), f = Math.max(0, Number($('joinFee').value)||0); $('joinGear').textContent = `초기 지참금으로 장비 룰렛 ${S.gearCost > 0 ? Math.floor(f / S.gearCost) + '회' : '무제한'} 가능 (1회 ${fmt(S.gearCost)}) · 소모품·수리에도 씁니다`; }
-function doJoin(){
+/* 페이지의 "참가하기": 참가할 수 있는지 먼저 확인하고 참가 팝업을 엶 (입력은 모두 팝업에서) */
+function openJoin(){
   const authed = useAuth();
   if(authed && !App.authUser){ login(); return; }
   if(authed && isAdmin()){ toast('운영자 계정은 공략대에 참가할 수 없습니다.'); return; }
-  const name = authed ? profileName() : cleanName($('joinName').value);
-  if(authed && !name){ openProfile(true); return; }
-  if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
   if(!App.raid){ toast('아직 열린 레이드가 없습니다. 운영자가 레이드를 열면 참가할 수 있습니다.'); return; }
+  const name = authed ? profileName() : (cleanName($('joinName').value) || App.meName || '');
+  if(authed && !name){ openProfile(true); return; }
+  const cap = Number(App.raid.maxMembers) || 0;
+  if(cap && (App.raid.members || []).length >= cap && !(name && App.raid.members.includes(name))){ toast(`이 공략대는 정원(${cap}명)이 찼습니다.`); return; }
+  $('joinName').value = name; $('joinName').disabled = authed; $('joinNameField').hidden = authed;
+  $('joinCodeField').hidden = !(authed && App.raid.private);
+  if(authed && !$('joinLadder').dataset.touched) $('joinLadder').value = (App.profile && App.profile.ladder) || '';
+  confirmJoin(name, 'dealer', null, doJoin, true);
+}
+/* 참가 팝업의 "참가" 버튼: 팝업에 넣은 값으로 참가. 문제가 있으면 팝업을 연 채로 안내 */
+function doJoin(){
+  const authed = useAuth();
+  if(authed && !App.authUser){ login(); return false; }
+  if(authed && isAdmin()){ toast('운영자 계정은 공략대에 참가할 수 없습니다.'); return false; }
+  if(!App.raid){ toast('아직 열린 레이드가 없습니다.'); return false; }
+  const name = authed ? profileName() : cleanName($('joinName').value);
+  if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return false; }
   const already = App.raid.members.includes(name);
+  const ro1 = App.raid.roster && App.raid.roster[rosterKey(name)];
+  if(!already && ro1 && ro1.left){ toast(`${name} 님은 이 공략대를 떠났기 때문에 다시 참가할 수 없습니다.`); return false; }
   const needCode = authed && !isAdmin() && !!App.raid.private, code = String($('joinCode').value||'').trim().toUpperCase();
-  if(needCode && !code){ toast('비공개 공략대입니다. 운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
+  if(needCode && !code){ toast('비공개 공략대입니다. 운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return false; }
   // 정원 (최대 인원)
   const cap = Number(App.raid.maxMembers) || 0;
-  if(!already && cap && (App.raid.members || []).length >= cap){ toast(`이 공략대는 정원(${cap}명)이 찼습니다.`); return; }
+  if(!already && cap && (App.raid.members || []).length >= cap){ toast(`이 공략대는 정원(${cap}명)이 찼습니다.`); return false; }
   // 한 사람은 공략대 하나에만
   const other = Object.values(App.raids).find(r=>r.raidId !== App.raid.raidId && (r.members||[]).includes(name));
-  if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return; }
-  if(authed){ const ro0 = App.raid.roster && App.raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== App.authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 닉네임을 바꿔 주세요.'); return; } }
+  if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return false; }
+  if(authed){ const ro0 = App.raid.roster && App.raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== App.authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 닉네임을 바꿔 주세요.'); return false; } }
   const fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(App.profile && App.profile.gw)||30) : 30;
-  /* 다시 들어오는 이름은 원래 역할 그대로. 새로 참가하면 역할 확인 팝업을 거침 */
-  if(already) joinNow(name, rosterOf(App.raid, name).role, fee, ladder, gw, already, needCode, code, authed);
-  else confirmJoin(name, $('joinRole').value, fee, role=>joinNow(name, role, fee, ladder, gw, already, needCode, code, authed));
+  /* 다시 들어오는 이름은 원래 역할 그대로 */
+  const role = already ? rosterOf(App.raid, name).role : $('jcRole').value;
+  joinNow(name, role, fee, ladder, gw, already, needCode, code, authed);
+  return true;
 }
 function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
   guard(async()=>{
@@ -132,7 +150,7 @@ function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
     const wasLead = !!(App.raid.lead && (App.raid.members||[]).includes(App.raid.lead.name));
     await store.claimLead(name, authed ? App.authUser.uid : '');
     if(authed && App.profile && ladder !== (App.profile.ladder||'')) await App.db.ref('users/'+App.authUser.uid).update({ladder});
-    $('joinName').value = ''; $('joinLadder').value = ''; $('joinCode').value = ''; delete $('joinLadder').dataset.touched;
+    $('joinName').value = ''; $('joinLadder').value = ''; $('joinCode').value = ''; $('joinFee').value = '0'; delete $('joinLadder').dataset.touched;
     setMe(name);
     const nowLead = App.raid && App.raid.lead && App.raid.lead.name === name;
     toast(already ? `${name} 이름으로 다시 들어왔습니다.` : !wasLead && nowLead ? `${name} 참가 완료 · 첫 참가자라 공략대장이 되었습니다` : `${name} 참가 완료 · 보스가 강해졌습니다`);
@@ -142,23 +160,16 @@ function renderJoin(s, me){
   const hasRaid = !!App.raid, live = hasRaid && s.status === 'live';
   // 운영자 계정은 공략대에 참가할 수 없음 (운영자 모드로 입력·관리)
   $('joinPanel').hidden = !(live && !me) || OVERLAY || (useAuth() && isAdmin());
-  if(!$('joinPanel').hidden){ renderJoinGear(); renderLateJoin(); }
+  if(!$('joinPanel').hidden) renderLateJoin();
   const cap = hasRaid ? Number(App.raid.maxMembers) || 0 : 0, full = !!cap && s.members.length >= cap;
   $('joinBtn').disabled = full;
-  if(full) $('joinGear').textContent = `정원(${cap}명)이 찼습니다. 자리가 나면 참가할 수 있습니다.`;
+  $('joinCap').textContent = full ? `정원(${cap}명)이 찼습니다. 자리가 나면 참가할 수 있습니다.` : cap ? `정원 ${s.members.length} / ${cap}` : '';
   $('meSelect').parentElement.hidden = (!!me && useAuth()) || OVERLAY || !canOperate();
   // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
   const authed = useAuth(), needLogin = authed && !App.authUser;
   $('joinLogin').hidden = !needLogin; $('joinForm').hidden = needLogin; $('joinIntro').hidden = needLogin;
   $('loginBtn2').textContent = TEST ? '테스트 계정으로 시작' : '구글 로그인';
   $('joinExisting').hidden = authed && !isAdmin();
-  $('joinName').disabled = authed;
-  $('joinCodeField').hidden = !(authed && App.authUser && !isAdmin() && hasRaid && App.raid.private);
-  if(authed && App.authUser){
-    $('joinName').value = profileName();
-    if(document.activeElement !== $('joinLadder') && !$('joinLadder').dataset.touched) $('joinLadder').value = (App.profile && App.profile.ladder) || '';
-  }
-  if(!me && App.meName && !$('joinName').value && document.activeElement !== $('joinName')) $('joinName').value = App.meName;
   const others = s.members;
   $('joinExisting').innerHTML = others.length
     ? '이미 참가한 이름이면 눌러서 들어가세요: ' + others.map(m=>`<button type="button" class="linkbtn" data-claim="${esc(m)}">${esc(m)}</button>`).join(' · ')
@@ -171,21 +182,42 @@ function renderJoinRole(){
   const rk = $('jcRole').value, sk = roleSkillsOf(App.raid)[rk];
   $('jcRoleDesc').innerHTML = sk ? `<span class="role-tag ${rk}">${ROLES[rk].short}</span><b>${esc(sk.name)}</b> · ${esc(ROLES[rk].desc(sk.v))}` : '';
 }
-function confirmJoin(name, role, fee, onOk){
-  $('jcRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===role?' selected':''}>${v.label}</option>`).join('');
-  renderJoinRole();
-  $('jcWho').innerHTML = `<b>${esc(name)}</b> 님이 ${esc(squadLabel(App.raid))} "${esc(App.raid.name || '')}" 레이드에 참가합니다.${fee ? ` 초기 지참금 <b>${fmt(fee)}</b>.` : ''}`;
-  const lj = lateJoinInfo();
-  $('jcLate').hidden = !lj.late;
-  if(lj.late) $('jcLate').innerHTML = `<b>중간 합류</b> · 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.`;
-  joinOk = onOk;
+/* self: 내가 참가하는 팝업 (이름·지참금·초대 코드·래더 아이디까지 입력). 아니면 운영자의 공략대원 추가 확인 */
+let joinSelf = false;
+function renderJoinWho(){
+  const nm = joinSelf ? cleanName($('joinName').value) : '';
+  $('jcWho').innerHTML = joinSelf
+    ? `${esc(squadLabel(App.raid))} · ${esc(squadAlias(App.raid))} "${esc(App.raid.name || '')}" 레이드에 ${nm ? `<b>${esc(nm)}</b> 님으로 ` : ''}참가합니다.`
+    : $('jcWho').innerHTML;
+}
+function loadJoinBag(name, onOk){
   $('jcBag').textContent = '';
+  if(!name) return;
   store.loadBag(name).then(b=>{
     if(!b || joinOk !== onOk) return;
     const items = (b.items || []).length, pots = Object.values(b.pots || {}).reduce((a,v)=>a+(Number(v)||0), 0);
     if(b.money || items || pots) $('jcBag').innerHTML = `가지고 들어가는 것: 지참금 <b>${fmt(b.money)}</b> 이월${items ? ` · 장비 ${items}개` : ''}${pots ? ` · 소모품 ${pots}개` : ''}`;
   });
-  openModal('joinModal', '#jcRole');
+}
+function confirmJoin(name, role, fee, onOk, self = false){
+  joinSelf = self;
+  $('jcFields').hidden = !self; $('joinGear').hidden = !self;
+  $('jcOk').textContent = self ? '참가하기' : '이 역할로 참가';
+  if(self){
+    const re = !!name && App.raid.members.includes(name);
+    if(re) role = rosterOf(App.raid, name).role;
+    $('jcRole').disabled = re;
+  } else $('jcRole').disabled = false;
+  $('jcRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===role?' selected':''}>${v.label}</option>`).join('');
+  renderJoinRole();
+  if(self){ renderJoinWho(); renderJoinGear(); }
+  else $('jcWho').innerHTML = `<b>${esc(name)}</b> 님이 ${esc(squadLabel(App.raid))} "${esc(App.raid.name || '')}" 레이드에 참가합니다.${fee ? ` 초기 지참금 <b>${fmt(fee)}</b>.` : ''}`;
+  const lj = lateJoinInfo();
+  $('jcLate').hidden = !lj.late;
+  if(lj.late) $('jcLate').innerHTML = `<b>중간 합류</b> · 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.`;
+  joinOk = onOk;
+  loadJoinBag(name, onOk);
+  openModal('joinModal', self ? (useAuth() ? '#joinFee' : '#joinName') : '#jcRole');
 }
 function addMember(){
   const name = $('addMember').value.trim().slice(0,20);
@@ -267,10 +299,11 @@ export function init(){
     const b = e.target.closest('[data-openlist]'); if(!b) return;
     openSkillModal('info', b.dataset.openlist === 'gear' ? 'gear' : 'roulette');
   });
-  $('joinRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k==='dealer'?' selected':''}>${v.label}</option>`).join('');
-  $('joinFee').addEventListener('input', renderJoinGear);   renderJoinGear();
-  $('joinBtn').onclick = doJoin;
-  $('joinName').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
+  $('joinFee').addEventListener('input', renderJoinGear);
+  $('joinBtn').onclick = openJoin;
+  $('joinName').addEventListener('input', renderJoinWho);
+  $('joinName').addEventListener('change', ()=>{ const nm = cleanName($('joinName').value); loadJoinBag(nm, joinOk); const re = !!nm && App.raid && App.raid.members.includes(nm); $('jcRole').disabled = re; if(re){ $('jcRole').value = rosterOf(App.raid, nm).role; renderJoinRole(); } });
+  ['joinName','joinFee','joinCode','joinLadder'].forEach(id=>$(id).addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); $('jcOk').click(); } }));
   $('joinExisting').addEventListener('click', e=>{ const b = e.target.closest('[data-claim]'); if(b) setMe(b.dataset.claim); });
 
   const addFund = ()=>{
@@ -284,7 +317,12 @@ export function init(){
   $('jcRole').addEventListener('change', renderJoinRole);
   const closeJoin = bindModal('joinModal', 'jcClose', ()=>{ joinOk = null; });
   $('jcNo').onclick = closeJoin;
-  $('jcOk').onclick = ()=>{ const f = joinOk, role = $('jcRole').value; joinOk = null; $('joinModal').hidden = true; if(f) f(role); };
+  $('jcOk').onclick = ()=>{
+    const f = joinOk, role = $('jcRole').value; if(!f) return;
+    // 내 참가: 입력값 확인을 통과해야 팝업을 닫음
+    if(joinSelf){ if(f() !== false){ joinOk = null; $('joinModal').hidden = true; } return; }
+    joinOk = null; $('joinModal').hidden = true; f(role);
+  };
   $('addMemberBtn').onclick = addMember;
   $('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addMember(); } });
 
@@ -295,4 +333,4 @@ export function init(){
 }
 
 
-export { renderGearPanel, renderInventory, pickGrade, pickGear, cleanName, setMe, renderJoinGear, doJoin, renderJoin, addMember, lateJoinInfo, renderLateJoin };
+export { renderGearPanel, renderInventory, pickGrade, pickGear, cleanName, setMe, renderJoinGear, doJoin, openJoin, renderJoin, addMember, lateJoinInfo, renderLateJoin };

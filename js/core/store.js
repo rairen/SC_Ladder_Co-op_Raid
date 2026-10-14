@@ -83,6 +83,16 @@ const store = {
     if(App.local){ App.raid = {...App.raid, lead}; if(!lead) delete App.raid.lead; commit(); return; }
     await App.db.ref(rpath()+'/lead').set(lead);
   },
+  /* 공략대 떠나기 (본인). 떠나기 전 기록과 장비·지참금은 남고, 이후에는 공략대에서 빠짐. 같은 공략대에는 다시 못 들어옴 */
+  async leave(name){
+    await store.partyLog(name, 'leave');
+    await store.setRoster(name, {left: true});
+    if(App.raid && App.raid.lead && App.raid.lead.name === name) await store.passLead(name);
+    if(App.local){ App.raid = {...App.raid, members: App.raid.members.filter(x=>x!==name)}; commit(); return; }
+    await App.db.ref(rpath()+'/members').transaction(list=>{ const arr = Array.isArray(list) ? list : Object.values(list || {}); return arr.filter(x=>x!==name); });
+    const uid = App.authUser && App.authUser.uid;
+    if(uid) await App.db.ref(rpath()+'/uids/'+uid).remove();
+  },
   /* 공략대에서 내보내기 (운영자·공략대장). 그 공략대원의 기록은 계산에서 빠집니다. */
   async kick(name){
     if(App.raid && App.raid.lead && App.raid.lead.name === name) await store.passLead(name);

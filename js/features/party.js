@@ -12,7 +12,6 @@ import { App } from '@app/core/app.js';
 import { $, OVERLAY, ROOM, esc } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
-import { doJoin } from '@app/features/gear-roulette.js';
 import { isAdmin, isLeader, useAuth } from '@app/features/auth.js';
 import { myName } from '@app/core/boot.js';
 
@@ -85,7 +84,6 @@ export function init(){
       guard(async()=>{ await store.partyLog(name, 'kick'); await store.kick(name); toast(useAuth() ? `${name} 님을 내보냈습니다. 같은 코드로 다시 못 들어오게 하려면 새 코드를 만드세요.` : `${name} 님을 공략대에서 내보냈습니다.`); });
     }
   });
-  $('joinCode').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); doJoin(); } });
 }
 
 

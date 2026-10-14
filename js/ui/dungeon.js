@@ -125,7 +125,7 @@ export function init(){
   document.addEventListener('click', e=>{
     const c = e.target.closest('.dcard[data-rid]');
     if(c){ selectRaid(c.dataset.rid); return; }
-    if(e.target.id === 'newSquadBtn'){ openSetup(true); $('setup').scrollIntoView({behavior:'smooth', block:'start'}); }
+    if(e.target.id === 'newSquadBtn'){ openSetup(true); }
   });
 
   /* ---------- 랭킹 ---------- */

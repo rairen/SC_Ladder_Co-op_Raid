@@ -4,7 +4,7 @@
 /* ---------- Setup ---------- */
 import { App } from '@app/core/app.js';
 import { BOSS_BY_RACE, BOSS_SETS, PRESETS, RACES, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, bindModal } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { bossHpOf, compute, rosterOf, bagsOf } from '@app/core/logic.js';
 import { canOperate, useAuth } from '@app/features/auth.js';
@@ -41,8 +41,9 @@ function updateSetupPreview(){
     : `공략대원 없이 열면 스트리머가 각자 <b>참가하기</b>로 들어옵니다. 첫 참가자는 보스 HP <b>${fmt(c.hp)}</b>, 이후 한 명마다 <b>+${fmt(c.hp + c.bonus)}</b>. 분노 최대치는 인원과 상관없이 <b>${fmt(c.rage)}</b>`;
   App.confirmArm = false; $('startRaid').textContent = '레이드 시작'; $('setupHint').textContent = '';
 }
+/* 새 공략대 만들기 팝업 */
 function openSetup(open){
-  $('setup').hidden = !open;
+  $('setupModal').hidden = !open;
   // 로그인 모드에서는 공략대원을 미리 넣지 않고 각자 참가 (비공개 공략대만 초대 코드 필요)
   const invite = typeof useAuth === 'function' && useAuth();
   $('setupMembersBox').hidden = invite; $('setupInviteHint').hidden = !invite;
@@ -53,7 +54,7 @@ function openSetup(open){
     $('bossRace').value = raceOfName($('raidName').value.trim()); renderRaceSkills();
     renderDiffs(); renderSetupMembers();
     $('maxMembers').value = '0'; $('privateRaid').checked = false;
-    $('raidName').focus();
+    setTimeout(()=>$('raidName').focus(), 0);
   }
 }
 
@@ -97,6 +98,7 @@ function randomBossName(){
 export function init(){
 
   App.setupList = []; App.setupRoles = {};
+  bindModal('setupModal', 'setupClose');
   $('memberAddRole').innerHTML = roleOptions('dealer');
   $('addMemberRole').innerHTML = roleOptions('dealer');
   $('setupMembers').addEventListener('change', e=>{ const sl = e.target.closest('[data-srole]'); if(sl) App.setupRoles[sl.dataset.srole] = sl.value; });

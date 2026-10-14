@@ -39,7 +39,7 @@
         "$rid": {
           "uids": {
             "$uid": {
-              ".write": "auth != null && auth.uid === $uid && (root.child('coop/raids').child($rid).child('private').val() !== true || root.child('joins/coop').child($rid).child($uid).val() === root.child('invites/coop').child($rid).child('code').val()) || (auth != null && !newData.exists() && root.child('coop/raids').child($rid).child('lead/uid').val() === auth.uid)"
+              ".write": "auth != null && auth.uid === $uid && (root.child('coop/raids').child($rid).child('private').val() !== true || root.child('joins/coop').child($rid).child($uid).val() === root.child('invites/coop').child($rid).child('code').val()) || (auth != null && !newData.exists() && (auth.uid === $uid || root.child('coop/raids').child($rid).child('lead/uid').val() === auth.uid))"
             }
           },
           "members": {
@@ -74,7 +74,7 @@
         "$rid": {
           "uids": {
             "$uid": {
-              ".write": "auth != null && auth.uid === $uid && (root.child('versus/raids').child($rid).child('private').val() !== true || root.child('joins/versus').child($rid).child($uid).val() === root.child('invites/versus').child($rid).child('code').val()) || (auth != null && !newData.exists() && root.child('versus/raids').child($rid).child('lead/uid').val() === auth.uid)"
+              ".write": "auth != null && auth.uid === $uid && (root.child('versus/raids').child($rid).child('private').val() !== true || root.child('joins/versus').child($rid).child($uid).val() === root.child('invites/versus').child($rid).child('code').val()) || (auth != null && !newData.exists() && (auth.uid === $uid || root.child('versus/raids').child($rid).child('lead/uid').val() === auth.uid))"
             }
           },
           "members": {

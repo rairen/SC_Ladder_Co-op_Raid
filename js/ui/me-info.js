@@ -9,6 +9,10 @@ import { ROLES, PARTY_HP, REVIVE_HP, PENDING_LABEL } from '@app/core/game-data.j
 import { $, OVERLAY, esc, fmt } from '@app/core/state.js';
 import { gearHtml, statusTags } from '@app/core/logic.js';
 import { guard, store, toast } from '@app/core/store.js';
+import { render } from '@app/ui/render.js';
+import { myName } from '@app/core/boot.js';
+import { setMe } from '@app/features/gear-roulette.js';
+import { useAuth } from '@app/features/auth.js';
 
 const num = v => String(Math.round(v*100)/100);
 
@@ -48,6 +52,11 @@ function renderMeInfo(s, me, canAct){
   if(panel.hidden) return;
   $('meTitle').textContent = me ? '내 정보' : '공략대원 정보';
   $('meSub').textContent = me ? '' : '데미지 입력에서 고른 공략대원';
+  /* 공략대 떠나기: 내 정보일 때만. 한 번 누르면 확인으로 바뀌고 한 번 더 누르면 떠남 */
+  const lb = $('leaveBtn');
+  lb.hidden = !(me && m === me && s.status === 'live' && !App.readOnly);
+  lb.textContent = App.leaveArm ? '정말 떠나기' : '공략대 떠나기';
+  lb.classList.toggle('danger', !!App.leaveArm);
   const rk = s.role[m] || 'dealer';
   const h = s.mhp[m] ?? PARTY_HP, mx = s.maxH[m] ?? PARTY_HP, down = h <= 0, low = !down && h <= mx*0.4;
   const g = s.gauge[m] ?? 0, need = s.needG[m] ?? s.G.max, full = g >= need;
@@ -78,6 +87,19 @@ function renderMeInfo(s, me, canAct){
 
 /* 처음 한 번 실행: 화면 이벤트 연결 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
+  App.leaveArm = false;
+  $('leaveBtn').addEventListener('click', ()=>{
+    const s = App.lastState, me = s && myName(s);
+    if(!App.raid || !me) return;
+    if(!App.leaveArm){ App.leaveArm = true; render(); setTimeout(()=>{ if(App.leaveArm){ App.leaveArm = false; render(); } }, 4000); return; }
+    App.leaveArm = false;
+    guard(async()=>{
+      await store.leave(me);
+      App.selected = null;
+      if(!useAuth()) setMe(''); else render();
+      toast(`${me} 님이 공략대를 떠났습니다. 떠나기 전 기록과 장비·지참금은 남습니다.`);
+    });
+  });
   $('mePanel').addEventListener('click', e=>{
     const b = e.target.closest('[data-potbuy],[data-potuse]'); if(!b || b.disabled || !App.raid || !App.selected) return;
     const who = App.selected, buy = !!b.dataset.potbuy, item = buy ? b.dataset.potbuy : b.dataset.potuse;
