@@ -241,7 +241,7 @@ function loadJoinBag(name, onOk){
   $('jcBag').textContent = '';
   if(!name) return;
   store.loadBag(name).then(b=>{
-    if(!b || joinOk !== onOk) return;
+    if(!b || joinOk !== onOk || !$('jcRejoin').hidden) return;   // 다시 참가는 떠날 때 상태를 따로 보여 줌
     const items = (b.items || []).length, pots = Object.values(b.pots || {}).reduce((a,v)=>a+(Number(v)||0), 0);
     if(b.money || items || pots) $('jcBag').innerHTML = `가지고 들어가는 것: 지참금 <b>${fmt(b.money)}</b> 이월${items ? ` · 장비 ${items}개` : ''}${pots ? ` · 소모품 ${pots}개` : ''}`;
   });
