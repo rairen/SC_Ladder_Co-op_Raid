@@ -1,5 +1,5 @@
 /* =====================================================================
-   setup.js — 새 레이드 만들기 화면, 레이드 종료, 보스 이름
+   setup.js — 새 레이드 만들기 화면, 끝난 레이드 정리, 보스 이름
    ===================================================================== */
 /* ---------- Setup ---------- */
 import { App } from '@app/core/app.js';
@@ -64,13 +64,15 @@ function renderEndBtn(s, me){
   const can = !OVERLAY && !App.readOnly && canOperate();
   b.hidden = !can;
   if(!can){ $('endConfirm').hidden = true; return; }
-  if(!App.raid){ b.hidden = true; $('endConfirm').hidden = true; return; }
-  if(s.status === 'live'){ b.textContent = '레이드 종료'; b.classList.add('danger'); }
-  else { b.textContent = '레이드 정리'; b.classList.remove('danger'); }
+  /* 진행 중인 레이드는 중간에 끝낼 수 없음 (공략·전멸할 때까지 남음). 끝난 레이드만 정리해서 기록에 보관 */
+  if(!App.raid || s.status === 'live'){ b.hidden = true; $('endConfirm').hidden = true; return; }
+  b.textContent = '레이드 정리'; b.classList.remove('danger');
 }
 function finishAndReset(){
   if(!App.raid){ openSetup(true); return; }
-  const st = compute(App.raid, App.events), sum = summarize(App.raid, st, true);
+  const st = compute(App.raid, App.events);
+  if(st.status === 'live'){ toast('진행 중인 레이드는 공략하거나 전멸할 때까지 끝낼 수 없습니다.'); return; }
+  const sum = summarize(App.raid, st, true);
   guard(async()=>{
     await store.reset(sum, bagsOf(st));
     $('endConfirm').hidden = true;
@@ -108,10 +110,7 @@ export function init(){
   $('endRaidBtn').onclick = ()=>{
     if(!App.raid){ openSetup(true); return; }
     const s = App.lastState;
-    if(s && s.status === 'live' && App.events.some(e=>!e.undone)){
-      $('endConfirmText').textContent = `${squadLabel(App.raid)} "${App.raid.name}" 레이드를 중단할까요? 지금까지의 기록은 레이드 기록에 "중단"으로 보관됩니다.`;
-      $('endConfirm').hidden = false; $('endNo').focus(); return;
-    }
+    if(!s || s.status === 'live') return;
     finishAndReset();
   };
   $('endYes').onclick = finishAndReset;

@@ -4,9 +4,9 @@
 /* ---------- Skill board (overlay) ---------- */
 import { App } from '@app/core/app.js';
 import { PARTY_HP, PRESETS, RACES, ROLES, SKILL_TYPES } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel, leadName } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, leadName, bindModal, openModal } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
-import { bossSkillsOf, cfgOf, compute, dmgByText, inputOf, rosterOf, skillHtml, whatHtml, catOf, catTag } from '@app/core/logic.js';
+import { bossSkillsOf, cfgOf, compute, dmgByText, inputOf, rosterOf, skillHtml, whatHtml, catOf, catTag, LOG_CATS } from '@app/core/logic.js';
 import { render, topDealer } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { pct } from '@app/ui/info-window.js';
@@ -36,7 +36,7 @@ function summarize(r, s, stopped, evs = App.events){
   const left = [...new Set(evs.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
   const tot = Object.values(members).reduce((a,x)=>({w:a.w+x.w, l:a.l+x.l}), {w:0,l:0});
   const lastT = evs.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
-  return {raidId:r.raidId, squad:r.squad||0, squadLabel: squadLabel(r), lead: leadName(r), name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
+  return {raidId:r.raidId, squad:r.squad||0, squadLabel: squadLabel(r), lead: leadName(r), name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:s.endedAt || lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
     boss: bossSpecOf(r, s), hqDmg: (s.hq && s.hq.dmg) || 0, private: !!r.private, maxMembers: Number(r.maxMembers) || 0,
@@ -106,15 +106,13 @@ function renderHistory(){
     <div class="rec"><div class="k">레이드 1회 최고 딜</div><div class="v">${bestRaid && bestRaid.v ? esc(bestRaid.m) : '-'}</div><div class="w">${bestRaid && bestRaid.v ? fmt(bestRaid.v)+' · '+esc(bestRaid.boss) : '기록 없음'}</div></div>`;
 
   $('histView').innerHTML = done.length ? `<div class="tbl-wrap"><table>
-    <thead><tr><th>날짜</th><th>보스</th><th>난이도</th><th class="r">인원</th><th>결과</th><th class="r">전적</th><th class="r">남은 HP</th><th>MVP</th></tr></thead>
+    <thead><tr><th>시작</th><th>종료</th><th>보스</th><th>난이도</th><th class="r">인원</th><th>결과</th><th class="r">전적</th><th class="r">남은 HP</th><th>MVP</th></tr></thead>
     <tbody>${done.map(h=>{
-      const open = App.openHist === h.raidId;
-      const mem = Object.entries(h.members||{}).sort((a,b)=>b[1].dmg-a[1].dmg);
-      const detail = open ? `<tr class="hdetail"><td colspan="8">${histDetail(h, mem)}</td></tr>` : '';
-      return `<tr class="hrow" data-h="${esc(h.raidId)}" tabindex="0" aria-expanded="${open}"><td class="num">${fmtDate(h.endedAt||h.startedAt)}</td><td>${esc(h.name)}</td><td>${esc((PRESETS[h.diff]||PRESETS.custom).label)}</td>
+      const mem = Object.entries(h.members||{});
+      return `<tr class="hrow" data-h="${esc(h.raidId)}" tabindex="0" aria-haspopup="dialog" title="눌러서 이 레이드 기록 보기"><td class="num">${fmtDate(h.startedAt)}</td><td class="num">${fmtDate(h.endedAt)}</td><td>${esc(h.name)}</td><td>${esc((PRESETS[h.diff]||PRESETS.custom).label)}</td>
         <td class="r num">${mem.length}</td><td><span class="res ${h.status}">${RES_LABEL[h.status]||h.status}</span></td>
-        <td class="r num">${h.wins}승 ${h.losses}패</td><td class="r num">${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</td><td>${h.mvp ? esc(h.mvp) : '-'}</td></tr>${detail}`;
-    }).join('')}</tbody></table></div><p class="hint" style="margin:8px 0 0">줄을 누르면 공략대원별 기록이 펼쳐집니다.</p>`
+        <td class="r num">${h.wins}승 ${h.losses}패</td><td class="r num">${fmt(h.hpLeft)} / ${fmt(h.maxHp)}</td><td>${h.mvp ? esc(h.mvp) : '-'}</td></tr>`;
+    }).join('')}</tbody></table></div><p class="hint" style="margin:8px 0 0">줄을 누르면 그 레이드의 공략대원 기록과 전투 기록이 팝업으로 열립니다.</p>`
     : `<p class="empty">레이드가 성공·실패로 끝나거나 새 레이드를 시작하면 여기에 기록이 남습니다.</p>`;
 
   $('fameView').innerHTML = names.length ? `<div class="tbl-wrap"><table>
@@ -143,8 +141,9 @@ function histDetail(h, mem){
   </table></div>${h.left && h.left.length ? `<p class="hint" style="margin:6px 0 0">중간에 내보낸 공략대원: ${esc(h.left.join(', '))}</p>` : ''}`;
   let logHtml = '<p class="empty">이 레이드는 전투 기록이 저장되지 않았습니다.</p>';
   if(Array.isArray(h.events) && h.events.length){
+    const rows = [];
     const st = compute({members:Object.keys(h.members||{}), cfg:h.cfg, bossSkills:h.bossSkills, roleSkills:h.roleSkills, gauge:h.gauge, roster:h.roster, settings:h.settings}, h.events.map((e,i)=>({...e, _id: e.id || 'h'+i})));
-    logHtml = '<ul class="log compact">' + st.log.slice().reverse().map(e=>{
+    st.log.slice().reverse().forEach(e=>{
       const ev = e.ev, d = new Date(ev.t), tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
       const what = whatHtml(e);
       const ds = [];
@@ -154,10 +153,26 @@ function histDetail(h, mem){
       if(e.dRage < 0) ds.push(`<span class="d-heal">분노 ${fmt(e.dRage)}</span>`);
       const pd = (e.party||[]).reduce((a,x)=>a+x.d,0); if(pd) ds.push(`<span class="d-party">공략대 −${fmt(pd)}</span>`);
       if(e.healed) ds.push(`<span class="d-heal">공략대 +${fmt(e.healed)}</span>`);
-      return `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}" data-cat="${catOf(ev)}"><span class="time">${tm}${catTag(ev)}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`;
-    }).join('') + '</ul>';
+      rows.push({cat: catOf(ev), html: `<li class="${e.undone?'undone':''} ${e.ignored?'ignored':''}" data-cat="${catOf(ev)}"><span class="time">${tm}${catTag(ev)}</span><div class="what">${what}${e.notes.length?`<div class="fx">${esc(e.notes.join(' · '))}</div>`:''}${skillHtml(e)}</div><div class="delta">${ds.join('<br>') || '<span style="color:var(--muted)">-</span>'}</div></li>`});
+    });
+    /* 메인 화면처럼 2단: 왼쪽 데미지 관련 전투 기록, 오른쪽 그 외 (분류 탭) */
+    const bat = rows.filter(x=>x.cat === 'battle'), etc = rows.filter(x=>x.cat !== 'battle'), n = {all: etc.length};
+    etc.forEach(x=>{ n[x.cat] = (n[x.cat]||0) + 1; });
+    const tabs = [['all','전체'], ...Object.entries(LOG_CATS).filter(([k])=>k !== 'battle')].map(([k,l])=>`<button type="button" data-hlogf="${k}" aria-pressed="${k==='all'}"${k !== 'all' && !n[k] ? ' class="empty-cat"' : ''}>${l}${n[k] ? ` <span class="num">${n[k]}</span>` : ''}</button>`).join('');
+    logHtml = `<div class="log-cols hd-logs">
+      <div class="log-col"><div class="panel-head"><h3>전투 기록</h3></div><ul class="log compact">${bat.length ? bat.map(x=>x.html).join('') : '<li style="display:block" class="empty">데미지 관련 기록이 없습니다.</li>'}</ul></div>
+      <div class="log-col"><div class="panel-head"><h3>기타 기록</h3><div class="seg small log-filter" role="tablist" aria-label="기록 분류">${tabs}</div></div><ul class="log compact hlog-etc" data-f="all">${etc.length ? etc.map(x=>x.html).join('') : '<li style="display:block" class="empty">룰렛 · 본부지원 · 아이템 · 지원금 · 공략대 기록이 없습니다.</li>'}</ul></div>
+    </div>`;
   }
-  return meta + `<div class="hd-grid"><div><h3>공략대원 기록</h3>${table}</div><div><h3>전투 기록</h3>${logHtml}</div></div>`;
+  return meta + `<h3 class="hd-h">공략대원 기록</h3>${table}${logHtml}`;
+}
+/* 레이드 기록 팝업 */
+function openHistModal(rid){
+  const h = App.history.find(x=>x.raidId === rid); if(!h || !canSeeHist(h)) return;
+  const mem = Object.entries(h.members||{}).sort((a,b)=>b[1].dmg-a[1].dmg);
+  $('histModalTitle').textContent = `${h.lead ? h.lead+' 공략대 · ' : ''}${h.squadLabel || ''} "${h.name}" · ${RES_LABEL[h.status] || h.status}`;
+  $('histBody').innerHTML = histDetail(h, mem);
+  openModal('histModal', '#histClose');
 }
 function setHistTab(t){ App.histTab = t; $('tabHist').setAttribute('aria-pressed', t==='hist'); $('tabFame').setAttribute('aria-pressed', t==='fame'); renderHistory(); }
 
@@ -167,9 +182,15 @@ export function init(){
   App.archiveTimer = null;
   $('tabHist').onclick = ()=>setHistTab('hist');
   $('tabFame').onclick = ()=>setHistTab('fame');
-  $('histView').addEventListener('click', e=>{ const r = e.target.closest('tr.hrow'); if(!r) return; App.openHist = App.openHist === r.dataset.h ? null : r.dataset.h; renderHistory(); });
-  $('histView').addEventListener('keydown', e=>{ if(e.key!=='Enter') return; const r = e.target.closest('tr.hrow'); if(r){ App.openHist = App.openHist === r.dataset.h ? null : r.dataset.h; renderHistory(); } });
+  $('histView').addEventListener('click', e=>{ const r = e.target.closest('tr.hrow'); if(r) openHistModal(r.dataset.h); });
+  $('histView').addEventListener('keydown', e=>{ if(e.key!=='Enter') return; const r = e.target.closest('tr.hrow'); if(r) openHistModal(r.dataset.h); });
+  bindModal('histModal', 'histClose');
+  $('histBody').addEventListener('click', e=>{
+    const b = e.target.closest('[data-hlogf]'); if(!b) return;
+    const ul = $('histBody').querySelector('.hlog-etc'); if(ul) ul.dataset.f = b.dataset.hlogf;
+    b.parentElement.querySelectorAll('[data-hlogf]').forEach(x=>x.setAttribute('aria-pressed', x === b));
+  });
 }
 
 
-export { bossSpecOf, specOfHist, bossSpecHtml, renderSkillBoard, summarize, autoArchive, fmtDate, fame, renderHistory, histDetail, setHistTab, RES_LABEL };
+export { bossSpecOf, specOfHist, bossSpecHtml, renderSkillBoard, summarize, autoArchive, fmtDate, fame, renderHistory, histDetail, openHistModal, setHistTab, RES_LABEL };

@@ -244,11 +244,14 @@ function compute(r, evs){
   }
 
   const sorted = evs.slice().sort((a,b)=> (a.t-b.t) || String(a._id).localeCompare(String(b._id)));
+  /* 레이드가 끝난 시각: 성공·실패가 정해진 기록의 시각 */
+  let endedAt = 0, prevT = 0;
   for(const ev of sorted){
     const entry = {ev, notes:[], dHp:0, dRage:0, skills:[], party:[]};
     log.push(entry);
     if(ev.undone){ entry.undone = true; continue; }
-    if(status !== 'live'){ entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
+    if(status !== 'live'){ if(!endedAt) endedAt = prevT; entry.ignored = true; entry.notes.push('레이드 종료 후 기록 · 반영 안 됨'); continue; }
+    prevT = ev.t || 0;
     const enraged = hp <= maxHp*0.5;
     const m = ev.member;
     if(ev.type === 'party'){
@@ -489,7 +492,7 @@ function compute(r, evs){
     }
   }
   return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
-          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
+          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, goneHp: {...savedHp}, endedAt: status !== 'live' ? (endedAt || prevT) : 0, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
 }
 
 /* 공략대 구성 기록 문구 */

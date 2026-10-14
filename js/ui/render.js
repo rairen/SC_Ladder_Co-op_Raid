@@ -177,7 +177,8 @@ function render(){
   document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
   $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || App.readOnly || s.status!=='live' || !!me || !canOperate();
   $('spinFor').textContent = App.selected ? `${App.selected} 룰렛으로 기록 · 다음 판 효과는 공략대원 중 무작위로 적용` : '';
-  $('subline').textContent = hasRaid ? `시작 ${new Date(App.raid.startedAt).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : '래더 점수로 보스를 잡는 협동 레이드';
+  const dt = t => new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  $('subline').textContent = hasRaid ? `시작 ${dt(App.raid.startedAt)}${s.endedAt ? ` · 종료 ${dt(s.endedAt)}` : ''}` : '래더 점수로 보스를 잡는 협동 레이드';
   updateGamePreview();
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
   renderTicker(s);

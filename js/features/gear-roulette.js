@@ -116,6 +116,7 @@ function doJoin(){
   const already = App.raid.members.includes(name);
   // 떠났다가 다시 참가: 떠날 때 상태(남은 지참금·장비·역할) 그대로, 지참금은 새로 가져올 수 없음
   const ro1 = App.raid.roster && App.raid.roster[rosterKey(name)], rejoin = !already && !!(ro1 && ro1.left);
+  if(rejoin && !$('jcAgree').checked){ toast('떠날 때 상태를 확인하고 체크해야 다시 참가할 수 있습니다.'); return false; }
   const needCode = authed && !isAdmin() && !!App.raid.private, code = String($('joinCode').value||'').trim().toUpperCase();
   if(needCode && !code){ toast('비공개 공략대입니다. 운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return false; }
   // 정원 (최대 인원)
@@ -193,8 +194,31 @@ function applyJoinLock(name, role){
   $('joinFee').title = lock ? '다시 참가할 때는 지참금을 새로 가져올 수 없습니다. 남은 지참금을 이어서 씁니다.' : '';
   $('joinGear').textContent = lock ? (rejoin ? '다시 참가: 떠날 때의 역할 · 남은 지참금 · 장비 · 체력을 그대로 이어서 씁니다. 지참금은 새로 가져올 수 없습니다.' : '이미 참가한 이름입니다. 원래 역할과 지참금 그대로 들어갑니다.') : $('joinGear').textContent;
   $('jcOk').textContent = rejoin ? '다시 참가하기' : '참가하기';
+  renderRejoinInfo(rejoin ? name : '');
   return role;
 }
+/* 다시 참가 안내: 떠날 때 상태를 보여 주고, 확인(체크)해야 참가 버튼이 켜짐 */
+function renderRejoinInfo(name){
+  const box = $('jcRejoin'), s = App.lastState;
+  box.hidden = !name; $('jcAgree').checked = false;
+  $('jcOk').disabled = !!name;
+  if(!name || !s) return;
+  $('jcBag').textContent = ''; $('jcLate').hidden = true;   // 다시 참가는 중간 합류 안내 대신 이 안내
+  const hp = (s.goneHp && s.goneHp[name]) ?? 0, mx = (s.maxH && s.maxH[name]) || PARTY_HP;
+  const g = (s.gauge && s.gauge[name]) || 0, need = (s.needG && s.needG[name]) || (s.G && s.G.max) || 100;
+  const left = ((s.fee && s.fee[name]) || 0) - ((s.spent && s.spent[name]) || 0), fund = (s.fund && s.fund[name]) || 0;
+  const gr = s.gear && s.gear[name], nm = it => it && !it.base ? `${it.name}${it.gradeLabel ? `[${it.gradeLabel}]` : ''}` : '기본';
+  const pots = (s.pots && s.pots[name]) || {}, inv = ((s.inv && s.inv[name]) || []).length, st = s.stats && s.stats[name];
+  const potTx = Object.entries(S_POT()).map(([k,p])=>`${p.name} ${pots[k]||0}개`).join(' · ');
+  box.querySelector('.rj-list').innerHTML = `
+    <li><span>체력</span><b class="num${hp <= 0 ? ' d-hp' : ''}">${hp <= 0 ? '전투불능' : `${fmt(hp)} / ${fmt(mx)}`}</b></li>
+    <li><span>스킬 게이지</span><b class="num">${fmt(g)} / ${fmt(need)}</b></li>
+    <li><span>남은 지참금</span><b class="num">${fmt(left)}</b>${fund ? `<small>추가 지원금 ${fmt(fund)} 포함</small>` : ''}</li>
+    <li><span>착용 장비</span><b>${gr ? esc([nm(gr.weapon), nm(gr.armor), nm(gr.accessory)].join(' · ')) : '기본'}</b><small>가방 ${inv}개</small></li>
+    <li><span>소모품</span><b>${esc(potTx)}</b></li>
+    ${st ? `<li><span>지금까지 기록</span><b class="num">${st.w||0}승 ${st.l||0}패 · 데미지 ${fmt(st.dmg||0)}</b></li>` : ''}`;
+}
+const S_POT = () => (App.lastState && App.lastState.S && App.lastState.S.potions) || {};
 /* 스타 닉(래더 아이디)은 프로필에서 정함. 참가 팝업에는 보여 주기만 */
 function renderJoinStar(){
   const el = $('joinStar'), authed = useAuth();
@@ -227,7 +251,7 @@ function confirmJoin(name, role, fee, onOk, self = false){
   $('jcFields').hidden = !self; $('joinGear').hidden = !self;
   $('jcOk').textContent = self ? '참가하기' : '이 역할로 참가';
   if(self){ role = applyJoinLock(name, role); renderJoinStar(); }
-  else { $('jcRole').disabled = false; $('joinFee').disabled = false; }
+  else { $('jcRole').disabled = false; $('joinFee').disabled = false; renderRejoinInfo(''); }
   $('jcRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===role?' selected':''}>${v.label}</option>`).join('');
   renderJoinRole();
   if(self){ renderJoinWho(); if(!$('joinFee').disabled) renderJoinGear(); }
@@ -235,6 +259,7 @@ function confirmJoin(name, role, fee, onOk, self = false){
   const lj = lateJoinInfo();
   $('jcLate').hidden = !lj.late;
   if(lj.late) $('jcLate').innerHTML = `<b>중간 합류</b> · 보스 최대 HP +${fmt(lj.inc)} (현재 HP +${fmt(lj.add)}, HP%는 그대로). 체력 ${PARTY_HP}, 스킬 게이지는 시작값으로 들어갑니다.`;
+  if(!$('jcRejoin').hidden) $('jcLate').hidden = true;
   joinOk = onOk;
   loadJoinBag(name, onOk);
   openModal('joinModal', self ? (useAuth() ? '#joinFee' : '#joinName') : '#jcRole');
@@ -336,6 +361,7 @@ export function init(){
   $('fundBtn').onclick = addFund;
   $('fundAmt').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addFund(); } });
   $('jcRole').addEventListener('change', renderJoinRole);
+  $('jcAgree').addEventListener('change', ()=>{ $('jcOk').disabled = !$('jcAgree').checked; });
   const closeJoin = bindModal('joinModal', 'jcClose', ()=>{ joinOk = null; });
   $('jcNo').onclick = closeJoin;
   $('jcOk').onclick = ()=>{
