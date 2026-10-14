@@ -48,12 +48,15 @@ const ITEMS = [
   {id:'rage5',   tier:'일반', w:20,  name:'분노 게이지 5% 감소'},
   {id:'double',  tier:'희귀', w:10,  name:'다음 판 데미지 2배', next:true},
   {id:'shield',  tier:'희귀', w:10,  name:'다음 판 패배 보호 (보스 회복 없음)', next:true},
-  {id:'hp7',     tier:'전설', w:2.5, name:'보스 HP 7% 감소'},
-  {id:'mission', tier:'전설', w:2.5, name:'도전 미션 (유닛 1종 금지, 승리 시 3배)', next:true},
+  {id:'hp7',     tier:'전설', w:5,   name:'보스 HP 7% 감소'},
   {id:'heal4',   tier:'함정', w:2.5, name:'보스 HP 4% 회복'},
   {id:'rage7',   tier:'함정', w:2.5, name:'분노 게이지 7% 증가'}
 ];
-const ITEM = Object.fromEntries(ITEMS.map(i=>[i.id,i]));
+/* 룰렛에서 뺀 결과. 예전 레이드 기록을 다시 계산할 때만 씀 (스타 플레이 제한 같은 미션류는 지금은 사용 안 함) */
+const LEGACY_ITEMS = [
+  {id:'mission', tier:'전설', w:0, name:'도전 미션 (유닛 1종 금지, 승리 시 3배)', next:true, legacy:true}
+];
+const ITEM = Object.fromEntries(ITEMS.concat(LEGACY_ITEMS).map(i=>[i.id,i]));
 /* 다음 판 효과가 대기 중일 때 화면에 보이는 짧은 이름 */
 const PENDING_LABEL = {double:'데미지 2배', shield:'패배 보호', mission:'도전 미션 3배'};
 /* 룰렛 등급 표시 순서 */
