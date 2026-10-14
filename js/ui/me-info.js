@@ -22,7 +22,6 @@ function formulaHtml(s, m){
   const mul = [];
   if(g.dmg) mul.push([1 + g.dmg, `${g.weapon.name}`]);
   if(pend === 'double') mul.push([2, PENDING_LABEL.double]);
-  if(pend === 'mission') mul.push([3, PENDING_LABEL.mission]);
   if(s.curse[m]) mul.push([s.curse[m], '저주']);
   if(s.barrier) mul.push([0.5, '보스 보호막']);
   if(s.rally) mul.push([1.5, '전투 자극']);

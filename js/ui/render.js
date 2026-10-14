@@ -217,7 +217,6 @@ function updateGamePreview(){
     let mult = 1;
     const gw = s.gear[App.selected]; if(gw && gw.dmg) mult *= 1 + gw.dmg;
     if(pend==='double') mult *= 2;
-    if(pend==='mission') mult *= 3;
     if((s.mhp[App.selected] ?? 1) <= 0){ el.innerHTML = `<b>${esc(App.selected)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.`; return; }
     if(s.curse[App.selected]) mult *= s.curse[App.selected];
     if(s.barrier) mult *= 0.5;

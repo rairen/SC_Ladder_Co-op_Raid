@@ -60,13 +60,13 @@ const ITEMS = [
 ];
 /* title: 룰렛 항목명 (본부 작전 느낌), name: 효과
    who : 공략대원 1명에게 적용 (룰렛을 돌릴 때 살아 있는 공략대원 중 무작위), next: 그 공략대원의 다음 판에 적용 */
-/* 룰렛에서 뺀 결과. 예전 레이드 기록을 다시 계산할 때만 씀 (스타 플레이 제한 같은 미션류는 지금은 사용 안 함) */
+/* 룰렛에서 뺀 결과. 예전 레이드 기록을 다시 계산할 때만 씀 (스타 플레이 제한 같은 미션류는 사용 안 함. 예전 기록에 있어도 효과 없음) */
 const LEGACY_ITEMS = [
-  {id:'mission', tier:'전설', w:0, name:'도전 미션 (유닛 1종 금지, 승리 시 3배)', next:true, legacy:true}
+  {id:'mission', tier:'전설', w:0, name:'도전 미션 (제거됨 · 효과 없음)', legacy:true}
 ];
 const ITEM = Object.fromEntries(ITEMS.concat(LEGACY_ITEMS).map(i=>[i.id,i]));
 /* 다음 판 효과가 대기 중일 때 화면에 보이는 짧은 이름 */
-const PENDING_LABEL = {double:'데미지 2배', shield:'패배 보호', mission:'도전 미션 3배'};
+const PENDING_LABEL = {double:'데미지 2배', shield:'패배 보호'};
 /* 룰렛 등급 표시 순서 */
 const TIERS = ['꽝','일반','희귀','전설','함정'];
 

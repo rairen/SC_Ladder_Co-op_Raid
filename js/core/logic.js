@@ -322,7 +322,6 @@ function compute(r, evs){
           if(ev.same){ mult *= S.win.same; entry.notes.push(`같은 빌드 연속 ×${S.win.same}`); }
           if(ev.banned){ mult *= S.win.banned; entry.notes.push(`초반 올인 ×${S.win.banned}`); }
           if(pend === 'double'){ mult *= 2; entry.notes.push('룰렛 2배'); }
-          if(pend === 'mission'){ mult *= 3; entry.notes.push('도전 미션 ×3'); }
           if(pend === 'shield') entry.notes.push('패배 보호 미사용 소멸');
           if(curse[m]){ mult *= curse[m]; entry.notes.push(`저주 ×${curse[m]}`); delete curse[m]; }
           if(barrier > 0){ mult *= 0.5; barrier--; entry.notes.push('보스 보호막 ×0.5'); }
