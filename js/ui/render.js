@@ -207,30 +207,40 @@ function topDealer(s){
   return best;
 }
 
+/* 데미지 입력 미리보기: 입력한 점수로 실제 들어갈 값을 계산식으로 보여 줌 (예: 20 × 1.1 강철 검 × 2 데미지 2배 = 44) */
+function calcHtml(base, factors, result){
+  const f = factors.filter(([v])=>v !== 1).map(([v, l])=>` × <span class="cf"><b class="num">${fmtMul(v)}</b><small>${esc(l)}</small></span>`).join('');
+  return `<span class="cf"><b class="num">${base}</b><small>${typeof base === 'number' ? '점수' : ''}</small></span>${f} = ${result}`;
+}
+const fmtMul = v => String(Math.round(v*100)/100);
 function updateGamePreview(){
   const s = App.lastState; const el = $('gamePreview');
-  if(!s || !App.raid || !App.selected){ el.innerHTML = '공략대원과 점수를 입력하면 들어갈 데미지가 여기에 미리 표시됩니다.'; return; }
-  const p = Math.abs(parseInt($('points').value,10) || 0);
-  const pend = s.pending[App.selected];
-  if(!p){ el.innerHTML = `<b>${esc(App.selected)}</b>의 래더 결과 화면 점수를 입력하세요.${pend?` 대기 효과: <b>${esc(PENDING_LABEL[pend])}</b>`:''}${autoOn(App.selected)?'<br><b style="color:#ffd34d">이 공략대원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.':''}`; return; }
+  if(!s || !App.raid || !App.selected){ el.innerHTML = '공략대원과 점수를 입력하면 들어갈 데미지가 여기에 계산식으로 표시됩니다.'; return; }
+  const who = App.selected, p = Math.abs(parseInt($('points').value,10) || 0), pend = s.pending[who];
+  const autoNote = autoOn(who) ? '<div class="calc-sub"><b style="color:#ffd34d">이 공략대원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.</div>' : '';
+  const shown = p || '점수';
   if(App.isWin){
-    let mult = 1;
-    const gw = s.gear[App.selected]; if(gw && gw.dmg) mult *= 1 + gw.dmg;
-    if(pend==='double') mult *= 2;
-    if((s.mhp[App.selected] ?? 1) <= 0){ el.innerHTML = `<b>${esc(App.selected)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.`; return; }
-    if(s.curse[App.selected]) mult *= s.curse[App.selected];
-    if(s.barrier) mult *= 0.5;
-    if(s.rally) mult *= 1.5;
-    if(s.weaken) mult *= 1.3;
-    mult = Math.round(mult*100)/100;
-    const chainNext = !s.chain.includes(App.selected) && s.chain.length===2;
-    const dmgP = Math.round(p*mult), rr = Math.round(dmgP * (s.cfg.rageRate ?? 0.5) * (1 - ((s.gear[App.selected]||{}).rageCut||0)) * 10)/10, boomW = s.maxRage && s.rage + rr >= s.maxRage;
-    el.innerHTML = `보스 HP <b class="d-hp">−${fmt(dmgP)}</b>${mult!==1?` (×${mult})`:''} · 분노 <b class="d-rage">+${fmt(rr)}</b>${boomW?' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>':''}${chainNext?` + 체인 보너스 <b class="d-hp">−${fmt(Math.round(s.maxHp*s.S.chain/100))}</b>`:''}`;
+    if((s.mhp[who] ?? 1) <= 0){ el.innerHTML = `<b>${esc(who)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.${autoNote}`; return; }
+    const gw = s.gear[who], fs = [];
+    if(gw && gw.dmg) fs.push([1 + gw.dmg, gw.weapon.name]);
+    if(pend === 'double') fs.push([2, '데미지 2배']);
+    if(s.curse[who]) fs.push([s.curse[who], '저주']);
+    if(s.barrier) fs.push([0.5, '보스 보호막']);
+    if(s.rally) fs.push([1.5, '전투 자극']);
+    if(s.weaken) fs.push([1.3, '약점 분석']);
+    const mult = fs.reduce((a,[v])=>a*v, 1), dmg = Math.round(p*mult);
+    const rate = (s.cfg.rageRate ?? 0.5) * (1 - ((gw||{}).rageCut || 0)), rr = Math.round(dmg * rate * 10)/10;
+    const chainNext = !s.chain.includes(who) && s.chain.length === 2, cb = chainNext ? Math.round(s.maxHp*s.S.chain/100) : 0;
+    const boom = p && s.maxRage && s.rage + rr >= s.maxRage;
+    el.innerHTML = `<div class="calc">${calcHtml(shown, fs, `<b class="d-hp">보스 HP −${p ? fmt(dmg) : '?'}</b>`)}</div>
+      <div class="calc-sub">분노 <b class="d-rage">+${p ? fmt(rr) : '?'}</b> (데미지 × ${fmtMul(rate)})${cb ? ` · 체인 보너스 <b class="d-hp">−${fmt(cb)}</b>` : ''}${boom ? ' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>' : ''} · 스킬 게이지 +${s.G.win}</div>${autoNote}`;
   } else {
-    if(pend==='shield'){ el.innerHTML = '패배 보호가 발동해서 <b>보스가 회복하지 않습니다</b>.'; return; }
-    const h = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
-    const ld = Math.round(p * (Number(s.S.lossDmg)||0));
-    el.innerHTML = `${ld ? `<b>${esc(App.selected)}</b> 체력 <b class="d-hp">−${fmt(ld)}</b>` : '체력 피해 없음'}${h ? ` · 보스 HP가 50% 아래라 <b class="d-heal">+${fmt(h)}</b> 회복` : ''} · 스킬 게이지 +${s.G.loss}`;
+    if(pend === 'shield'){ el.innerHTML = `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">0</b><small>패배 보호</small></span> = <b>체력 피해 0 · 보스 회복 0</b></div><div class="calc-sub">스킬 게이지 +${s.G.loss}</div>${autoNote}`; return; }
+    const lr = Number(s.S.lossDmg) || 0, ld = Math.round(p * lr);
+    const heal = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
+    const lossLine = lr ? `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">${fmtMul(lr)}</b><small>패배 피해</small></span> = <b class="d-hp">${esc(who)} 체력 −${p ? fmt(ld) : '?'}</b></div>` : '<div class="calc">체력 피해 없음</div>';
+    const recLine = s.enraged && s.cfg.rec ? `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">${s.cfg.rec}%</b><small>보스 회복</small></span> = <b class="d-heal">보스 HP +${p ? fmt(heal) : '?'}</b></div>` : '';
+    el.innerHTML = lossLine + recLine + `<div class="calc-sub">스킬 게이지 +${s.G.loss}${!s.enraged && s.cfg.rec ? ' · 보스 HP가 50% 아래가 되면 지는 판마다 보스가 회복합니다' : ''}</div>${autoNote}`;
   }
 }
 

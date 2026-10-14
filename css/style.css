@@ -892,3 +892,12 @@ html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-templa
 @keyframes rbBtn{50%{transform:scale(1.05);box-shadow:0 0 12px var(--accent)}}
 /* 움직임 줄이기 설정에서는 천천히만 */
 @media (prefers-reduced-motion:reduce){.rolebar.ready{animation:rbStripe 3s linear infinite!important}.rolebar.ready .btn.skill{animation:none!important}}
+
+/* 데미지 입력 미리보기: 입력값 계산식 */
+#gamePreview .calc{display:flex;align-items:flex-end;gap:6px;flex-wrap:wrap;font-size:15px;line-height:1.2}
+#gamePreview .calc > b{font-size:17px}
+#gamePreview .cf{display:inline-flex;flex-direction:column;align-items:center;line-height:1.1}
+#gamePreview .cf b{font-size:17px}
+#gamePreview .cf small{font-size:10px;color:var(--muted);white-space:nowrap;min-height:11px}
+#gamePreview .calc + .calc{margin-top:6px}
+#gamePreview .calc-sub{margin-top:6px;font-size:12px;color:var(--muted)}
