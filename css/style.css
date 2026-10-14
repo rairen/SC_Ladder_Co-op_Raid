@@ -901,3 +901,24 @@ html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-templa
 #gamePreview .cf small{font-size:10px;color:var(--muted);white-space:nowrap;min-height:11px}
 #gamePreview .calc + .calc{margin-top:6px}
 #gamePreview .calc-sub{margin-top:6px;font-size:12px;color:var(--muted)}
+
+/* 건의 · 문의 */
+.fb-box{max-width:min(760px,100%)}
+.fb-list{display:flex;flex-direction:column;gap:10px;max-height:min(64vh,640px);overflow-y:auto}
+.fb-form{display:flex;flex-direction:column;gap:8px}
+.fb-form input,.fb-form textarea{width:100%;font:inherit}
+.fb-form textarea,.fb-ctl textarea{resize:vertical;padding:8px 10px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--fg)}
+.fb-card{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel2);display:flex;flex-direction:column;gap:6px}
+.fb-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fb-title{flex:1;min-width:0}
+.fb-kind{font-size:11px;font-weight:700;padding:1px 6px;border-radius:4px;background:color-mix(in srgb,var(--accent) 22%,transparent);color:var(--accent)}
+.fb-kind.ask{background:color-mix(in srgb,#6aa8ff 22%,transparent);color:#9cc4ff}
+.fb-st{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid var(--line);color:var(--muted)}
+.fb-st.st-seen{color:#ffd34d;border-color:#ffd34d66}
+.fb-st.st-done{color:#7be0a0;border-color:#7be0a066}
+.fb-meta{font-size:12px}
+.fb-body{font-size:14px;white-space:normal;word-break:break-word}
+.fb-reply{display:flex;flex-direction:column;gap:3px;padding:8px 10px;border-left:3px solid #7be0a0;background:color-mix(in srgb,#7be0a0 8%,transparent);border-radius:4px;font-size:13px}
+.fb-ctl{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);padding-top:8px}
+.fb-ctl textarea{width:100%;font:inherit;font-size:13px}
+.fb-ctl .btn{align-self:flex-end}
