@@ -187,7 +187,7 @@ const GEAR_SLOT = {weapon:'무기', armor:'갑옷', accessory:'장신구'};
    stat : 능력치 배율 (일반 = 1). 예: 강철 검 +10% → 전설 +13%
           불사의 목걸이는 버티는 체력(REVIVE_HP)에 곱합니다.
    repair : 내구도 수리 비용 (지참금에서 빠짐). 내구도를 최대로 되돌리고, 파괴된 장비도 고칩니다.
-   salvage: 분해하면 돌려받는 지참금. 상위 장비(마력 검·판금 갑옷·불사의 목걸이)는 1.5배, 파괴된 장비는 절반 */
+   salvage: 판매 기준가 (예전 이름 분해). 실제 판매가 = 기준가 × 판매 배율(SELL 참고). 상위 장비(마력 검·판금 갑옷·불사의 목걸이)는 1.5배, 파괴된 장비는 절반 */
 const GEAR_GRADES = [
   {id:'common', label:'일반', w:50, dur:5,  stat:1.00, repair:50,  salvage:20},
   {id:'rare',   label:'고급', w:30, dur:9,  stat:1.10, repair:75,  salvage:30},
@@ -205,6 +205,14 @@ const POTIONS = {
   mp: {name:'마나 포션', cost:50, v:25, unit:'스킬 게이지'}
 };
 
+
+/* ---------- 판매 ----------
+   장비와 소모품을 팔면 지참금을 받습니다. 판매가 = 기준가 × 보스 강함 지수 × 지참금 배율
+   - 기준가: 장비는 등급별 salvage 값(상위 장비 1.5배, 부서진 장비 절반), 소모품은 구매가 × potRate
+   - 보스 강함 지수(bossPower): 난이도 수치(커스텀 포함)로 계산. 노멀 = 1. 화면에는 표시하지 않고 비교·계산에만 씀
+   - 지참금 배율: 레이드 시작 때(첫 래더 결과 전) 공략대원들이 가진 지참금(이월 + 가져온 것)의 평균이
+     feeBase 면 1, 많을수록 낮아지고 적을수록 높아짐 (min~max 사이) */
+const SELL = {potRate:0.5, feeBase:200, feeSlope:1/800, min:0.6, max:1.25};
 
 /* ---------- 장비 룰렛 확률 ----------
    '슬롯:번호' 형식. 'none' 은 꽝. */
@@ -274,4 +282,4 @@ const PARTY_SKILL_PLAN = [
   {tier:'전설', name:'보호막 파괴', desc:'보스 보호막 제거, 분노 게이지 비우기'}
 ];
 
-export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, POTIONS, HQ_TYPES, HQ_SUPPORT, HQ, ROULETTE_PLAN, PARTY_SKILL_PLAN };
+export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, POTIONS, SELL, HQ_TYPES, HQ_SUPPORT, HQ, ROULETTE_PLAN, PARTY_SKILL_PLAN };

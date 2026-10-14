@@ -6,7 +6,7 @@ import { App } from '@app/core/app.js';
 import { DEFAULT_GEAR_ROLL, GEAR_GRADES, GEAR_SLOT, PARTY_HP, ROLES } from '@app/core/game-data.js';
 import { $, OVERLAY, ROOM, TEST, esc, fmt, squadLabel, squadAlias, bindModal, openModal } from '@app/core/state.js';
 import { guard, rpath, store, toast } from '@app/core/store.js';
-import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, salvageValue, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
+import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, salvageValue, sellGearValue, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { openSkillModal } from '@app/ui/info-window.js';
@@ -53,11 +53,11 @@ function renderInventory(s, m, canEdit, left = Infinity){
     const btn = !canEdit || it.broken ? '' : on
       ? `<button type="button" class="btn sm" data-unequip="${it.slot}">해제</button>`
       : `<button type="button" class="btn sm" data-equip="${esc(it.id)}">장착</button>`;
-    const rc = repairCost(s.S, it), sv = salvageValue(s.S, it);
+    const rc = repairCost(s.S, it), sv = sellGearValue(s.S, it, s.sellRate || 1);
     const arm = App.dropArm && App.dropArm.id === it.id ? App.dropArm.kind : '';
-    const drop = canEdit && !on ? (arm === 'salvage' ? `<button type="button" class="btn sm danger solid" data-drop="${esc(it.id)}" data-salvage="1">정말 분해 +${fmt(sv)}</button>`
+    const drop = canEdit && !on ? (arm === 'salvage' ? `<button type="button" class="btn sm danger solid" data-drop="${esc(it.id)}" data-salvage="1">정말 판매 +${fmt(sv)}</button>`
       : arm === 'trash' ? `<button type="button" class="btn sm danger solid" data-drop="${esc(it.id)}">정말 버리기</button>`
-      : `<button type="button" class="btn sm" data-drop="${esc(it.id)}" data-salvage="1" title="분해하면 지참금 ${fmt(sv)}을 돌려받습니다">분해 +${fmt(sv)}</button><button type="button" class="btn sm ghost" data-drop="${esc(it.id)}" title="버리기 (돌려받는 것 없음)" aria-label="버리기">버리기</button>`) : '';
+      : `<button type="button" class="btn sm" data-drop="${esc(it.id)}" data-salvage="1" title="팔면 지참금 ${fmt(sv)}을 받습니다">판매 +${fmt(sv)}</button><button type="button" class="btn sm ghost" data-drop="${esc(it.id)}" title="버리기 (돌려받는 것 없음)" aria-label="버리기">버리기</button>`) : '';
     const fix = canEdit && rc && it.dur < it.maxDur ? `<button type="button" class="btn sm repair" data-repair="${esc(it.id)}"${left < rc ? ` disabled title="지참금 부족 (남은 ${fmt(left)})"` : ''}>수리 ${fmt(rc)}</button>` : '';
     return `<li class="${it.broken?'broken':''}${on?' on':''}"><span class="inv-slot">${GEAR_SLOT[it.slot]}</span>
       <span class="inv-name${it.grade?' gr-'+it.grade:''}">${it.gradeLabel?`<span class="gr-tag">${it.gradeLabel}</span>`:''}${esc(it.name)}</span>
@@ -295,7 +295,7 @@ function renderLateJoin(){
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
 
-  /* 분해·버리기: 한 번 누르면 확인 버튼으로 바뀌고, 한 번 더 누르면 실행 */
+  /* 판매·버리기: 한 번 누르면 확인 버튼으로 바뀌고, 한 번 더 누르면 실행 */
   App.dropArm = null;
   $('invSort').innerHTML = Object.entries(INV_SORTS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('');
   $('invSort').value = invSort();
@@ -309,7 +309,7 @@ export function init(){
       return;
     }
     App.dropArm = null;
-    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'drop', member:who, item:id, ...(kind === 'salvage' ? {salvage:true} : {}), undone:false}); toast(`${who} 장비 ${kind === 'salvage' ? '분해' : '버리기'}`); });
+    guard(async()=>{ await store.addEvent(kind === 'salvage' ? {raidId:App.raid.raidId, t:Date.now(), type:'sell', member:who, item:id, undone:false} : {raidId:App.raid.raidId, t:Date.now(), type:'drop', member:who, item:id, undone:false}); toast(`${who} 장비 ${kind === 'salvage' ? '판매' : '버리기'}`); });
   });
   document.addEventListener('click', e=>{
     const rp = e.target.closest('[data-repair]');

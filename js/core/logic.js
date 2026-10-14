@@ -3,7 +3,7 @@
    ===================================================================== */
 /* ---------- Game logic ---------- */
 import { App } from '@app/core/app.js';
-import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, HQ, HQ_SUPPORT, ITEM, PARTY_HP, PENDING_LABEL, POTIONS, PRESETS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
+import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, HQ, HQ_SUPPORT, ITEM, PARTY_HP, PENDING_LABEL, POTIONS, PRESETS, REVIVE_HP, ROLES, SELL } from '@app/core/game-data.js';
 import { esc, fmt } from '@app/core/state.js';
 
 function cfgOf(r){ return r && r.cfg ? {bonus:0, rageRate:0.5, ...r.cfg} : {hp:220, bonus:20, rage:80, rageRate:0.5, rec:40}; }
@@ -69,7 +69,23 @@ function settingsOf(r){
 }
 /* 수리 비용: 등급별 (등급 없는 예전 장비·기본 장비는 수리 없음) */
 function repairCost(S, it){ if(!it || it.base || it.maxDur === Infinity || !it.grade) return 0; return gradeOf(S, it.grade).repair; }
-/* 분해하면 돌려받는 지참금: 등급별 값, 상위 장비 1.5배, 파괴된 장비 절반 */
+/* 보스 강함 지수: 노멀 = 1. 1인당·인원당 HP, 분노 최대치(낮을수록 강함)·상승률, 보스 회복률로 계산.
+   화면에는 보여 주지 않고 판매가 계산과 레이드끼리 강함 비교에 씀 */
+function bossPower(r){
+  const c = cfgOf(r), n = PRESETS.normal;
+  const hpF = ((Number(c.hp)||0) + (Number(c.bonus)||0)) / (n.hp + n.bonus);
+  const rageF = (n.rage / Math.max(1, Number(c.rage)||n.rage)) * ((Number(c.rageRate ?? 0.5) || 0) / n.rageRate);
+  const recF = (1 + (Number(c.rec)||0)/100) / (1 + n.rec/100);
+  return Math.round((0.5*hpF + 0.25*rageF + 0.25*recF) * 100) / 100;
+}
+/* 판매 배율 = 보스 강함 지수 × 지참금 배율 (레이드 시작 때 평균 지참금이 많을수록 낮음) */
+function sellRateOf(power, avgMoney){
+  const f = Math.min(SELL.max, Math.max(SELL.min, 1 + (SELL.feeBase - (Number(avgMoney)||0)) * SELL.feeSlope));
+  return Math.round(power * f * 100) / 100;
+}
+function sellGearValue(S, it, rate){ const b = salvageValue(S, it); return b ? Math.max(1, Math.round(b * rate)) : 0; }
+function sellPotValue(S, k, rate){ const p = S.potions[k]; return p ? Math.max(1, Math.round(p.cost * SELL.potRate * rate)) : 0; }
+/* 판매 기준가(예전 분해 회수액): 등급별 값, 상위 장비 1.5배, 파괴된 장비 절반 */
 function salvageValue(S, it){ if(!it || it.base) return 0; const v = gradeOf(S, it.grade).salvage * (it.idx === 2 ? 1.5 : 1); return Math.round(it.broken ? v / 2 : v); }
 const listOf = v => Array.isArray(v) ? v.filter(Boolean) : (v && typeof v === 'object' ? Object.values(v) : []);
 /* 레이드가 끝날 때 남기는 공략대원 가방 (장비 + 소모품). 다음 레이드에 참가할 때 그대로 가져옴 */
@@ -184,6 +200,9 @@ function compute(r, evs){
   /* 처음부터 있던 공략대원만 시작 상태로 만들고, 중간 합류한 공략대원은 합류 기록 시점에 만듦
      (합류 전에는 보스 공격 대상·전멸 판정·공략대 회복에 들어가지 않음) */
   members.filter(m=>!lateJoin.has(m)).forEach(st);
+  /* 판매 배율: 시작 때 공략대원 지참금 평균으로 고정 */
+  const startList = members.filter(m=>!lateJoin.has(m)), power = bossPower(r);
+  const sellRate = sellRateOf(power, startList.length ? startList.reduce((a,m)=>a + (fee[m]||0), 0) / startList.length : 0);
   const alive = () => Object.keys(mhp).filter(m=>mhp[m] > 0);
   const addGauge = (m, v) => { if(mhp[m] > 0) gauge[m] = Math.min(needG[m], gauge[m] + v); };
   const hurt = (m, d, entry) => {
@@ -467,6 +486,23 @@ function compute(r, evs){
       inv[m].splice(inv[m].indexOf(it), 1);
       if(val){ fee[m] += val; ledger(m, ev.t, 'salvage', val, it.name + (it.gradeLabel ? ` [${it.gradeLabel}]` : '')); entry.notes.push(`지참금 +${fmt(val)}`); }
       else entry.notes.push('버림');
+    } else if(ev.type === 'sell'){
+      /* 판매: 장비(item) 또는 소모품(pot) 1개를 팔고 지참금을 받음. 착용 중인 장비는 못 팖 */
+      st(m);
+      if(ev.pot){
+        const k = ev.pot, p = S.potions[k];
+        if(!p || !(pots[m][k] > 0)){ entry.ignored = true; entry.notes.push('가진 소모품이 없음 · 반영 안 됨'); continue; }
+        const val = sellPotValue(S, k, sellRate);
+        pots[m][k]--; fee[m] += val; entry.sell = {name: p.name, val};
+        ledger(m, ev.t, 'sell', val, p.name); entry.notes.push(`지참금 +${fmt(val)} · 남은 ${p.name} ${pots[m][k]}개`);
+      } else {
+        const it = itemOf(m, ev.item);
+        if(!it){ entry.ignored = true; entry.notes.push('없는 장비 · 반영 안 됨'); continue; }
+        if(eq[m][it.slot] === it.id){ entry.ignored = true; entry.notes.push('착용 중인 장비 · 반영 안 됨'); continue; }
+        const val = sellGearValue(S, it, sellRate), nm = it.name + (it.gradeLabel ? ` [${it.gradeLabel}]` : '');
+        inv[m].splice(inv[m].indexOf(it), 1); fee[m] += val; entry.sell = {name: nm, grade: it.grade, val};
+        ledger(m, ev.t, 'sell', val, nm); entry.notes.push(`지참금 +${fmt(val)}`);
+      }
     } else if(ev.type === 'buy'){
       st(m);
       const p = S.potions[ev.item];
@@ -522,7 +558,7 @@ function compute(r, evs){
     }
   }
   return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
-          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, goneHp: {...savedHp}, endedAt: status !== 'live' ? (endedAt || prevT) : 0, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
+          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, power, sellRate, goneHp: {...savedHp}, endedAt: status !== 'live' ? (endedAt || prevT) : 0, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
 }
 
 /* 공략대 구성 기록 문구 */
@@ -546,7 +582,7 @@ function catOf(ev){
   if(t === 'game' || t === 'role') return 'battle';
   if(t === 'roulette') return 'roulette';
   if(t === 'hq') return 'hq';
-  if(t === 'gear' || t === 'equip' || t === 'repair' || t === 'drop' || t === 'buy' || t === 'use') return 'item';
+  if(t === 'gear' || t === 'equip' || t === 'repair' || t === 'drop' || t === 'sell' || t === 'buy' || t === 'use') return 'item';
   if(t === 'fund') return 'money';
   if(t === 'party') return 'party';
   return 'battle';
@@ -564,6 +600,7 @@ function whatHtml(e){
   if(ev.type==='equip'){ return `<b>${esc(ev.member)}</b> 장비 교체`; }
   if(ev.type==='repair'){ const r0 = e.repair || {name:'장비'}; return `<b>${esc(ev.member)}</b> 장비 수리 · <b class="${r0.grade?'gr-'+r0.grade:''}">${esc(r0.name)}${r0.gradeLabel?` [${r0.gradeLabel}]`:''}</b>`; }
   if(ev.type==='hq'){ const h = e.hq || {name:'본부지원', type:'supply'}, by = ev.by || ev.member; return `<b>본부</b> · <span class="hq-tag ${h.type}">${h.type === 'attack' ? '공격지원' : '보급'}</span> <b>${esc(h.name)}</b>${ev.slot ? ` <span class="hint">${ev.slot}회차${by ? ` · ${esc(by)} 수령` : ''}</span>` : ''}`; }
+  if(ev.type==='sell'){ const d = e.sell || {}; return `<b>${esc(ev.member)}</b> ${ev.pot ? '소모품' : '장비'} 판매${d.name ? ` · <b class="${d.grade?'gr-'+d.grade:''}">${esc(d.name)}</b>` : ''}`; }
   if(ev.type==='drop'){ const d = e.drop || {}; return `<b>${esc(ev.member)}</b> 장비 ${ev.salvage ? '분해' : '버리기'}${d.name ? ` · <b class="${d.grade?'gr-'+d.grade:''}">${esc(d.name)}${d.gradeLabel?` [${d.gradeLabel}]`:''}</b>` : ''}`; }
   if(ev.type==='buy'){ return `<b>${esc(ev.member)}</b> 소모품 구매 · ${esc((e.pot && e.pot.name) || '소모품')}`; }
   if(ev.type==='use'){ return `<b>${esc(ev.member)}</b> <b class="${ev.item==='hp'?'d-heal':'pot-mp'}">${esc((e.pot && e.pot.name) || '소모품')}</b> 사용`; }
@@ -607,4 +644,4 @@ function statusTags(s, m){
   return t.join(' · ');
 }
 
-export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bagsOf, listOf, inputOf, LOG_CATS, catOf, catTag, DMG_SRC, dmgByText, hqEveryMin, hqSlot, hqPick };
+export { cfgOf, bossHpOf, bossSkillsOf, roleSkillsOf, gaugeOf, pickTier, gearRollList, gearItemName, gradeOf, makeItem, settingsOf, rosterOf, seeded, compute, partyText, whatHtml, skillHtml, gearHtml, statusTags, itemScore, rosterKey, SLOT_ICON, repairCost, salvageValue, bossPower, sellRateOf, sellGearValue, sellPotValue, bagsOf, listOf, inputOf, LOG_CATS, catOf, catTag, DMG_SRC, dmgByText, hqEveryMin, hqSlot, hqPick };
