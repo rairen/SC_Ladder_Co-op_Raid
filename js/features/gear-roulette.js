@@ -103,7 +103,6 @@ function openJoin(){
   if(cap && (App.raid.members || []).length >= cap && !(name && App.raid.members.includes(name))){ toast(`이 공략대는 정원(${cap}명)이 찼습니다.`); return; }
   $('joinName').value = name; $('joinName').disabled = authed; $('joinNameField').hidden = authed;
   $('joinCodeField').hidden = !(authed && App.raid.private);
-  if(authed && !$('joinLadder').dataset.touched) $('joinLadder').value = (App.profile && App.profile.ladder) || '';
   confirmJoin(name, 'dealer', null, doJoin, true);
 }
 /* 참가 팝업의 "참가" 버튼: 팝업에 넣은 값으로 참가. 문제가 있으면 팝업을 연 채로 안내 */
@@ -115,8 +114,8 @@ function doJoin(){
   const name = authed ? profileName() : cleanName($('joinName').value);
   if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return false; }
   const already = App.raid.members.includes(name);
-  const ro1 = App.raid.roster && App.raid.roster[rosterKey(name)];
-  if(!already && ro1 && ro1.left){ toast(`${name} 님은 이 공략대를 떠났기 때문에 다시 참가할 수 없습니다.`); return false; }
+  // 떠났다가 다시 참가: 떠날 때 상태(남은 지참금·장비·역할) 그대로, 지참금은 새로 가져올 수 없음
+  const ro1 = App.raid.roster && App.raid.roster[rosterKey(name)], rejoin = !already && !!(ro1 && ro1.left);
   const needCode = authed && !isAdmin() && !!App.raid.private, code = String($('joinCode').value||'').trim().toUpperCase();
   if(needCode && !code){ toast('비공개 공략대입니다. 운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return false; }
   // 정원 (최대 인원)
@@ -126,13 +125,15 @@ function doJoin(){
   const other = Object.values(App.raids).find(r=>r.raidId !== App.raid.raidId && (r.members||[]).includes(name));
   if(other){ toast(`${name} 님은 이미 ${squadLabel(other)}에 참가해 있습니다.`); return false; }
   if(authed){ const ro0 = App.raid.roster && App.raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== App.authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 닉네임을 바꿔 주세요.'); return false; } }
-  const fee = Math.max(0, Math.round(Number($('joinFee').value)||0)), ladder = cleanLadderId($('joinLadder').value), gw = authed ? (Number(App.profile && App.profile.gw)||30) : 30;
+  /* 스타 닉(래더 아이디)은 프로필 값을 씀 */
+  const fee = already || rejoin ? 0 : Math.max(0, Math.round(Number($('joinFee').value)||0));
+  const ladder = authed ? cleanLadderId((App.profile && App.profile.ladder) || '') : '', gw = authed ? (Number(App.profile && App.profile.gw)||30) : 30;
   /* 다시 들어오는 이름은 원래 역할 그대로 */
-  const role = already ? rosterOf(App.raid, name).role : $('jcRole').value;
-  joinNow(name, role, fee, ladder, gw, already, needCode, code, authed);
+  const role = already || rejoin ? rosterOf(App.raid, name).role : $('jcRole').value;
+  joinNow(name, role, fee, ladder, gw, already, needCode, code, authed, rejoin);
   return true;
 }
-function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
+function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed, rejoin = false){
   guard(async()=>{
     if(authed){
       if(needCode){
@@ -141,19 +142,19 @@ function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
       }
       await App.db.ref(rpath()+'/uids/'+App.authUser.uid).set(name);
     }
-    if(!already) await store.partyLog(name, 'join', {role, fee});
+    if(rejoin) await store.partyLog(name, 'join', {role, rejoin: true});
+    else if(!already) await store.partyLog(name, 'join', {role, fee});
     await store.join(name);
-    if(!already){ const bag = await store.loadBag(name); await store.setRoster(name, bag ? {role, fee, bag} : {role, fee}); }
+    if(rejoin) await store.setRoster(name, {left: null});
+    else if(!already){ const bag = await store.loadBag(name); await store.setRoster(name, bag ? {role, fee, bag} : {role, fee}); }
     if(authed) await store.setRoster(name, {uid: App.authUser.uid, ladder, gw});
-    else if(ladder) await store.setRoster(name, {ladder});
     // 본부 모집 공략대: 처음 참가한 공략대원이 공략대장
     const wasLead = !!(App.raid.lead && (App.raid.members||[]).includes(App.raid.lead.name));
     await store.claimLead(name, authed ? App.authUser.uid : '');
-    if(authed && App.profile && ladder !== (App.profile.ladder||'')) await App.db.ref('users/'+App.authUser.uid).update({ladder});
-    $('joinName').value = ''; $('joinLadder').value = ''; $('joinCode').value = ''; $('joinFee').value = '0'; delete $('joinLadder').dataset.touched;
+    $('joinName').value = ''; $('joinCode').value = ''; $('joinFee').value = '0';
     setMe(name);
     const nowLead = App.raid && App.raid.lead && App.raid.lead.name === name;
-    toast(already ? `${name} 이름으로 다시 들어왔습니다.` : !wasLead && nowLead ? `${name} 참가 완료 · 첫 참가자라 공략대장이 되었습니다` : `${name} 참가 완료 · 보스가 강해졌습니다`);
+    toast(already ? `${name} 이름으로 다시 들어왔습니다.` : rejoin ? `${name} 공략대에 다시 참가 · 떠날 때 상태를 이어서 씁니다` : !wasLead && nowLead ? `${name} 참가 완료 · 첫 참가자라 공략대장이 되었습니다` : `${name} 참가 완료 · 보스가 강해졌습니다`);
   });
 }
 function renderJoin(s, me){
@@ -182,6 +183,28 @@ function renderJoinRole(){
   const rk = $('jcRole').value, sk = roleSkillsOf(App.raid)[rk];
   $('jcRoleDesc').innerHTML = sk ? `<span class="role-tag ${rk}">${ROLES[rk].short}</span><b>${esc(sk.name)}</b> · ${esc(ROLES[rk].desc(sk.v))}` : '';
 }
+/* 이미 참가 중이거나 떠났다가 다시 참가하는 이름: 역할·지참금은 그대로 (지참금 새로 입력 불가) */
+function applyJoinLock(name, role){
+  const r = App.raid, ro = name && r && r.roster && r.roster[rosterKey(name)];
+  const already = !!name && r.members.includes(name), rejoin = !already && !!(ro && ro.left), lock = already || rejoin;
+  if(lock) role = rosterOf(r, name).role;
+  $('jcRole').disabled = lock; $('joinFee').disabled = lock;
+  if(lock){ $('joinFee').value = '0'; $('jcRole').value = role; renderJoinRole(); }
+  $('joinFee').title = lock ? '다시 참가할 때는 지참금을 새로 가져올 수 없습니다. 남은 지참금을 이어서 씁니다.' : '';
+  $('joinGear').textContent = lock ? (rejoin ? '다시 참가: 떠날 때의 역할 · 남은 지참금 · 장비 · 체력을 그대로 이어서 씁니다. 지참금은 새로 가져올 수 없습니다.' : '이미 참가한 이름입니다. 원래 역할과 지참금 그대로 들어갑니다.') : $('joinGear').textContent;
+  $('jcOk').textContent = rejoin ? '다시 참가하기' : '참가하기';
+  return role;
+}
+/* 스타 닉(래더 아이디)은 프로필에서 정함. 참가 팝업에는 보여 주기만 */
+function renderJoinStar(){
+  const el = $('joinStar'), authed = useAuth();
+  el.hidden = !authed;
+  if(!authed) return;
+  const nick = (App.profile && App.profile.ladder) || '';
+  el.innerHTML = nick
+    ? `스타 닉 <b>${esc(nick)}</b> · 래더 자동 수집에 씁니다. <button type="button" class="linkbtn" data-openprofile="1">프로필에서 바꾸기</button>`
+    : `스타 닉이 없습니다. <button type="button" class="linkbtn" data-openprofile="1">프로필에서 스타 닉 입력</button>하면 래더 결과를 자동으로 모읍니다.`;
+}
 /* self: 내가 참가하는 팝업 (이름·지참금·초대 코드·래더 아이디까지 입력). 아니면 운영자의 공략대원 추가 확인 */
 let joinSelf = false;
 function renderJoinWho(){
@@ -203,14 +226,11 @@ function confirmJoin(name, role, fee, onOk, self = false){
   joinSelf = self;
   $('jcFields').hidden = !self; $('joinGear').hidden = !self;
   $('jcOk').textContent = self ? '참가하기' : '이 역할로 참가';
-  if(self){
-    const re = !!name && App.raid.members.includes(name);
-    if(re) role = rosterOf(App.raid, name).role;
-    $('jcRole').disabled = re;
-  } else $('jcRole').disabled = false;
+  if(self){ role = applyJoinLock(name, role); renderJoinStar(); }
+  else { $('jcRole').disabled = false; $('joinFee').disabled = false; }
   $('jcRole').innerHTML = Object.entries(ROLES).map(([k,v])=>`<option value="${k}"${k===role?' selected':''}>${v.label}</option>`).join('');
   renderJoinRole();
-  if(self){ renderJoinWho(); renderJoinGear(); }
+  if(self){ renderJoinWho(); if(!$('joinFee').disabled) renderJoinGear(); }
   else $('jcWho').innerHTML = `<b>${esc(name)}</b> 님이 ${esc(squadLabel(App.raid))} "${esc(App.raid.name || '')}" 레이드에 참가합니다.${fee ? ` 초기 지참금 <b>${fmt(fee)}</b>.` : ''}`;
   const lj = lateJoinInfo();
   $('jcLate').hidden = !lj.late;
@@ -302,8 +322,9 @@ export function init(){
   $('joinFee').addEventListener('input', renderJoinGear);
   $('joinBtn').onclick = openJoin;
   $('joinName').addEventListener('input', renderJoinWho);
-  $('joinName').addEventListener('change', ()=>{ const nm = cleanName($('joinName').value); loadJoinBag(nm, joinOk); const re = !!nm && App.raid && App.raid.members.includes(nm); $('jcRole').disabled = re; if(re){ $('jcRole').value = rosterOf(App.raid, nm).role; renderJoinRole(); } });
-  ['joinName','joinFee','joinCode','joinLadder'].forEach(id=>$(id).addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); $('jcOk').click(); } }));
+  $('joinName').addEventListener('change', ()=>{ const nm = cleanName($('joinName').value); loadJoinBag(nm, joinOk); if(App.raid){ applyJoinLock(nm, $('jcRole').value); if(!$('joinFee').disabled) renderJoinGear(); } });
+  document.addEventListener('click', e=>{ if(e.target.closest('[data-openprofile]')){ $('joinModal').hidden = true; joinOk = null; openProfile(true); } });
+  ['joinName','joinFee','joinCode'].forEach(id=>$(id).addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); $('jcOk').click(); } }));
   $('joinExisting').addEventListener('click', e=>{ const b = e.target.closest('[data-claim]'); if(b) setMe(b.dataset.claim); });
 
   const addFund = ()=>{
@@ -326,7 +347,6 @@ export function init(){
   $('addMemberBtn').onclick = addMember;
   $('addMember').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addMember(); } });
 
-  $('joinLadder').addEventListener('input', ()=>{ $('joinLadder').dataset.touched = '1'; });
   /* 초대 링크(?raid=…&code=…)로 들어오면 초대 코드를 미리 채움 */
   try{ const c = new URLSearchParams(location.search).get('code'); if(c) $('joinCode').value = String(c).trim().toUpperCase().slice(0,8); }catch(_){}
   document.addEventListener('click', e=>{ if(e.target.id === 'loginBtn2') login(); });

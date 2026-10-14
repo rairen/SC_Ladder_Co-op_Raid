@@ -100,16 +100,20 @@ function seeded(str){
 function compute(r, evs){
   const cur = (r && r.members) || [];
   const liveEvs = (evs||[]).filter(e=>!e.undone);
-  /* 공략대를 떠난 공략대원: 떠나기 전 기록은 그대로 두고, 떠나는 순간부터 공략대에서 빠짐 */
-  const leaveEv = new Map();
-  for(const e of liveEvs) if(e.type==='party' && e.action==='leave' && e.member && !cur.includes(e.member)) leaveEv.set(e.member, e);
-  const members = cur.concat([...leaveEv.keys()]), gone = new Set();
+  /* 공략대를 떠난 공략대원: 떠나기 전 기록은 그대로 두고, 떠나는 순간부터 공략대에서 빠짐.
+     다시 참가하면(join) 떠날 때의 체력·게이지·장비·지참금을 그대로 이어받음 */
+  const leavers = new Set();
+  for(const e of liveEvs) if(e.type==='party' && e.action==='leave' && e.member) leavers.add(e.member);
+  const members = cur.concat([...leavers].filter(m=>!cur.includes(m))), gone = new Set(), savedHp = {};
   const cfg = cfgOf(r), G = gaugeOf(r), BS = bossSkillsOf(r), RS = roleSkillsOf(r), S = settingsOf(r);
   const n = members.length;
   /* 중간 합류: 첫 래더 결과가 나온 뒤에 참가한 공략대원은 시작 HP 에 넣지 않고, 합류하는 순간 보스 HP 를 늘림 */
   const firstGameT = Math.min(Infinity, ...liveEvs.filter(e=>e.type==='game').map(e=>e.t||0));
   const lateJoin = new Map();
-  for(const e of liveEvs) if(e.type==='party' && e.action==='join' && (e.t||0) > firstGameT && members.includes(e.member) && !lateJoin.has(e.member)) lateJoin.set(e.member, e);
+  // 공략대원마다 첫 참가만 봄 (떠났다가 다시 참가한 기록은 중간 합류가 아님)
+  const firstJoin = new Map();
+  for(const e of liveEvs) if(e.type==='party' && e.action==='join' && !e.rejoin && !firstJoin.has(e.member)) firstJoin.set(e.member, e);
+  for(const [m, e] of firstJoin) if((e.t||0) > firstGameT && members.includes(m)) lateJoin.set(m, e);
   const n0 = Math.max(n > 0 ? 1 : 0, n - lateJoin.size);
   /* 분노: 보스가 받은 데미지 × 상승률만큼 오르고, 최대치는 인원과 상관없이 고정 */
   let maxHp = bossHpOf(cfg, n0); const maxRage = n > 0 ? Math.max(1, Number(cfg.rage)||100) : 0, rageRate = Math.max(0, Number(cfg.rageRate) || 0), rec = cfg.rec/100;
@@ -257,11 +261,18 @@ function compute(r, evs){
         entry.late = true; entry.notes.push(`중간 합류 · 보스 최대 HP +${fmt(inc)}, 현재 HP +${fmt(add)}`);
       }
       /* 떠남: 체력·게이지 대상에서 빠지고, 보스 최대 HP 는 1인분 줄어듦 (HP% 는 그대로) */
-      if(leaveEv.get(m) === ev && mhp[m] !== undefined){
-        gone.add(m); delete mhp[m];
+      if(ev.action === 'leave' && mhp[m] !== undefined && !gone.has(m)){
+        gone.add(m); savedHp[m] = mhp[m]; delete mhp[m];
         const inc = (Number(cfg.hp)||0) + (Number(cfg.bonus)||0), before = maxHp;
         if(members.length - gone.size > 0 && maxHp - inc > 0){ maxHp -= inc; const nh = Math.max(1, Math.round(hp * maxHp / before)); entry.dHp += nh - hp; hp = nh; entry.notes.push(`공략대를 떠남 · 보스 최대 HP −${fmt(inc)}`); }
         else entry.notes.push('공략대를 떠남');
+      }
+      /* 다시 참가: 떠날 때 상태 그대로 복귀, 보스 최대 HP 는 다시 1인분 늘어남 (HP% 는 그대로) */
+      else if(ev.action === 'join' && gone.has(m)){
+        gone.delete(m); mhp[m] = savedHp[m]; delete savedHp[m];
+        const inc = (Number(cfg.hp)||0) + (Number(cfg.bonus)||0), before = maxHp;
+        maxHp += inc; const add = before > 0 ? Math.round(inc * hp / before) : inc; hp += add; entry.dHp += add;
+        entry.rejoin = true; entry.notes.push(`다시 참가 · 보스 최대 HP +${fmt(inc)}`);
       }
       continue;
     }
@@ -478,12 +489,13 @@ function compute(r, evs){
     }
   }
   return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, taunt, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
-          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members: cur, gone: [...leaveEv.keys()]};
+          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
 }
 
 /* 공략대 구성 기록 문구 */
 function partyText(ev){
   const rl = ROLES[ev.role] ? ROLES[ev.role].label : '';
+  if(ev.action === 'join' && ev.rejoin) return `공략대에 다시 참가${rl ? ' · '+rl : ''}`;
   if(ev.action === 'join') return `공략대 참가${rl ? ' · '+rl : ''}${ev.fee ? ' · 지참금 '+fmt(ev.fee) : ''}`;
   if(ev.action === 'kick') return '공략대에서 내보냄';
   if(ev.action === 'leave') return '공략대를 떠남';

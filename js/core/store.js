@@ -83,7 +83,7 @@ const store = {
     if(App.local){ App.raid = {...App.raid, lead}; if(!lead) delete App.raid.lead; commit(); return; }
     await App.db.ref(rpath()+'/lead').set(lead);
   },
-  /* 공략대 떠나기 (본인). 떠나기 전 기록과 장비·지참금은 남고, 이후에는 공략대에서 빠짐. 같은 공략대에는 다시 못 들어옴 */
+  /* 공략대 떠나기 (본인). 떠나기 전 기록과 장비·지참금은 남고, 이후에는 공략대에서 빠짐. 다시 참가하면 떠날 때 상태를 이어받음 */
   async leave(name){
     await store.partyLog(name, 'leave');
     await store.setRoster(name, {left: true});

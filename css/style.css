@@ -833,6 +833,7 @@ html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-templa
 .jc-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .jc-fields[hidden]{display:none}
 .jc-fields .field{margin:0}.jc-fields input{width:100%}
+.jc-fields input:disabled{opacity:.55;cursor:not-allowed}
 @media (max-width:480px){.jc-fields{grid-template-columns:minmax(0,1fr)}}
 .leave-btn{margin-left:auto}
 .gone-tag{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:0 5px;border-radius:4px;margin-left:6px}
