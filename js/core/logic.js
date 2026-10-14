@@ -239,19 +239,25 @@ function compute(r, evs){
     /* 탱커 가드: 가드 중인(살아 있는) 탱커들이 공략대 전체 피해를 나눠 받고, 각자 감소율만큼 줄여서 받음
        받는 피해 = 스킬 피해 × (맞을 인원 ÷ 가드 탱커 수) × (1 − 감소%)   · 광역은 맞을 인원 = 생존자 수, 단일은 1 */
     const gs = guards.filter(g=>mhp[g.m] > 0);
-    const tauntOn = gs.length > 0 && (sk.type === 'smash' || sk.type === 'flame');
+    const tauntOn = gs.length > 0 && (sk.type === 'smash' || sk.type === 'multi' || sk.type === 'flame');
+    /* 다중 공격 대상: 생존자 중 절반(올림)을 무작위로 (같은 기록이면 항상 같은 결과) */
+    const multiN = Math.ceil(live.length / 2);
+    const pickMulti = () => live.map((m, i)=>({m, k: seeded(seedBase + '|m|' + skillN + '|' + m)})).sort((a,b)=>a.k-b.k).slice(0, multiN).map(x=>x.m);
     switch(sk.type){
       case 'regen': { const h = Math.min(Math.round(maxHp*v/100), maxHp-hp); hp += h; entry.dHp += h; out.text = h ? `보스 HP +${fmt(h)} 회복` : '보스 HP가 가득 차 있어 효과 없음'; break; }
       case 'smash':
+      case 'multi':
       case 'flame': {
         if(tauntOn){
-          const hitN = sk.type === 'flame' ? live.length : 1, share = v * hitN / gs.length;
+          const hitN = sk.type === 'flame' ? live.length : sk.type === 'multi' ? multiN : 1, share = v * hitN / gs.length;
           const parts = gs.map(g=>{ const d = Math.round(share * (1 - (Number(g.v)||0)/100)); hurt(g.m, d, entry); return `${g.m} −${d}`; });
           out.target = gs.map(g=>g.m).join(', ');
           out.text = `탱커 가드 ${gs.length}명이 막음 (${fmt(v)} × ${hitN}명 ÷ ${gs.length} × ${100 - (Number(gs[0].v)||0)}%) · ${parts.join(', ')}`;
           guards = [];
         } else if(sk.type === 'smash'){
           if(target){ hurt(target, v, entry); out.target = target; out.text = `${target} 체력 −${v}`; } else out.text = '대상 없음';
+        } else if(sk.type === 'multi'){
+          const ts = pickMulti(); ts.forEach(m=>hurt(m, v, entry)); out.target = ts.join(', '); out.text = ts.length ? `${ts.join(', ')} 체력 −${v} (${ts.length}명)` : '대상 없음';
         } else { live.forEach(m=>hurt(m, v, entry)); out.text = `생존자 ${live.length}명 체력 −${v}`; }
         break;
       }
@@ -551,7 +557,7 @@ function compute(r, evs){
           entry.healed = healed;
           entry.notes.push(`공략대 체력 +${fmt(healed)}${revived.length ? ' · 부활: '+revived.join(', ') : ''}`); break;
         }
-        case 'taunt': { guards = guards.filter(g=>g.m !== m).concat([{m, v}]); entry.notes.push(`${m} 가드 · 다음 보스 공격(단일·광역)을 가드 중인 탱커${guards.length > 1 ? ` ${guards.length}명` : ''}가 나눠 막음 (피해 ${v}% 감소)`); break; }
+        case 'taunt': { guards = guards.filter(g=>g.m !== m).concat([{m, v}]); entry.notes.push(`${m} 가드 · 다음 보스 공격(단일·다중·광역)을 가드 중인 탱커${guards.length > 1 ? ` ${guards.length}명` : ''}가 나눠 막음 (피해 ${v}% 감소)`); break; }
         case 'rally': { rally = Math.max(rally, Math.round(v)); const cleared = Object.keys(curse).length; for(const k in curse) delete curse[k]; entry.notes.push(`다음 승리 ${Math.round(v)}번 데미지 ×1.5${cleared ? ' · 저주 해제' : ''}`); break; }
       }
     }

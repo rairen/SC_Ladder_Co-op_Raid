@@ -78,13 +78,15 @@ const PARTY_HP = 100, REVIVE_HP = 30;
 
 
 /* ---------- 보스 스킬 종류 ----------
-   보스 스킬의 type 은 아래 5가지 중 하나이고, v 의 의미가 다릅니다. */
+   보스 스킬의 type 은 아래 6가지 중 하나이고, v 의 의미가 다릅니다.
+   공격은 세 가지로 나뉩니다: 단일(1명에게 강하게) · 다중(무작위 절반에게) · 광역(생존자 전원에게 약하게) */
 const SKILL_TYPES = {
-  regen:  {label:'보스 회복', unit:'%',  desc:v=>`보스 HP ${v}% 회복`},             // v = 최대 HP 대비 %
-  smash:  {label:'단일 공격', unit:'',   desc:v=>`공략대원 1명 체력 −${v}`},          // v = 체력 감소량
-  flame:  {label:'광역 공격', unit:'',   desc:v=>`생존 공략대원 전원 체력 −${v}`},    // v = 1인당 체력 감소량
-  curse:  {label:'저주',      unit:'배', desc:v=>`공략대원 1명 다음 승리 데미지 ×${v}`}, // v = 데미지 배율
-  barrier:{label:'보호막',    unit:'회', desc:v=>`공략대의 다음 승리 ${v}번 데미지 절반`} // v = 횟수
+  regen:  {label:'보스 회복', unit:'%',  desc:v=>`보스 HP ${v}% 회복`},                     // v = 최대 HP 대비 %
+  smash:  {label:'단일 강타', unit:'',   desc:v=>`공략대원 1명 체력 −${v}`},                  // v = 체력 감소량 (높게)
+  multi:  {label:'다중 공격', unit:'',   desc:v=>`무작위 공략대원 절반(올림) 체력 −${v}`},     // v = 1인당 체력 감소량
+  flame:  {label:'전체 광역', unit:'',   desc:v=>`생존 공략대원 전원 체력 −${v}`},            // v = 1인당 체력 감소량 (낮게)
+  curse:  {label:'저주',      unit:'배', desc:v=>`공략대원 1명 다음 승리 데미지 ×${v}`},      // v = 데미지 배율
+  barrier:{label:'보호막',    unit:'회', desc:v=>`공략대의 다음 승리 ${v}번 데미지 절반`}     // v = 횟수
 };
 
 
@@ -97,27 +99,32 @@ const SKILL_TYPES = {
 const RACES = {zerg:'저그', protoss:'프로토스', terran:'테란', mixed:'혼합'};
 const BOSS_SETS = {
   zerg: [
-    {name:'급속 재생', type:'regen', w:30, v:10},
-    {name:'산성 침',   type:'smash', w:30, v:50},
-    {name:'감염 확산', type:'flame', w:25, v:25},
+    {name:'급속 재생', type:'regen', w:25, v:10},
+    {name:'산성 침',   type:'smash', w:25, v:60},
+    {name:'맹독충 돌진', type:'multi', w:15, v:40},
+    {name:'감염 확산', type:'flame', w:20, v:25},
     {name:'기생',      type:'curse', w:15, v:0.5}
   ],
   protoss: [
-    {name:'보호막 충전',   type:'barrier', w:30, v:2},
-    {name:'사이오닉 스톰', type:'flame',   w:25, v:30},
-    {name:'정신 지배',     type:'curse',   w:20, v:0.5},
-    {name:'차원 재생',     type:'regen',   w:25, v:6}
+    {name:'보호막 충전',   type:'barrier', w:22, v:2},
+    {name:'리버 스캐럽',   type:'smash',   w:18, v:65},
+    {name:'아콘 전격',     type:'multi',   w:14, v:40},
+    {name:'사이오닉 스톰', type:'flame',   w:18, v:30},
+    {name:'정신 지배',     type:'curse',   w:13, v:0.5},
+    {name:'차원 재생',     type:'regen',   w:15, v:6}
   ],
   terran: [
-    {name:'긴급 수리',     type:'regen',   w:25, v:8},
-    {name:'야마토 포',     type:'smash',   w:30, v:60},
+    {name:'긴급 수리',     type:'regen',   w:20, v:8},
+    {name:'야마토 포',     type:'smash',   w:25, v:60},
+    {name:'시즈 포격',     type:'multi',   w:15, v:40},
     {name:'핵 공격',       type:'flame',   w:20, v:35},
-    {name:'방어 매트릭스', type:'barrier', w:25, v:2}
+    {name:'방어 매트릭스', type:'barrier', w:20, v:2}
   ],
   mixed: [  // 목록에 없는 보스 이름일 때
-    {name:'재생',      type:'regen',   w:25, v:8},
-    {name:'강타',      type:'smash',   w:25, v:50},
-    {name:'광역 화염', type:'flame',   w:20, v:25},
+    {name:'재생',      type:'regen',   w:20, v:8},
+    {name:'강타',      type:'smash',   w:20, v:55},
+    {name:'연쇄 공격', type:'multi',   w:15, v:35},
+    {name:'광역 화염', type:'flame',   w:15, v:25},
     {name:'저주',      type:'curse',   w:15, v:0.5},
     {name:'보호막',    type:'barrier', w:15, v:2}
   ]
@@ -141,7 +148,7 @@ const BOSS_BY_RACE = {
    - 힐러 v : 회복량
    - 서포터 v : 데미지 ×1.5 가 적용되는 승리 횟수 */
 const ROLES = {
-  tank:   {label:'탱커',   short:'T', type:'taunt', desc:v=>`가드: 다음 보스 공격(단일·광역)의 공략대 피해를 대신 막고 ${v}% 감소해서 받음 (가드한 탱커가 여럿이면 나눠 받음)`},
+  tank:   {label:'탱커',   short:'T', type:'taunt', desc:v=>`가드: 다음 보스 공격(단일·다중·광역)의 공략대 피해를 대신 막고 ${v}% 감소해서 받음 (가드한 탱커가 여럿이면 나눠 받음)`},
   dealer: {label:'딜러',   short:'D', type:'nuke',  desc:v=>`보스 HP ${v}% 즉시 감소`},
   healer: {label:'힐러',   short:'H', type:'heal',  desc:v=>`공략대원 전원 체력 +${v} (전투불능도 부활)`},
   support:{label:'서포터', short:'S', type:'rally', desc:v=>`공략대의 다음 승리 ${v}번 데미지 ×1.5, 저주 해제`}
