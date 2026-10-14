@@ -7,7 +7,7 @@
    ===================================================================== */
 import { App } from '@app/core/app.js';
 import { PRESETS } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, squadAlias, leadName } from '@app/core/state.js';
 import { compute } from '@app/core/logic.js';
 import { topDealer } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
@@ -31,7 +31,8 @@ function renderLobby(){
   const box = $('lobby'); if(!box) return;
   box.hidden = OVERLAY;
   if(OVERLAY) return;
-  const list = Object.values(App.raids).filter(canSeeRaid).sort((a,b)=>(a.squad||0)-(b.squad||0));
+  // 비공개 공략대도 목록에는 자물쇠로 보임 (진행 상황은 숨김)
+  const list = Object.values(App.raids).sort((a,b)=>(a.squad||0)-(b.squad||0));
   // 공략대에 참가 중이면 목록은 숨기고 내 공략대만 보여 줌. 참가 중인 운영자는 새 공략대를 만들 수 없음
   const mine = mySquadId();
   $('newSquadBtn').hidden = !canOperate() || !!mine;
@@ -40,19 +41,25 @@ function renderLobby(){
   $('dungeonList').hidden = !!mine;
   if(mine){
     if(App.curRid !== mine){ setTimeout(()=>selectRaid(mine), 0); }
-    $('lobbyCount').textContent = `내 공략대 · ${squadLabel(App.raids[mine])} ${App.raids[mine].name || ''}`;
+    $('lobbyCount').textContent = `내 공략대 · ${squadAlias(App.raids[mine])} (${squadLabel(App.raids[mine])}) ${App.raids[mine].name || ''}`;
     ['hud','skillBoard'].forEach(id=>{ const el = $(id); if(el) el.hidden = false; });
     document.querySelector('.grid').hidden = false; $('logPanel').hidden = false;
     return;
   }
   $('lobbyCount').textContent = list.length ? `진행 중인 공략대 ${list.length}` : '';
   $('dungeonList').innerHTML = list.length ? list.map(r=>{
+    if(!canSeeRaid(r)) return `<button type="button" class="dcard locked${r.raidId === App.curRid ? ' on' : ''}" data-rid="${esc(r.raidId)}" aria-pressed="${r.raidId === App.curRid}" title="비공개 공략대 · 초대 코드로 참가한 공략대원만 진행 상황을 볼 수 있습니다">
+      <span class="dc-squad"><b class="dc-alias">${esc(squadAlias(r))}</b><small>${esc(squadLabel(r))}${leadName(r) ? '' : ' · 공략대장 모집 중'}</small></span>
+      <span class="dc-boss"><span class="dc-lock" aria-hidden="true">🔒</span>${esc(r.name || '이름 없는 보스')}</span>
+      <span class="dc-hp dc-hp-lock"><i></i></span>
+      <span class="dc-meta"><span class="dc-priv">비공개 · 초대 코드 필요</span><span>${DIFF_LABEL(r.diff)}</span>${r.maxMembers ? `<span>정원 ${r.maxMembers}</span>` : ''}</span>
+    </button>`;
     const st = compute(r, eventsOf(r.raidId));
     const pct = st.maxHp ? Math.max(0, st.hp/st.maxHp*100) : 100;
     const alive = st.members.filter(m=>(st.mhp[m] ?? 1) > 0).length;
     const status = st.status === 'clear' ? '<b class="ok">격파</b>' : st.status === 'fail' ? '<b class="d-hp">전멸</b>' : '진행 중';
     return `<button type="button" class="dcard${r.raidId === App.curRid ? ' on' : ''}${st.status !== 'live' ? ' done' : ''}" data-rid="${esc(r.raidId)}" aria-pressed="${r.raidId === App.curRid}">
-      <span class="dc-squad">${esc(squadLabel(r))}</span>
+      <span class="dc-squad"><b class="dc-alias">${esc(squadAlias(r))}</b><small>${esc(squadLabel(r))}${leadName(r) ? '' : ' · 공략대장 모집 중'}</small></span>
       <span class="dc-boss">${esc(r.name || '이름 없는 보스')}</span>
       <span class="dc-hp"><i style="width:${pct}%"></i></span>
       <span class="dc-meta">${r.private ? '<span class="dc-priv">비공개</span>' : ''}<span>HP ${Math.round(pct)}%</span><span>공략대원 ${alive}/${st.members.length}${r.maxMembers ? ` · 정원 ${r.maxMembers}` : ''}</span><span>${DIFF_LABEL(r.diff)}</span><span>${status}</span></span>
@@ -77,14 +84,14 @@ function rankData(){
     const st = compute(r, eventsOf(r.raidId));
     const dmg = st.members.reduce((a,m)=>a + (st.stats[m].dmg||0), 0);
     const end = st.status !== 'live' ? Math.max(r.startedAt||0, ...eventsOf(r.raidId).filter(e=>!e.undone).map(e=>e.t||0)) : Date.now();
-    squads.push({label: squadLabel(r), boss: r.name, diff: r.diff, status: st.status, live: true, progress: st.maxHp ? 1 - st.hp/st.maxHp : 0, dmg, n: st.members.length, mvp: topDealer(st) || '', start: r.startedAt||0, end});
+    squads.push({label: `${squadAlias(r)} (${squadLabel(r)})`, boss: r.name, diff: r.diff, status: st.status, live: true, progress: st.maxHp ? 1 - st.hp/st.maxHp : 0, dmg, n: st.members.length, mvp: topDealer(st) || '', start: r.startedAt||0, end});
     st.members.forEach(m=>addP(m, st.stats[m], squadLabel(r), true, st.status === 'clear'));
   }
   for(const h of App.history){
     if(App.raids[h.raidId] || h.status === 'live' || !canSeeHist(h)) continue;
     const mem = h.members || {};
     const dmg = Object.values(mem).reduce((a,x)=>a + (x.dmg||0), 0);
-    squads.push({label: h.squadLabel || '', boss: h.name, diff: h.diff, status: h.status, live: false, progress: h.maxHp ? 1 - (h.hpLeft||0)/h.maxHp : 0, dmg, n: Object.keys(mem).length, mvp: h.mvp || '', start: h.startedAt||0, end: h.endedAt||h.startedAt||0});
+    squads.push({label: h.lead ? `${h.lead} 공략대 (${h.squadLabel || ''})` : (h.squadLabel || ''), boss: h.name, diff: h.diff, status: h.status, live: false, progress: h.maxHp ? 1 - (h.hpLeft||0)/h.maxHp : 0, dmg, n: Object.keys(mem).length, mvp: h.mvp || '', start: h.startedAt||0, end: h.endedAt||h.startedAt||0});
     Object.entries(mem).forEach(([m,x])=>addP(m, x, h.squadLabel || '', false, h.status === 'clear'));
   }
   const dur = x => Math.max(0, x.end - x.start);

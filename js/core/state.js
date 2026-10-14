@@ -8,6 +8,10 @@ const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','
 const fmt = n => Math.round(n).toLocaleString('ko-KR');
 const CUR_KEY = 'sc-boss-raid:cur:coop';
 const squadLabel = r => r && r.squad ? `${r.squad}공략대` : '공략대';
+/* 공략대장: 운영자가 연 공략대(본부 모집)에 처음 참가한 공략대원. raid.lead = {uid, name} */
+const leadName = r => (r && r.lead && r.lead.name && (r.members || []).includes(r.lead.name)) ? r.lead.name : '';
+/* 공략대 별칭: "닉네임 공략대". 공략대장이 없으면 본부 모집 공략대 */
+const squadAlias = r => leadName(r) ? `${leadName(r)} 공략대` : '본부 모집 공략대';
 // 방 코드: 주소 끝에 ?room=코드 를 붙이면 그룹별로 레이드가 분리됩니다.
 const OVERLAY = document.documentElement.classList.contains('overlay');
 /* 테스트 모드: 주소 끝에 ?test=1. 이 탭에서만 유지되는 테스트 계정(익명 로그인)으로 스트리머 화면을 시험합니다.
@@ -69,4 +73,4 @@ function openModal(id, focusSel){
   if(f) setTimeout(()=>f.focus(), 0);
 }
 
-export { bootNeed, bootReady, bootFinish, $, esc, fmt, CUR_KEY, squadLabel, OVERLAY, TEST, MODE, ROOM, base, bindModal, openModal };
+export { bootNeed, bootReady, bootFinish, $, esc, fmt, CUR_KEY, squadLabel, squadAlias, leadName, OVERLAY, TEST, MODE, ROOM, base, bindModal, openModal };

@@ -190,8 +190,8 @@ const GEAR_GRADES = [
    cost : 1개 가격 (지참금에서 빠짐)
    v    : 효과량. hp = 체력 회복, mp = 역할 스킬 게이지 충전 (전투불능일 때는 못 씀) */
 const POTIONS = {
-  hp: {name:'힐링 포션', cost:50, v:30, unit:'체력'},
-  mp: {name:'마나 포션', cost:50, v:30, unit:'스킬 게이지'}
+  hp: {name:'힐링 포션', cost:50, v:25, unit:'체력'},
+  mp: {name:'마나 포션', cost:50, v:25, unit:'스킬 게이지'}
 };
 
 

@@ -799,9 +799,34 @@ html.booting .wrap{visibility:hidden}
 html:not(.booting) .boot-loader:not(.done){display:none}
 .bl-box{display:flex;flex-direction:column;align-items:center;gap:16px}
 .bl-title{font-family:var(--f-display);font-size:26px;color:var(--accent)}
-.bl-spin{width:40px;height:40px;border-radius:50%;border:3px solid color-mix(in srgb,var(--accent) 25%,transparent);border-top-color:var(--accent);animation:blSpin .8s linear infinite}
+.bl-spin{position:relative;width:64px;height:64px;display:grid;place-items:center}
+/* 가운데 원 + 그 테두리를 따라 도는 링 */
+.bl-spin::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0 55%,color-mix(in srgb,var(--accent) 40%,transparent) 75%,var(--accent) 100%);
+  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 3px));
+  animation:blSpin 1s linear infinite!important}
+.bl-spin::after{content:"";width:40px;height:40px;border-radius:50%;border:2px solid color-mix(in srgb,var(--accent) 30%,transparent);
+  background:radial-gradient(circle,color-mix(in srgb,var(--accent) 22%,transparent),transparent 70%);animation:blPulse 1.6s ease-in-out infinite!important}
 @keyframes blSpin{to{transform:rotate(360deg)}}
+@keyframes blPulse{50%{transform:scale(.88);opacity:.6}}
 .bl-text{font-size:14px;color:var(--muted)}
-@media (prefers-reduced-motion:reduce){.bl-spin{animation-duration:2.4s}}
+/* 움직임 줄이기 설정에서도 로딩 중임은 보이도록 링은 천천히 돎 */
+@media (prefers-reduced-motion:reduce){.bl-spin::before{animation-duration:2.4s!important}.bl-spin::after{animation:none!important}}
 /* 방송 오버레이에서는 로딩 화면 없이 투명하게 기다림 */
 html.overlay .boot-loader{display:none!important}
+
+/* 비공개 공략대 잠금 화면: 진행 상황은 숨기고 기본 보스 정보와 참가 칸만 */
+html.raid-locked #hud .gauge,html.raid-locked #partyStrip,html.raid-locked #hudFoot,html.raid-locked #ticker,html.raid-locked #banner,
+html.raid-locked #skillBoard,html.raid-locked .col-mid,html.raid-locked .col-right,html.raid-locked #logPanel,html.raid-locked #mePanel{display:none!important}
+html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-template-areas:"left"!important}
+.locked-box{margin:12px 0 4px;padding:12px 14px;border-radius:6px;border:1px dashed var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent)}
+.locked-note{margin:0;font-size:14px}
+.dcard.locked{opacity:.92}
+.dc-lock{margin-right:5px}
+.dc-hp-lock{background:repeating-linear-gradient(135deg,#ffffff14 0 6px,transparent 6px 12px);box-shadow:0 0 0 1px #ffffff22}
+.dc-hp-lock i{display:none}
+
+/* 공략대장 · 공략대 별칭 */
+.lead-tag{font-size:11px;color:#fff;background:linear-gradient(180deg,#6aa8ff,#2f6fd6);padding:1px 6px;border-radius:4px;margin-left:6px;font-weight:700;font-family:var(--f-body,inherit)}
+.dc-squad{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.dc-squad small{font-weight:600;font-size:11px;color:var(--muted);letter-spacing:0}

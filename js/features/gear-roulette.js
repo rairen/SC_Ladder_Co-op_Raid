@@ -100,8 +100,8 @@ function doJoin(){
   if(!name){ toast('방송에서 쓰는 이름을 입력하세요.'); $('joinName').focus(); return; }
   if(!App.raid){ toast('아직 열린 레이드가 없습니다. 운영자가 레이드를 열면 참가할 수 있습니다.'); return; }
   const already = App.raid.members.includes(name);
-  const needCode = authed && !isAdmin(), code = String($('joinCode').value||'').trim().toUpperCase();
-  if(needCode && !code){ toast('운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
+  const needCode = authed && !isAdmin() && !!App.raid.private, code = String($('joinCode').value||'').trim().toUpperCase();
+  if(needCode && !code){ toast('비공개 공략대입니다. 운영자에게 받은 초대 코드를 입력하세요.'); $('joinCode').focus(); return; }
   // 정원 (최대 인원)
   const cap = Number(App.raid.maxMembers) || 0;
   if(!already && cap && (App.raid.members || []).length >= cap){ toast(`이 공략대는 정원(${cap}명)이 찼습니다.`); return; }
@@ -128,10 +128,14 @@ function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed){
     if(!already){ const bag = await store.loadBag(name); await store.setRoster(name, bag ? {role, fee, bag} : {role, fee}); }
     if(authed) await store.setRoster(name, {uid: App.authUser.uid, ladder, gw});
     else if(ladder) await store.setRoster(name, {ladder});
+    // 본부 모집 공략대: 처음 참가한 공략대원이 공략대장
+    const wasLead = !!(App.raid.lead && (App.raid.members||[]).includes(App.raid.lead.name));
+    await store.claimLead(name, authed ? App.authUser.uid : '');
     if(authed && App.profile && ladder !== (App.profile.ladder||'')) await App.db.ref('users/'+App.authUser.uid).update({ladder});
     $('joinName').value = ''; $('joinLadder').value = ''; $('joinCode').value = ''; delete $('joinLadder').dataset.touched;
     setMe(name);
-    toast(already ? `${name} 이름으로 다시 들어왔습니다.` : `${name} 참가 완료 · 보스가 강해졌습니다`);
+    const nowLead = App.raid && App.raid.lead && App.raid.lead.name === name;
+    toast(already ? `${name} 이름으로 다시 들어왔습니다.` : !wasLead && nowLead ? `${name} 참가 완료 · 첫 참가자라 공략대장이 되었습니다` : `${name} 참가 완료 · 보스가 강해졌습니다`);
   });
 }
 function renderJoin(s, me){
@@ -149,7 +153,7 @@ function renderJoin(s, me){
   $('loginBtn2').textContent = TEST ? '테스트 계정으로 시작' : '구글 로그인';
   $('joinExisting').hidden = authed && !isAdmin();
   $('joinName').disabled = authed;
-  $('joinCodeField').hidden = !(authed && App.authUser && !isAdmin());
+  $('joinCodeField').hidden = !(authed && App.authUser && !isAdmin() && hasRaid && App.raid.private);
   if(authed && App.authUser){
     $('joinName').value = profileName();
     if(document.activeElement !== $('joinLadder') && !$('joinLadder').dataset.touched) $('joinLadder').value = (App.profile && App.profile.ladder) || '';

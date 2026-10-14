@@ -4,7 +4,7 @@
 /* ---------- Skill board (overlay) ---------- */
 import { App } from '@app/core/app.js';
 import { PARTY_HP, PRESETS, RACES, ROLES, SKILL_TYPES } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, leadName } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { bossSkillsOf, cfgOf, compute, dmgByText, inputOf, rosterOf, skillHtml, whatHtml, catOf, catTag } from '@app/core/logic.js';
 import { render, topDealer } from '@app/ui/render.js';
@@ -36,7 +36,7 @@ function summarize(r, s, stopped, evs = App.events){
   const left = [...new Set(evs.filter(e=>e.type==='party' && e.action==='kick' && !e.undone).map(e=>e.member))].filter(m=>!s.members.includes(m));
   const tot = Object.values(members).reduce((a,x)=>({w:a.w+x.w, l:a.l+x.l}), {w:0,l:0});
   const lastT = evs.filter(e=>!e.undone).reduce((a,e)=>Math.max(a, e.t||0), r.startedAt||0);
-  return {raidId:r.raidId, squad:r.squad||0, squadLabel: squadLabel(r), name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
+  return {raidId:r.raidId, squad:r.squad||0, squadLabel: squadLabel(r), lead: leadName(r), name:r.name||'이름 없는 보스', diff:r.diff||'custom', cfg:s.cfg, startedAt:r.startedAt||0, endedAt:lastT,
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
     boss: bossSpecOf(r, s), hqDmg: (s.hq && s.hq.dmg) || 0, private: !!r.private, maxMembers: Number(r.maxMembers) || 0,
@@ -67,12 +67,13 @@ function specOfHist(h){
     n: Object.keys(h.members||{}).length, maxHp: h.maxHp||0, maxRage: h.maxRage||0, skills: (h.bossSkills || []).map(x=>({name:x.name, type:x.type, w:x.w, v:x.v}))};
 }
 /* 보스 스펙 표시 (레이드 기록 펼침, 공략대원 참여 레이드 팝업에서 같이 씀) */
-function bossSpecHtml(b){
+/* basic: 비공개 공략대 잠금 화면용. 인원에 따라 바뀌는 전체 HP는 빼고 시작 전 기본값만 */
+function bossSpecHtml(b, {basic = false} = {}){
   const skills = (b.skills||[]).map(x=>{ const t = SKILL_TYPES[x.type]; return `<span class="bs-chip" title="${esc(t ? t.desc(x.v) : '')}">${esc(x.name)}${t ? `<small>${esc(t.desc(x.v))}</small>` : ''}</span>`; }).join('');
   return `<div class="boss-spec">
     <span>난이도 <b>${esc((PRESETS[b.diff]||PRESETS.custom).label)}</b></span><span>종족 <b>${esc(RACES[b.race] || RACES.mixed)}</b></span>
-    <span>보스 HP <b>${fmt(b.maxHp)}</b> <small>1인당 ${fmt(b.hp)}${b.bonus ? ` + 인원당 ${fmt(b.bonus)}` : ''} · ${b.n}명</small></span>
-    <span>분노 최대 <b>${fmt(b.maxRage)}</b> <small>데미지 × ${b.rageRate}</small></span><span>보스 회복 <b>${b.rec}%</b></span>
+    ${basic ? `<span>보스 HP <b>1인당 ${fmt(b.hp)}</b>${b.bonus ? ` <small>+ 인원당 ${fmt(b.bonus)}</small>` : ''}</span>` : `<span>보스 HP <b>${fmt(b.maxHp)}</b> <small>1인당 ${fmt(b.hp)}${b.bonus ? ` + 인원당 ${fmt(b.bonus)}` : ''} · ${b.n}명</small></span>`}
+    <span>분노 최대 <b>${fmt(basic ? b.rage : b.maxRage)}</b> <small>데미지 × ${b.rageRate}</small></span><span>보스 회복 <b>${b.rec}%</b></span>
   </div>${skills ? `<div class="bs-skills"><span class="label" style="margin:0">보스 스킬</span>${skills}</div>` : ''}`;
 }
 function fmtDate(t){ if(!t) return '-'; const d = new Date(t); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
@@ -133,7 +134,7 @@ function histDetail(h, mem){
     <h3 class="label" style="margin:10px 0 4px">보스 스펙</h3>${bossSpecHtml(specOfHist(h))}`;
   const table = `<div class="tbl-wrap"><table class="mini">
     <thead><tr><th>공략대원</th><th>역할</th><th class="r">지참금</th><th class="r">승</th><th class="r">패</th><th class="r">데미지</th><th class="r">한 판 최고</th><th class="r">분노 유발</th><th class="r">최종 체력</th><th>장비</th></tr></thead>
-    <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${h.mvp===m?'<span class="mvp">MVP</span>':''}${x.ladder?`<div class="hint">${esc(x.ladder)}</div>`:''}</td>
+    <tbody>${mem.length ? mem.map(([m,x])=>`<tr><td>${esc(m)}${h.lead===m?'<span class="lead-tag" title="공략대장">대장</span>':''}${h.mvp===m?'<span class="mvp">MVP</span>':''}${x.ladder?`<div class="hint">${esc(x.ladder)}</div>`:''}</td>
       <td>${x.role && ROLES[x.role] ? `<span class="role-tag ${x.role}">${ROLES[x.role].short}</span>${ROLES[x.role].label}` : '-'}</td>
       <td class="r num">${x.fee != null ? fmt(x.fee) + (x.spent ? `<div class="hint">사용 ${fmt(x.spent)}</div>` : '') : '-'}</td>
       <td class="r num">${x.w}</td><td class="r num">${x.l}</td><td class="r num">${fmt(x.dmg)}${x.by && Object.keys(x.by).some(k=>k !== 'ladder' && x.by[k]) ? `<div class="hint">${esc(dmgByText(x.by))}</div>` : ''}</td><td class="r num">${fmt(x.best||0)}</td><td class="r num">${fmt(x.rage)}</td>

@@ -85,7 +85,7 @@ export function init(){
     const race = $('bossRace').value || raceOfName(nm);
     const ss = (App.setupSrc && App.setupSrc.race === race) ? App.setupSrc : null;
     const extra = {}; if(ss){ if(ss.roleSkills) extra.roleSkills = ss.roleSkills; if(ss.gauge) extra.gauge = ss.gauge; if(ss.settings) extra.settings = ss.settings; }
-    const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof App.authUser !== 'undefined' && App.authUser) ? App.authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: App.setupRoles[m] || 'dealer', fee:0}])), diff: App.diff, cfg:setupCfg(), startedAt:Date.now(), ...(maxMembers ? {maxMembers} : {}), ...($('privateRaid').checked ? {private:true} : {})};
+    const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof App.authUser !== 'undefined' && App.authUser) ? App.authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: App.setupRoles[m] || 'dealer', fee:0}])), diff: App.diff, cfg:setupCfg(), startedAt:Date.now(), ...(maxMembers ? {maxMembers} : {}), ...($('privateRaid').checked ? {private:true} : {}), ...(ms.length ? {lead: {name: ms[0]}} : {})};
     guard(async()=>{
       /* 지난 레이드에서 쓰던 장비·소모품 가져오기 */
       const bags = await Promise.all(ms.map(m=>store.loadBag(m)));

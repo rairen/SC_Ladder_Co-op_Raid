@@ -10,7 +10,7 @@
      운영자        레이드 열기·종료, 공략대원 추가, 모든 공략대원 입력, 데이터 초기화 (콘솔에서 지정)
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, ROOM, TEST, esc, bootReady } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, TEST, esc, bootReady, leadName } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { cleanName } from '@app/features/gear-roulette.js';
@@ -58,11 +58,18 @@ function uidName(){
   return n && (r.members||[]).includes(n) ? n : '';
 }
 function joinedAs(nm){ return !!nm && uidName() === nm; }
-/* 비공개 공략대: 운영자와 그 공략대원에게만 목록·랭킹·기록에 보임 (주소를 아는 사람의 직접 열기와 오버레이는 가능) */
+/* 비공개 공략대: 진행 상황(HP·전투 기록·랭킹·레이드 기록)은 운영자와 그 공략대원만 봄.
+   던전 목록에는 자물쇠로 보이고, 눌러도 시작 전 기본 보스 정보와 참가(초대 코드)만 보임. 방송 오버레이는 그대로 */
 function canSeeRaid(r){
   if(!r || !r.private || canOperate()) return true;
   if(App.authUser && r.uids && r.uids[App.authUser.uid]) return true;
   return !useAuth() && !!App.meName && (r.members || []).includes(App.meName);
+}
+/* 지금 보고 있는 공략대의 공략대장인지 (로그인 모드는 계정, 브라우저 저장 모드는 이름으로 확인) */
+function isLeader(r = App.raid){
+  if(!r || !r.lead || !leadName(r)) return false;
+  if(useAuth()) return !!App.authUser && r.lead.uid === App.authUser.uid;
+  return !!App.meName && r.lead.name === App.meName;
 }
 function canSeeHist(h){
   if(!h || !h.private || canOperate()) return true;
@@ -194,4 +201,4 @@ export function init(){
 }
 
 
-export { canSeeRaid, canSeeHist, initAuth, loginTest, uidName, joinedAs, applyAccess, authMe, renderAuth, login, openProfile, renderProfile, saveProfile, deleteAccount, useAuth, isAdmin, canOperate, profileName };
+export { isLeader, canSeeRaid, canSeeHist, initAuth, loginTest, uidName, joinedAs, applyAccess, authMe, renderAuth, login, openProfile, renderProfile, saveProfile, deleteAccount, useAuth, isAdmin, canOperate, profileName };

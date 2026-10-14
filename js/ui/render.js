@@ -4,7 +4,7 @@
 /* ---------- Rendering ---------- */
 import { App } from '@app/core/app.js';
 import { PARTY_HP, PENDING_LABEL, PRESETS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, squadAlias, leadName } from '@app/core/state.js';
 import { compute, gearHtml, rosterOf, skillHtml, statusTags, whatHtml, catOf, catTag, LOG_CATS, dmgByText } from '@app/core/logic.js';
 import { renderEndBtn } from '@app/ui/setup.js';
 import { renderOdds } from '@app/features/actions.js';
@@ -18,16 +18,26 @@ import { renderSkillModal } from '@app/ui/info-window.js';
 import { autoOn, renderLadderPanel } from '@app/features/ladder.js';
 import { renderInvite } from '@app/features/party.js';
 import { renderBrowserCollect } from '@app/features/ladder-browser.js';
-import { applyAccess, canOperate } from '@app/features/auth.js';
-import { autoArchive, renderSkillBoard } from '@app/ui/history.js';
+import { applyAccess, canOperate, canSeeRaid, isLeader } from '@app/features/auth.js';
+import { autoArchive, renderSkillBoard, bossSpecHtml, bossSpecOf } from '@app/ui/history.js';
 import { renderLobby } from '@app/ui/dungeon.js';
 import { myName } from '@app/core/boot.js';
 
 function render(){
   if(typeof applyAccess === 'function') applyAccess();
-  const s = compute(App.raid, App.events);
-  App.lastState = s;
+  let s = compute(App.raid, App.events);
   const hasRaid = !!App.raid;
+  /* 비공개 공략대를 볼 권한이 없으면: 진행 상황 대신 시작 전 기본 보스 정보와 참가 칸만 보임 */
+  const locked = hasRaid && !OVERLAY && !canSeeRaid(App.raid);
+  document.documentElement.classList.toggle('raid-locked', locked);
+  if(locked){
+    const st0 = s.status;
+    s = compute(App.raid, []); s.status = st0;
+    $('lockedBox').innerHTML = `<p class="locked-note"><span aria-hidden="true">🔒</span> <b>비공개 공략대</b> · 진행 상황은 초대 코드로 참가한 공략대원만 볼 수 있습니다.${st0 === 'live' ? ' 운영자에게 받은 초대 코드로 참가하세요.' : ''}</p>
+      <h3 class="label" style="margin:10px 0 4px">기본 보스 정보 (레이드 시작 전)</h3>${bossSpecHtml(bossSpecOf(App.raid, s), {basic:true})}`;
+  }
+  $('lockedBox').hidden = !locked;
+  App.lastState = s;
 
   // connection pill
   const cp = $('connPill');
@@ -37,12 +47,14 @@ function render(){
 
   // HUD
   $('bossName').textContent = hasRaid ? (App.raid.name || '이름 없는 보스') : '레이드 대기 중';
-  $('squadTag').textContent = hasRaid ? squadLabel(App.raid) : 'BOSS';
+  $('squadTag').textContent = hasRaid ? `${squadLabel(App.raid)} · ${squadAlias(App.raid)}` : 'BOSS';
   if(typeof renderLobby === 'function') renderLobby();
   const meta = $('bossMeta');
   if(hasRaid){
     const p = PRESETS[App.raid.diff] || PRESETS.custom;
-    meta.innerHTML = `<span class="pill">${esc(p.label)}</span>${App.raid.private ? '<span class="pill">비공개</span>' : ''}<span class="pill">공략대 ${s.members.length}명${App.raid.maxMembers ? ` / 정원 ${App.raid.maxMembers}` : ''}</span><span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
+    const cap = App.raid.maxMembers ? `정원 ${App.raid.maxMembers}` : '';
+    const cnt = locked ? (cap ? `<span class="pill">${cap}</span>` : '') : `<span class="pill">공략대 ${s.members.length}명${cap ? ' / '+cap : ''}</span>`;
+    meta.innerHTML = `<span class="pill">${esc(p.label)}</span>${App.raid.private ? '<span class="pill">🔒 비공개</span>' : ''}${cnt}<span class="pill">1인당 HP ${fmt(s.cfg.hp)} +인원당 ${fmt(s.cfg.bonus||0)} · 분노 최대 ${fmt(s.cfg.rage)} (데미지 × ${s.cfg.rageRate}) · 회복 ${s.cfg.rec}%</span>`;
   } else meta.innerHTML = `<span class="pill">위의 "레이드 설정"에서 공략대원과 난이도를 정하면 시작됩니다</span>`;
   const hpPct = hasRaid && s.maxHp ? s.hp/s.maxHp*100 : 100;
   const ragePct = hasRaid && s.maxRage ? Math.min(100, s.rage/s.maxRage*100) : 0;
@@ -107,10 +119,11 @@ function render(){
     const roleCell = `<span title="레이드 시작 후에는 역할을 바꿀 수 없습니다">${ROLES[rk].label}</span>`;
     const left = (s.fee[m] ?? ro.fee) - (s.spent[m] ?? 0), fund = (s.fund && s.fund[m]) || 0;
     const feeCell = (canEdit ? `<input type="number" min="0" step="10" value="${ro.fee}" data-rfee="${esc(m)}" aria-label="${esc(m)} 초기 지참금" title="초기 지참금">` : `<b class="num" title="초기 지참금">${fmt(ro.fee)}</b>`) + (fund ? `<span class="hint num" title="추가 지원금">+지원 ${fmt(fund)}</span>` : '') + `<span class="hint num" title="장비 룰렛에 쓰고 남은 지참금">남음 ${fmt(left)}</span>`;
-    const kick = editAll && !me && canOperate() ? `<button type="button" class="kick" data-kick="${esc(m)}" title="공략대에서 내보내기">${App.kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
+    /* 내보내기: 운영자, 또는 공략대장(자기 자신 제외) */
+    const kick = editAll && m !== me && ((!me && canOperate()) || (!!me && isLeader())) ? `<button type="button" class="kick" data-kick="${esc(m)}" title="공략대에서 내보내기">${App.kickArm===m ? '정말 내보내기' : '내보내기'}</button>` : '';
     const mvp = x.dmg>0 && x.dmg===top ? '<span class="mvp">MVP</span>' : '';
     return `<article class="pcard${down?' down':''}${low?' low':''}${m===me?' mine':''}${!me && m===App.selected?' sel':''}" data-pick="${esc(m)}">
-      <header class="pc-head"><span class="pc-rank num">${i+1}</span><span class="role-tag ${rk}">${ROLES[rk].short}</span><b class="pc-name">${esc(m)}</b>${mvp}<span class="pc-tags">${statusTags(s, m)}</span>${kick}</header>
+      <header class="pc-head"><span class="pc-rank num">${i+1}</span><span class="role-tag ${rk}">${ROLES[rk].short}</span><b class="pc-name">${esc(m)}</b>${m === leadName(App.raid) ? '<span class="lead-tag" title="공략대장">대장</span>' : ''}${mvp}<span class="pc-tags">${statusTags(s, m)}</span>${kick}</header>
       <div class="rbar hp${low?' low':''}${down?' ko':''}"><i style="width:${Math.max(0, h/mx*100)}%"></i><span class="rb-l">HP</span><span class="rb-v num">${down ? '전투불능' : `${fmt(h)} / ${fmt(mx)}`}</span></div>
       <div class="rbar sp${full?' full':''}"><i style="width:${Math.min(100, g/need*100)}%"></i><span class="rb-l">스킬</span><span class="rb-v num">${full ? '사용 가능' : `${g} / ${need}`}</span></div>
       ${gearHtml(s, m)}

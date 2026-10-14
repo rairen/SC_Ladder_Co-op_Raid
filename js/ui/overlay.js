@@ -4,7 +4,7 @@
 /* ---------- Overlay ---------- */
 import { App } from '@app/core/app.js';
 import { ITEM, PARTY_HP, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, squadAlias } from '@app/core/state.js';
 import { toast } from '@app/core/store.js';
 import { partyText } from '@app/core/logic.js';
 
@@ -48,7 +48,7 @@ function overlayUrl(){
 }
 function refreshOvl(){
   $('ovlUrl').textContent = overlayUrl();
-  $('ovlTitle').textContent = App.raid ? `방송 오버레이 · ${squadLabel(App.raid)}` : '방송 오버레이';
+  $('ovlTitle').textContent = App.raid ? `방송 오버레이 · ${squadLabel(App.raid)} · ${squadAlias(App.raid)}` : '방송 오버레이';
   $('ovlNote').textContent = App.local
     ? '지금은 Firebase가 연결되지 않아 기록이 이 브라우저에만 있습니다. OBS 브라우저 소스는 별도 브라우저라서, 공유 연결 전에는 오버레이에 기록이 보이지 않습니다. 미리보기는 같은 브라우저라 정상으로 보입니다.'
     : '모든 공략대원의 입력이 오버레이에 실시간으로 반영됩니다.';

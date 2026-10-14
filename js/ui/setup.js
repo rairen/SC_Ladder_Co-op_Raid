@@ -43,7 +43,7 @@ function updateSetupPreview(){
 }
 function openSetup(open){
   $('setup').hidden = !open;
-  // 로그인 모드에서는 공략대원을 미리 넣지 않고, 초대 코드로 각자 참가
+  // 로그인 모드에서는 공략대원을 미리 넣지 않고 각자 참가 (비공개 공략대만 초대 코드 필요)
   const invite = typeof useAuth === 'function' && useAuth();
   $('setupMembersBox').hidden = invite; $('setupInviteHint').hidden = !invite;
   if(invite){ App.setupList = []; App.setupRoles = {}; }

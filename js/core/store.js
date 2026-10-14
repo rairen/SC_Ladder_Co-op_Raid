@@ -68,8 +68,24 @@ const store = {
       return arr.includes(name) ? arr : arr.concat([name]);
     });
   },
-  /* 공략대에서 내보내기 (운영자). 그 공략대원의 기록은 계산에서 빠집니다. */
+  /* 공략대장 자리가 비어 있으면 내가 공략대장 (처음 참가한 공략대원). 동시에 참가해도 한 명만 되도록 트랜잭션 */
+  async claimLead(name, uid){
+    const want = uid ? {uid, name} : {name};
+    if(App.local){ if(!(App.raid.lead && (App.raid.members||[]).includes(App.raid.lead.name))){ App.raid = {...App.raid, lead: want}; commit(); } return; }
+    await App.db.ref(rpath()+'/lead').transaction(cur=>cur && cur.name ? undefined : want).catch(()=>{});
+  },
+  /* 공략대장을 다음 공략대원에게 넘김 (공략대장이 내보내졌을 때). 남은 사람이 없으면 비움 */
+  async passLead(except){
+    const r = App.raid; if(!r) return;
+    const next = (r.members||[]).find(m=>m !== except);
+    const ro = next && r.roster && r.roster[rosterKey(next)];
+    const lead = next ? (ro && ro.uid ? {uid: ro.uid, name: next} : {name: next}) : null;
+    if(App.local){ App.raid = {...App.raid, lead}; if(!lead) delete App.raid.lead; commit(); return; }
+    await App.db.ref(rpath()+'/lead').set(lead);
+  },
+  /* 공략대에서 내보내기 (운영자·공략대장). 그 공략대원의 기록은 계산에서 빠집니다. */
   async kick(name){
+    if(App.raid && App.raid.lead && App.raid.lead.name === name) await store.passLead(name);
     if(App.local){ App.raid = {...App.raid, members: App.raid.members.filter(x=>x!==name)}; commit(); return; }
     await App.db.ref(rpath()+'/members').transaction(list=>{ const arr = Array.isArray(list) ? list : Object.values(list || {}); return arr.filter(x=>x!==name); });
     const uid = App.raid && App.raid.roster && App.raid.roster[rosterKey(name)] && App.raid.roster[rosterKey(name)].uid;
