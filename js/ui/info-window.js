@@ -6,7 +6,7 @@
    info  : 보스 영역의 정보 버튼. 진행 중인 레이드 값을 보여주기만 함
    setup : 새 레이드 만들기의 '수치 설정'. 시작 전 값만 고칠 수 있고, 레이드를 시작하면 잠김 */
 import { App } from '@app/core/app.js';
-import { BOSS_BY_RACE, BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, GEAR_GRADES, ITEMS, PARTY_HP, PARTY_SKILL_PLAN, PRESETS, RACES, REVIVE_HP, ROLES, ROULETTE_PLAN, SKILL_TYPES, TIERS } from '@app/core/game-data.js';
+import { BOSS_BY_RACE, BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, GEAR_GRADES, ITEMS, ROLE_STATS, PARTY_HP, PARTY_SKILL_PLAN, PRESETS, RACES, REVIVE_HP, ROLES, ROULETTE_PLAN, SKILL_TYPES, TIERS } from '@app/core/game-data.js';
 import { $, OVERLAY, esc, fmt } from '@app/core/state.js';
 import { guard, toast } from '@app/core/store.js';
 import { bossHpOf, bossSkillsOf, gaugeOf, gearRollList, roleSkillsOf, settingsOf } from '@app/core/logic.js';
@@ -122,6 +122,11 @@ function renderSkillModal(){
           <td class="r"><input type="number" min="0" step="1" value="${rs[k].v}" data-rs="${k}" data-k="v" aria-label="${R.label} 수치"></td><td class="desc">${esc(R.desc(rs[k].v))}</td></tr>`
       : `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td><b>${esc(rs[k].name)}</b></td><td class="r num">${rs[k].v}</td><td class="desc">${esc(R.desc(rs[k].v))}</td></tr>`).join('')}
     </tbody></table></div>
+    <h3 class="label" style="margin:6px 0 0">역할 기본 능력치</h3>
+    ${(()=>{ const st = (SRC() && SRC().roleStats) || (App.modalMode === 'setup' || !App.raid ? ROLE_STATS : null); const pc = v => Math.round(v*100) + '%';
+      return st ? `<div class="tbl-wrap"><table class="sk-table"><thead><tr><th>역할</th><th class="r">공격 (승리 데미지)</th><th class="r">받는 피해</th><th class="r">스킬 게이지 충전</th></tr></thead><tbody>
+      ${Object.entries(ROLES).map(([k,R])=>{ const x = st[k] || {atk:1,def:1,gauge:1}; return `<tr><td><span class="role-tag ${k}">${R.short}</span>${R.label}</td><td class="r num">${pc(x.atk)}</td><td class="r num">${pc(x.def)}</td><td class="r num">${pc(x.gauge)}</td></tr>`; }).join('')}
+      </tbody></table></div>` : '<p class="hint" style="margin:0">이 레이드는 역할 능력치가 생기기 전에 시작해서 모든 역할이 100%입니다.</p>'; })()}
     <h3 class="label" style="margin:6px 0 0">스킬 게이지</h3>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>최대</th><th>기본 시작값</th><th>승리 시 충전</th><th>패배 시 충전</th></tr></thead><tbody><tr>
     ${['max','start','win','loss'].map(k=> edit ? `<td><input type="number" min="0" step="5" value="${G[k]}" data-g="${k}" aria-label="게이지 ${k}"></td>` : `<td class="num">${G[k]}</td>`).join('')}

@@ -219,9 +219,13 @@ function updateGamePreview(){
   const who = App.selected, p = Math.abs(parseInt($('points').value,10) || 0), pend = s.pending[who];
   const autoNote = autoOn(who) ? '<div class="calc-sub"><b style="color:#ffd34d">이 공략대원은 래더 결과가 자동으로 들어옵니다.</b> 자동으로 못 들어온 판만 직접 입력하세요.</div>' : '';
   const shown = p || '점수';
+  // 역할 능력치 (레이드에 저장된 값, 예전 레이드는 1배)
+  const rk = s.role[who], rst = (s.roleStats && s.roleStats[rk]) || {atk:1, def:1, gauge:1}, rl = ROLES[rk] ? ROLES[rk].label : '';
+  const gw1 = Math.round(s.G.win * (rst.gauge || 1)), gl1 = Math.round(s.G.loss * (rst.gauge || 1));
   if(App.isWin){
     if((s.mhp[who] ?? 1) <= 0){ el.innerHTML = `<b>${esc(who)}</b>는 전투불능입니다. 승리하면 데미지 대신 <b class="d-heal">체력 ${REVIVE_HP}으로 부활</b>합니다.${autoNote}`; return; }
     const gw = s.gear[who], fs = [];
+    if((rst.atk ?? 1) !== 1) fs.push([rst.atk, `${rl} 공격`]);
     if(gw && gw.dmg) fs.push([1 + gw.dmg, gw.weapon.name]);
     if(pend === 'double') fs.push([2, '데미지 2배']);
     if(s.curse[who]) fs.push([s.curse[who], '저주']);
@@ -233,14 +237,14 @@ function updateGamePreview(){
     const chainNext = !s.chain.includes(who) && s.chain.length === 2, cb = chainNext ? Math.round(s.maxHp*s.S.chain/100) : 0;
     const boom = p && s.maxRage && s.rage + rr >= s.maxRage;
     el.innerHTML = `<div class="calc">${calcHtml(shown, fs, `<b class="d-hp">보스 HP −${p ? fmt(dmg) : '?'}</b>`)}</div>
-      <div class="calc-sub">분노 <b class="d-rage">+${p ? fmt(rr) : '?'}</b> (데미지 × ${fmtMul(rate)})${cb ? ` · 체인 보너스 <b class="d-hp">−${fmt(cb)}</b>` : ''}${boom ? ' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>' : ''} · 스킬 게이지 +${s.G.win}</div>${autoNote}`;
+      <div class="calc-sub">분노 <b class="d-rage">+${p ? fmt(rr) : '?'}</b> (데미지 × ${fmtMul(rate)})${cb ? ` · 체인 보너스 <b class="d-hp">−${fmt(cb)}</b>` : ''}${boom ? ' · <b class="d-hp">분노 가득 → 보스 스킬 발동</b>' : ''} · 스킬 게이지 +${gw1}</div>${autoNote}`;
   } else {
-    if(pend === 'shield'){ el.innerHTML = `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">0</b><small>패배 보호</small></span> = <b>체력 피해 0 · 보스 회복 0</b></div><div class="calc-sub">스킬 게이지 +${s.G.loss}</div>${autoNote}`; return; }
-    const lr = Number(s.S.lossDmg) || 0, ld = Math.round(p * lr);
+    if(pend === 'shield'){ el.innerHTML = `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">0</b><small>패배 보호</small></span> = <b>체력 피해 0 · 보스 회복 0</b></div><div class="calc-sub">스킬 게이지 +${gl1}</div>${autoNote}`; return; }
+    const lr = Number(s.S.lossDmg) || 0, df = rst.def ?? 1, ld = Math.round(Math.round(p * lr) * df);
     const heal = s.enraged ? Math.min(Math.round(p*s.cfg.rec/100), s.maxHp - s.hp) : 0;
-    const lossLine = lr ? `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">${fmtMul(lr)}</b><small>패배 피해</small></span> = <b class="d-hp">${esc(who)} 체력 −${p ? fmt(ld) : '?'}</b></div>` : '<div class="calc">체력 피해 없음</div>';
+    const lossLine = lr ? `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">${fmtMul(lr)}</b><small>패배 피해</small></span>${df !== 1 ? ` × <span class="cf"><b class="num">${fmtMul(df)}</b><small>${esc(rl)} 방어</small></span>` : ''} = <b class="d-hp">${esc(who)} 체력 −${p ? fmt(ld) : '?'}</b></div>` : '<div class="calc">체력 피해 없음</div>';
     const recLine = s.enraged && s.cfg.rec ? `<div class="calc"><span class="cf"><b class="num">${shown}</b><small>잃은 점수</small></span> × <span class="cf"><b class="num">${s.cfg.rec}%</b><small>보스 회복</small></span> = <b class="d-heal">보스 HP +${p ? fmt(heal) : '?'}</b></div>` : '';
-    el.innerHTML = lossLine + recLine + `<div class="calc-sub">스킬 게이지 +${s.G.loss}${!s.enraged && s.cfg.rec ? ' · 보스 HP가 50% 아래가 되면 지는 판마다 보스가 회복합니다' : ''}</div>${autoNote}`;
+    el.innerHTML = lossLine + recLine + `<div class="calc-sub">스킬 게이지 +${gl1}${!s.enraged && s.cfg.rec ? ' · 보스 HP가 50% 아래가 되면 지는 판마다 보스가 회복합니다' : ''}</div>${autoNote}`;
   }
 }
 

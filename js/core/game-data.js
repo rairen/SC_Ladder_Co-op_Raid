@@ -153,6 +153,16 @@ const ROLES = {
   healer: {label:'힐러',   short:'H', type:'heal',  desc:v=>`공략대원 전원 체력 +${v} (전투불능도 부활)`},
   support:{label:'서포터', short:'S', type:'rally', desc:v=>`공략대의 다음 승리 ${v}번 데미지 ×1.5, 저주 해제`}
 };
+/* 역할별 기본 능력치 (새 공략대를 열 때 레이드에 저장됨)
+   atk   : 래더 승리 데미지 배율
+   def   : 받는 피해 배율 (낮을수록 덜 아픔) — 보스 스킬, 패배 피해, 룰렛 피해 모두
+   gauge : 승리·패배로 차는 스킬 게이지 배율 (포션·룰렛·본부지원 충전은 그대로) */
+const ROLE_STATS = {
+  tank:   {atk:0.6, def:0.6, gauge:1.0},
+  dealer: {atk:1.0, def:1.0, gauge:1.0},
+  healer: {atk:0.6, def:0.8, gauge:1.2},
+  support:{atk:0.6, def:0.8, gauge:1.2}
+};
 const DEFAULT_ROLE_SKILLS = {
   tank:   {name:'가드',      v:50},
   dealer: {name:'집중 포화', v:5},
@@ -289,4 +299,4 @@ const PARTY_SKILL_PLAN = [
   {tier:'전설', name:'보호막 파괴', desc:'보스 보호막 제거, 분노 게이지 비우기'}
 ];
 
-export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, POTIONS, SELL, HQ_TYPES, HQ_SUPPORT, HQ, ROULETTE_PLAN, PARTY_SKILL_PLAN };
+export { PRESETS, ITEMS, ITEM, PENDING_LABEL, TIERS, PARTY_HP, REVIVE_HP, SKILL_TYPES, RACES, BOSS_SETS, BOSS_BY_RACE, ROLES, ROLE_STATS, DEFAULT_ROLE_SKILLS, DEFAULT_GAUGE, GEAR, GEAR_SLOT, GEAR_GRADES, DEFAULT_GEAR_ROLL, DEFAULT_SETTINGS, POTIONS, SELL, HQ_TYPES, HQ_SUPPORT, HQ, ROULETTE_PLAN, PARTY_SKILL_PLAN };

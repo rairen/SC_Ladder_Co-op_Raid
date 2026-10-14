@@ -19,7 +19,8 @@ const num = v => String(Math.round(v*100)/100);
 /* 계산식: 지금 이 공략대원에게 적용되는 배율만 골라서 보여줌 */
 function formulaHtml(s, m){
   const g = s.gear[m] || {}, pend = s.pending[m], down = (s.mhp[m] ?? 1) <= 0;
-  const mul = [];
+  const mul = [], rk = s.role[m], rst = (s.roleStats && s.roleStats[rk]) || {atk:1, def:1, gauge:1}, rl = ROLES[rk] ? ROLES[rk].label : '';
+  if((rst.atk ?? 1) !== 1) mul.push([rst.atk, `${rl} 공격`]);
   if(g.dmg) mul.push([1 + g.dmg, `${g.weapon.name}`]);
   if(pend === 'double') mul.push([2, PENDING_LABEL.double]);
   if(s.curse[m]) mul.push([s.curse[m], '저주']);
@@ -34,13 +35,14 @@ function formulaHtml(s, m){
     : `보스 HP <b class="d-hp">−</b> 점수${mulTx}`;
   const lose = pend === 'shield'
     ? '<b>패배 보호</b> · 피해와 보스 회복 없음'
-    : `내 체력 <b class="d-hp">−</b> 점수 × <b>${loss}%</b>${s.enraged ? ` · 보스 HP <b class="d-heal">+</b> 점수 × <b>${s.cfg.rec}%</b> <small>보스 HP 50% 이하</small>` : ''}`;
+    : `내 체력 <b class="d-hp">−</b> 점수 × <b>${loss}%</b>${(rst.def ?? 1) !== 1 ? ` × <b>${num(rst.def)}</b> <small>${esc(rl)} 방어</small>` : ''}${s.enraged ? ` · 보스 HP <b class="d-heal">+</b> 점수 × <b>${s.cfg.rec}%</b> <small>보스 HP 50% 이하</small>` : ''}`;
   return `<div class="fm-title">계산식</div>
     <dl class="fm">
       <dt class="w">승리</dt><dd>${win}</dd>
       ${down ? '' : `<dt>분노</dt><dd>데미지 × <b>${num(rr)}</b>${cut ? ` × <b>${num(1 - cut)}</b> <small>${esc(g.accessory.name)}</small>` : ''}</dd>`}
       <dt class="l">패배</dt><dd>${lose}</dd>
-      <dt>게이지</dt><dd>승리 <b>+${s.G.win}</b> · 패배 <b>+${s.G.loss}</b></dd>
+      <dt>게이지</dt><dd>승리 <b>+${Math.round(s.G.win*(rst.gauge||1))}</b> · 패배 <b>+${Math.round(s.G.loss*(rst.gauge||1))}</b>${(rst.gauge||1) !== 1 ? ` <small>${esc(rl)} ×${num(rst.gauge)}</small>` : ''}</dd>
+      ${(rst.def ?? 1) !== 1 ? `<dt>방어</dt><dd>받는 피해 × <b>${num(rst.def)}</b> <small>${esc(rl)} · 보스 스킬·패배·룰렛 피해 모두</small></dd>` : ''}
       <dt>체인</dt><dd>서로 다른 3명 연속 승리 시 보스 최대 HP × <b>${s.S.chain}%</b> <small>지금 ${s.chain.length}/3</small></dd>
     </dl>`;
 }

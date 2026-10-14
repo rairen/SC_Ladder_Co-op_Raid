@@ -3,7 +3,7 @@
    ===================================================================== */
 /* ---------- Game logic ---------- */
 import { App } from '@app/core/app.js';
-import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, HQ, HQ_SUPPORT, ITEM, PARTY_HP, PENDING_LABEL, POTIONS, PRESETS, REVIVE_HP, ROLES, SELL } from '@app/core/game-data.js';
+import { BOSS_SETS, DEFAULT_GAUGE, DEFAULT_GEAR_ROLL, DEFAULT_ROLE_SKILLS, DEFAULT_SETTINGS, GEAR, GEAR_GRADES, GEAR_SLOT, HQ, HQ_SUPPORT, ITEM, PARTY_HP, PENDING_LABEL, POTIONS, PRESETS, REVIVE_HP, ROLES, ROLE_STATS, SELL } from '@app/core/game-data.js';
 import { esc, fmt } from '@app/core/state.js';
 
 function cfgOf(r){ return r && r.cfg ? {bonus:0, rageRate:0.5, ...r.cfg} : {hp:220, bonus:20, rage:80, rageRate:0.5, rec:40}; }
@@ -204,8 +204,13 @@ function compute(r, evs){
   const startList = members.filter(m=>!lateJoin.has(m)), power = bossPower(r);
   const sellRate = sellRateOf(power, startList.length ? startList.reduce((a,m)=>a + (fee[m]||0), 0) / startList.length : 0);
   const alive = () => Object.keys(mhp).filter(m=>mhp[m] > 0);
-  const addGauge = (m, v) => { if(mhp[m] > 0) gauge[m] = Math.min(needG[m], gauge[m] + v); };
-  const hurt = (m, d, entry) => {
+  /* 역할별 능력치: 레이드에 저장된 값 (예전 레이드는 모두 1배) */
+  const RST = (r && r.roleStats) || null, NEUTRAL = {atk:1, def:1, gauge:1};
+  const rs = m => (RST && RST[role[m]]) || NEUTRAL;
+  const addGauge = (m, v) => { if(mhp[m] > 0) gauge[m] = Math.min(needG[m], gauge[m] + Math.round(v * (Number(rs(m).gauge) || 1))); };
+  /* 공략대원이 받는 피해: 역할 방어 배율을 곱한 실제 피해를 돌려줌 */
+  const hurt = (m, d0, entry) => {
+    const df = Number(rs(m).def), d = Math.max(0, Math.round(d0 * (Number.isFinite(df) ? df : 1)));
     const before = mhp[m];
     let after = Math.max(0, before - d);
     if(after === 0 && gear[m].immortal){ immUsed[m] = true; after = gear[m].revive || REVIVE_HP; entry.notes.push(`${m} ${gear[m].accessory.name} 발동 · 체력 ${after}`); wear(m, 'accessory', entry); }
@@ -213,7 +218,9 @@ function compute(r, evs){
     if(eq[m] && eq[m].armor) wear(m, 'armor', entry);
     stats[m].skills += Math.max(0, before - after);
     entry.party.push({m, d: Math.max(0, before - after), down: after === 0});
+    return d;
   };
+  const hitList = (ms, v, entry) => ms.map(m=>`${m} −${hurt(m, v, entry)}`).join(', ');
 
   /* 보스에게 데미지를 주고, 그만큼 분노를 올림 */
   /* 데미지 유형: ladder 래더 승리 · chain 체인 보너스 · roulette 룰렛 · skill 역할 스킬 */
@@ -250,15 +257,15 @@ function compute(r, evs){
       case 'flame': {
         if(tauntOn){
           const hitN = sk.type === 'flame' ? live.length : sk.type === 'multi' ? multiN : 1, share = v * hitN / gs.length;
-          const parts = gs.map(g=>{ const d = Math.round(share * (1 - (Number(g.v)||0)/100)); hurt(g.m, d, entry); return `${g.m} −${d}`; });
+          const parts = gs.map(g=>{ const d = Math.round(share * (1 - (Number(g.v)||0)/100)); return `${g.m} −${hurt(g.m, d, entry)}`; });
           out.target = gs.map(g=>g.m).join(', ');
           out.text = `탱커 가드 ${gs.length}명이 막음 (${fmt(v)} × ${hitN}명 ÷ ${gs.length} × ${100 - (Number(gs[0].v)||0)}%) · ${parts.join(', ')}`;
           guards = [];
         } else if(sk.type === 'smash'){
-          if(target){ hurt(target, v, entry); out.target = target; out.text = `${target} 체력 −${v}`; } else out.text = '대상 없음';
+          if(target){ const d = hurt(target, v, entry); out.target = target; out.text = `${target} 체력 −${d}${d !== v ? ` (공격 ${v})` : ''}`; } else out.text = '대상 없음';
         } else if(sk.type === 'multi'){
-          const ts = pickMulti(); ts.forEach(m=>hurt(m, v, entry)); out.target = ts.join(', '); out.text = ts.length ? `${ts.join(', ')} 체력 −${v} (${ts.length}명)` : '대상 없음';
-        } else { live.forEach(m=>hurt(m, v, entry)); out.text = `생존자 ${live.length}명 체력 −${v}`; }
+          const ts = pickMulti(); out.target = ts.join(', '); out.text = ts.length ? `${ts.length}명 공격 ${v} · ${hitList(ts, v, entry)}` : '대상 없음';
+        } else { out.text = `생존자 ${live.length}명 공격 ${v} · ${hitList(live, v, entry)}`; }
         break;
       }
       case 'curse': { if(target){ curse[target] = v; out.target = target; out.text = `${target} 다음 승리 데미지 ×${v}`; } else out.text = '대상 없음'; break; }
@@ -329,6 +336,8 @@ function compute(r, evs){
         } else if(ev.banned && !S.win.banned){ entry.notes.push('금지 빌드 · 데미지 0'); if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸'); chain = []; }
         else{
           let mult = 1;
+          const ra = Number(rs(m).atk) || 1;
+          if(ra !== 1){ mult *= ra; entry.notes.push(`${ROLES[role[m]] ? ROLES[role[m]].label : ''} 공격 ×${ra}`); }
           if(gear[m].dmg){ mult *= 1 + gear[m].dmg; entry.notes.push(`${gear[m].weapon.name} ×${(1+gear[m].dmg).toFixed(2).replace(/0$/,'')}`); }
           if(ev.multi){ mult *= S.win.multi; entry.notes.push(`멀티 확보 ×${S.win.multi}`); }
           if(ev.same){ mult *= S.win.same; entry.notes.push(`같은 빌드 연속 ×${S.win.same}`); }
@@ -357,7 +366,7 @@ function compute(r, evs){
           if(pend) entry.notes.push(PENDING_LABEL[pend]+' 소멸');
           /* 패배 = 보스에게 맞음: 잃은 점수 × 패배 피해 배율만큼 그 공략대원 체력 감소 */
           const ld = Math.round(a0 * (Number(S.lossDmg) || 0));
-          if(ld > 0 && mhp[m] > 0){ hurt(m, ld, entry); entry.notes.push(`패배 피해 ${m} 체력 −${fmt(ld)}`); }
+          if(ld > 0 && mhp[m] > 0){ const d = hurt(m, ld, entry); entry.notes.push(`패배 피해 ${m} 체력 −${fmt(d)}`); }
           if(enraged && rec > 0){
             const h = Math.min(Math.round(a0*rec), maxHp-hp);
             if(h > 0){ hp += h; entry.dHp += h; entry.notes.push('보스 회복 '+fmt(h)); }
@@ -402,7 +411,7 @@ function compute(r, evs){
           else if(it.id === 'gaugeUp'){ if(mhp[tg] > 0){ const b = gauge[tg]; gauge[tg] = Math.min(needG[tg], gauge[tg] + v); entry.notes.push(`${tg} 스킬 게이지 +${gauge[tg]-b} (${gauge[tg]}/${needG[tg]})`); } else entry.notes.push(`${tg} 전투불능 · 반영 안 됨`); }
           else if(it.id === 'gaugeDn'){ const b = gauge[tg]; gauge[tg] = Math.max(0, gauge[tg] - v); entry.notes.push(`${tg} 스킬 게이지 −${b-gauge[tg]} (${gauge[tg]}/${needG[tg]})`); }
           else if(it.id === 'heal'){ if(mhp[tg] > 0){ const b = mhp[tg]; mhp[tg] = Math.min(maxH[tg], mhp[tg] + v); entry.healed = mhp[tg] - b; entry.notes.push(`${tg} 체력 +${mhp[tg]-b} (${mhp[tg]}/${maxH[tg]})`); } else entry.notes.push(`${tg} 전투불능 · 반영 안 됨`); }
-          else if(it.id === 'hurt'){ if(mhp[tg] > 0){ hurt(tg, v, entry); entry.notes.push(`${tg} 체력 −${v}${mhp[tg] <= 0 ? ' · 전투불능' : ''}`); } }
+          else if(it.id === 'hurt'){ if(mhp[tg] > 0){ const d = hurt(tg, v, entry); entry.notes.push(`${tg} 체력 −${d}${mhp[tg] <= 0 ? ' · 전투불능' : ''}`); } }
           break;
         }
         default:
@@ -569,7 +578,7 @@ function compute(r, evs){
     }
   }
   return {maxHp, maxRage, hp, rage, status, stats, pending, curse, barrier, rally, guards, mhp, maxH, gauge, needG, gear, inv, eq, immUsed, fee, fund, spent, pots, carry, money, weaken, hq: {on: !!S.hq.on, claimed: hqClaimed, last: hqLast, dmg: hqDmg}, role, G, BS, RS, S, lastSkill,
-          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, power, sellRate, goneHp: {...savedHp}, endedAt: status !== 'live' ? (endedAt || prevT) : 0, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
+          log, chain, enraged: maxHp > 0 && hp <= maxHp*0.5, cfg, roleStats: RST, power, sellRate, goneHp: {...savedHp}, endedAt: status !== 'live' ? (endedAt || prevT) : 0, members: cur, gone: [...leavers].filter(m=>!cur.includes(m))};
 }
 
 /* 공략대 구성 기록 문구 */

@@ -40,7 +40,7 @@ function summarize(r, s, stopped, evs = App.events){
     status: s.status==='live' ? (stopped ? 'stopped' : 'live') : s.status,
     maxHp:s.maxHp, hpLeft:s.hp, rage:s.rage, maxRage:s.maxRage, wins:tot.w, losses:tot.l, mvp:topDealer(s)||'', members, left,
     boss: bossSpecOf(r, s), power: s.power, hqDmg: (s.hq && s.hq.dmg) || 0, private: !!r.private, maxMembers: Number(r.maxMembers) || 0,
-    evCount: evs.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
+    evCount: evs.length, race: r.race || 'mixed', bossSkills: bossSkillsOf(r), roleSkills: r.roleSkills || null, roleStats: r.roleStats || null, gauge: r.gauge || null, roster: r.roster || null, settings: r.settings || null,
     events: evs.map(e=>{ const o = {t:e.t||0, type:e.type, member:e.member}; if(e.type==='game'){ o.points = e.points; o.input = e.input === 'auto' || e.input === 'manual' ? e.input : (e.auto ? 'auto' : 'manual'); if(e.auto) o.auto = true; if(e.src) o.src = e.src; if(e.games > 1) o.games = e.games; if(e.multi) o.multi = true; if(e.same) o.same = true; if(e.banned) o.banned = true; } else if(e.type==='roulette'){ o.item = e.item; if(e.target) o.target = e.target; if(e.cost) o.cost = e.cost; if(e.gear){ o.gear = e.gear; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } if(e.pot) o.pot = e.pot; } else if(e.type==='repair' || e.type==='buy' || e.type==='use') o.item = e.item; else if(e.type==='drop'){ o.item = e.item; if(e.salvage) o.salvage = true; } else if(e.type==='sell'){ if(e.item) o.item = e.item; if(e.pot) o.pot = e.pot; } else if(e.type==='hq'){ o.item = e.item; o.slot = e.slot; if(e.by) o.by = e.by; } else if(e.type==='gear'){ o.item = e.item; o.cost = e.cost; if(e.grade) o.grade = e.grade; o.id = e._id || ''; } else if(e.type==='equip') o.item = e.item; else if(e.type==='fund') o.amount = e.amount; else if(e.type==='party'){ o.action = e.action; if(e.role) o.role = e.role; if(e.fee != null) o.fee = e.fee; } if(e.undone) o.undone = true; return o; })};
 }
 function autoArchive(s){
@@ -142,7 +142,7 @@ function histDetail(h, mem){
   let logHtml = '<p class="empty">이 레이드는 전투 기록이 저장되지 않았습니다.</p>';
   if(Array.isArray(h.events) && h.events.length){
     const rows = [];
-    const st = compute({members:Object.keys(h.members||{}), cfg:h.cfg, bossSkills:h.bossSkills, roleSkills:h.roleSkills, gauge:h.gauge, roster:h.roster, settings:h.settings}, h.events.map((e,i)=>({...e, _id: e.id || 'h'+i})));
+    const st = compute({members:Object.keys(h.members||{}), cfg:h.cfg, bossSkills:h.bossSkills, roleSkills:h.roleSkills, roleStats:h.roleStats, gauge:h.gauge, roster:h.roster, settings:h.settings}, h.events.map((e,i)=>({...e, _id: e.id || 'h'+i})));
     st.log.slice().reverse().forEach(e=>{
       const ev = e.ev, d = new Date(ev.t), tm = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
       const what = whatHtml(e);
