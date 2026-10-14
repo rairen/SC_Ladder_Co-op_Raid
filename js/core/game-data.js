@@ -232,11 +232,13 @@ const HQ = Object.fromEntries(HQ_SUPPORT.map(x=>[x.id, x]));
    win        : (사용 안 함) 예전 승리 유형 배율. 예전 기록을 다시 계산할 때만 쓰임
    chain      : 서로 다른 3명 연속 승리 시 보스 최대 HP 대비 추가 데미지 %
    gearCost   : 장비 룰렛 1회 비용 (지참금에서 빠짐)
+   rouletteCost : 룰렛 1회 비용 (돌린 사람의 지참금에서 빠짐)
    roulette / gearRoll / gear : 위 목록의 값을 그대로 가져옴 */
 const DEFAULT_SETTINGS = {
   win: {multi:1.5, same:0.5, banned:0},
   chain: 2,
   gearCost: 100,
+  rouletteCost: 50,
   lossDmg: 0.5,
   hq: {on:false, claimMin:10},   // 본부지원: on = 사용 여부 (기본 사용 안 함), claimMin = 도착 후 받을 수 있는 시간(분)  // 패배 피해 배율: 래더에서 진 점수 × 이 값만큼 그 공략대원 체력이 줄어듦 (0.5 = 잃은 점수의 50%, 0 이면 피해 없음)
   gearRoll: {...DEFAULT_GEAR_ROLL},

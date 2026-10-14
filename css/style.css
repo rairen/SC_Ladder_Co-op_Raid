@@ -659,8 +659,20 @@ html:not(.overlay) .pcard.sel{outline:2px solid color-mix(in srgb,var(--accent) 
 .toggle input:checked + .tg-knob::after{transform:translateX(16px);background:var(--accent)}
 .toggle input:focus-visible + .tg-knob{outline:2px solid var(--accent);outline-offset:2px}
 /* 내 정보: 지참금 · 소모품 */
-.me-money{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
-.me-money b{font-size:20px;color:var(--accent)}
+.me-money{display:flex;flex-direction:column;gap:4px;margin:4px 0 12px;padding:12px 14px;border-radius:10px;
+  border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 18%,transparent),color-mix(in srgb,var(--accent) 4%,transparent));
+  box-shadow:inset 0 1px 0 #ffffff14,0 0 18px color-mix(in srgb,var(--accent) 12%,transparent)}
+.me-money .mm-top{display:flex;align-items:center;gap:8px}
+.me-money .mm-label{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--accent)}
+.me-money .mm-amt{display:flex;align-items:baseline;gap:8px;line-height:1}
+.me-money .mm-ico{font-size:22px;color:var(--accent)}
+.me-money .mm-amt b{font-size:36px;font-weight:800;color:#fff3d1;letter-spacing:.01em;text-shadow:0 0 14px color-mix(in srgb,var(--accent) 45%,transparent)}
+.me-money .mm-unit{font-size:13px;color:var(--muted)}
+.me-money .mm-sub{font-size:12px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:baseline}
+.me-money .mm-can{margin-left:auto;color:var(--fg);font-weight:600}
+.me-money.low{border-color:color-mix(in srgb,var(--hp) 55%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--hp) 14%,transparent),transparent)}
+.me-money.low .mm-amt b{color:#ffd0d3;text-shadow:none}
 .me-panel .fund-row{margin:6px 0 0}
 .me-panel .fund-row input{flex:1 1 140px;width:auto}
 .me-pots{display:flex;flex-direction:column;gap:6px}
@@ -707,6 +719,7 @@ button.linkbtn.num{font-variant-numeric:tabular-nums;font-size:inherit;cursor:po
 .name-btn{font-size:inherit;color:inherit;text-decoration:none;border-bottom:1px dotted var(--muted);cursor:pointer}
 .name-btn:hover{color:var(--accent)}
 .me-money .linkbtn{margin-left:auto}
+.fund-row{margin:-4px 0 12px}
 .btn.ghost{background:none;border-color:transparent;color:var(--muted)}
 .btn.ghost:hover{color:var(--trap)}
 .inv-head{gap:8px}
@@ -862,3 +875,18 @@ html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-templa
 .rj-list li span{color:var(--muted);min-width:84px}
 .rj-list li small{color:var(--muted);font-size:11px}
 .rj-agree{margin:0;font-weight:600}
+
+/* 역할 스킬 사용 가능: 테두리와 칸 안에 빗금이 흐르는 애니메이션 */
+.rolebar.ready{border:2px solid transparent;
+  background:
+    linear-gradient(-45deg,color-mix(in srgb,var(--accent) 16%,transparent) 25%,transparent 25% 50%,color-mix(in srgb,var(--accent) 16%,transparent) 50% 75%,transparent 75%) 0 0/24px 24px padding-box,
+    linear-gradient(var(--panel2),var(--panel2)) padding-box,
+    linear-gradient(-45deg,var(--accent) 25%,#5a4420 25% 50%,var(--accent) 50% 75%,#5a4420 75%) 0 0/14px 14px border-box;
+  animation:rbStripe .9s linear infinite,rbGlow 1.6s ease-in-out infinite!important}
+.rolebar.ready .rb-text b{color:var(--accent)}
+.rolebar.ready .btn.skill:not(:disabled){animation:rbBtn 1.6s ease-in-out infinite!important;box-shadow:0 0 0 1px var(--accent)}
+@keyframes rbStripe{to{background-position:24px 0,0 0,14px 0}}
+@keyframes rbGlow{50%{box-shadow:0 0 16px color-mix(in srgb,var(--accent) 45%,transparent)}}
+@keyframes rbBtn{50%{transform:scale(1.05);box-shadow:0 0 12px var(--accent)}}
+/* 움직임 줄이기 설정에서는 천천히만 */
+@media (prefers-reduced-motion:reduce){.rolebar.ready{animation:rbStripe 3s linear infinite!important}.rolebar.ready .btn.skill{animation:none!important}}

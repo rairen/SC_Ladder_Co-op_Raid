@@ -13,6 +13,8 @@ function renderRoleBar(s, me, canAct){
   const rk = s.role[App.selected] || 'dealer', sk = s.RS[rk], g = s.gauge[App.selected] ?? 0, need = s.needG[App.selected] ?? s.G.max, full = g >= need, alive = (s.mhp[App.selected] ?? 1) > 0;
   const mine = !me || me === App.selected;
   bar.hidden = false;
+  // 스킬을 쓸 수 있으면 테두리와 칸에 움직이는 빗금 (눈에 띄게)
+  bar.classList.toggle('ready', !!(full && alive));
   bar.innerHTML = `<div class="rb-text"><span class="role-tag ${rk}">${ROLES[rk].short}</span><b>${esc(ROLES[rk].label)} · ${esc(sk.name)}</b>
       <small>${esc(ROLES[rk].desc(sk.v))}</small></div>
     <div class="sk-actions"><button type="button" class="btn skill" id="useRole"${(canAct && mine && full && alive) ? '' : ' disabled'}>스킬 사용</button></div>`;

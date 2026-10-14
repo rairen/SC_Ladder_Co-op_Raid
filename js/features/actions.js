@@ -1,6 +1,6 @@
 /* =====================================================================
    actions.js — 버튼 동작: 결과 반영, 룰렛, 참가, 공략대원 추가
-   ===================================================================== */
+import { $, esc, fmt } from '@app/core/state.js';
 /* ---------- Events ---------- */
 import { App } from '@app/core/app.js';
 import { BOSS_SETS, ITEMS, TIERS } from '@app/core/game-data.js';
@@ -103,7 +103,10 @@ export function init(){
   renderOdds(settingsOf(null));
   $('spin').onclick = ()=>{
     if(App.spinning || !App.selected) return;
-    const result = pick(), who = App.selected;
+    const who = App.selected, s0 = App.lastState, cost = s0 ? s0.S.rouletteCost || 0 : 0;
+    const left0 = s0 ? (s0.fee[who] || 0) - (s0.spent[who] || 0) : 0;
+    if(cost && left0 < cost){ toast(`${who} 지참금이 부족합니다 (남은 ${fmt(left0)} / 룰렛 ${fmt(cost)})`); return; }
+    const result = pick();
     App.spinning = true; render();
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
     const steps = reduce ? 0 : 16; let i = 0;
@@ -119,7 +122,7 @@ export function init(){
       }
       showReel(result, result.tier + (target ? ` · ${target} 다음 판` : ''));
       App.spinning = false;
-      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, ...(target ? {target} : {}), undone:false}));
+      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, ...(target ? {target} : {}), ...(cost ? {cost} : {}), undone:false}));
       if(target) toast(`룰렛 대상: ${target} · ${result.name}`);
       render();
     };

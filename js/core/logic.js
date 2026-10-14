@@ -51,6 +51,7 @@ function settingsOf(r){
     win: {...DEFAULT_SETTINGS.win, ...(x.win || {})},
     chain: x.chain ?? DEFAULT_SETTINGS.chain,
     gearCost: x.gearCost ?? DEFAULT_SETTINGS.gearCost,
+    rouletteCost: x.rouletteCost ?? DEFAULT_SETTINGS.rouletteCost,
     lossDmg: x.lossDmg ?? DEFAULT_SETTINGS.lossDmg,
     hq: {...DEFAULT_SETTINGS.hq, ...(x.hq || {})},
     gearRoll: {...DEFAULT_SETTINGS.gearRoll, ...(x.gearRoll || {})},
@@ -277,6 +278,8 @@ function compute(r, evs){
         maxHp += inc; const add = before > 0 ? Math.round(inc * hp / before) : inc; hp += add; entry.dHp += add;
         entry.rejoin = true; entry.notes.push(`다시 참가 · 보스 최대 HP +${fmt(inc)}`);
       }
+      // 마지막 생존자가 떠나서 남은 공략대원이 모두 전투불능이면 전멸
+      if(Object.keys(mhp).length && !alive().length){ status = 'fail'; entry.notes.push('공략대 전멸 · 레이드 실패'); }
       continue;
     }
     if(m && !members.includes(m)){ entry.ignored = true; entry.notes.push('공략대에 없는 공략대원 · 반영 안 됨'); continue; }
@@ -339,6 +342,12 @@ function compute(r, evs){
       const it = ITEM[ev.item] || ITEM.none;
       entry.item = it;
       st(m);
+      /* 룰렛 비용: 돌린 사람의 지참금에서 빠짐 (예전 기록은 cost 가 없어 무료) */
+      const rc = Math.max(0, Number(ev.cost) || 0);
+      if(rc){
+        if(fee[m] - spent[m] < rc){ entry.ignored = true; entry.notes.push(`지참금 부족 (남은 ${fmt(fee[m]-spent[m])} / 필요 ${fmt(rc)}) · 반영 안 됨`); continue; }
+        spent[m] += rc; entry.cost = rc; ledger(m, ev.t, 'roulette', -rc, it.name); entry.notes.push(`지참금 −${fmt(rc)}`);
+      }
       switch(it.id){
         case 'hp2': { hit(m, Math.round(maxHp*0.02), entry, 'roulette'); break; }
         case 'hp7': { hit(m, Math.round(maxHp*0.07), entry, 'roulette'); break; }

@@ -80,7 +80,7 @@ function renderRulesTab(){
 function renderRouletteTab(){
   const box = $('skTabRoulette'); if(box.hidden) return;
   const ws = rouletteWeights(settingsOf(SRC())), tot = ws.reduce((a,x)=>a+x.w,0) || 1;
-  box.innerHTML = `<p class="sk-note">룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 살아 있는 공략대원 중 무작위로 한 명이 뽑혀 그 공략대원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
+  box.innerHTML = `<p class="sk-note">룰렛은 1회 <b>${fmt(settingsOf(SRC()).rouletteCost)}</b>를 돌린 공략대원의 지참금에서 냅니다. 룰렛 결과입니다. 확률은 레이드 설정 탭의 비중으로 정해집니다. "다음 판" 효과는 살아 있는 공략대원 중 무작위로 한 명이 뽑혀 그 공략대원의 다음 래더 결과에 적용되고, 겹치면 마지막 것만 남습니다.</p>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th>적용</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="desc">${x.it.next ? '다음 판' : '즉시'}</td><td class="r num">${Math.round(x.w/tot*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>`;
@@ -169,6 +169,7 @@ function renderSkillModal(){
       <tr><td><b>받을 수 있는 시간</b></td><td class="r">${num('hq.claimMin', SD.hq.claimMin, 1, '본부지원 받을 수 있는 시간')}</td><td class="desc">도착 후 이 시간(분) 안에 받지 않으면 그 회차는 사라집니다</td></tr>
     </tbody></table></div>
     <h3 class="label" style="margin:4px 0 0">룰렛 확률</h3>
+    <div class="tbl-wrap"><table class="sk-table"><tbody><tr><td><b>룰렛 1회 비용</b></td><td class="r">${num('rouletteCost', SD.rouletteCost, 10, '룰렛 비용')}</td><td class="desc">돌린 공략대원의 남은 지참금에서 빠집니다. 0이면 무료</td></tr></tbody></table></div>
     <div class="tbl-wrap"><table class="sk-table"><thead><tr><th>등급</th><th>결과</th><th class="r">비중</th><th class="r">확률</th></tr></thead><tbody>
       ${ws.map(x=>`<tr><td class="tier-${x.it.tier}" style="color:var(--tc)"><b>${x.it.tier}</b></td><td>${esc(x.it.name)}</td><td class="r">${num('roulette.'+x.it.id, x.w, 0.5, x.it.name+' 비중')}</td><td class="r num" data-rp="${x.it.id}">${Math.round(x.w/wt*1000)/10}%</td></tr>`).join('')}
     </tbody></table></div>
@@ -263,14 +264,14 @@ export function init(){
     if(sr){
       App.setDraft = App.setDraft || JSON.parse(JSON.stringify(settingsOf(SRC())));
       const D = JSON.parse(JSON.stringify(settingsOf(null)));
-      if(sr.dataset.setreset === 'gear'){ App.setDraft.gear = D.gear; App.setDraft.gearRoll = D.gearRoll; App.setDraft.gearCost = D.gearCost; App.setDraft.grades = D.grades; } else { App.setDraft.win = D.win; App.setDraft.chain = D.chain; App.setDraft.lossDmg = D.lossDmg; App.setDraft.hq = D.hq; App.setDraft.roulette = D.roulette; }
+      if(sr.dataset.setreset === 'gear'){ App.setDraft.gear = D.gear; App.setDraft.gearRoll = D.gearRoll; App.setDraft.gearCost = D.gearCost; App.setDraft.grades = D.grades; } else { App.setDraft.win = D.win; App.setDraft.chain = D.chain; App.setDraft.lossDmg = D.lossDmg; App.setDraft.hq = D.hq; App.setDraft.roulette = D.roulette; App.setDraft.rouletteCost = D.rouletteCost; }
       App.setDirty = true; renderSkillModal(); return;
     }
     if(e.target.closest('[data-setsave]') && App.setDraft){
       const g = {}; for(const k in App.setDraft.gear) g[k] = App.setDraft.gear[k].map(x=>({min: Math.max(0, Math.round(Number(x.min)||0)), v: Math.max(0, Number(x.v)||0)}));
       const roulette = {}; for(const it of ITEMS) roulette[it.id] = Math.max(0, Number(App.setDraft.roulette[it.id])||0);
       if(!Object.values(roulette).some(v=>v>0)){ toast('룰렛 비중이 하나 이상은 0보다 커야 합니다.'); return; }
-      const settings = {win:{multi:+App.setDraft.win.multi||0, same:+App.setDraft.win.same||0, banned:+App.setDraft.win.banned||0}, chain:+App.setDraft.chain||0, lossDmg: Math.max(0, +App.setDraft.lossDmg||0), hq: {on: !!App.setDraft.hq.on, claimMin: Math.max(1, Math.round(+App.setDraft.hq.claimMin||10))}, gearCost: Math.max(0, Math.round(+App.setDraft.gearCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +App.setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: App.setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0), repair: Math.max(0, Math.round(+x.repair||0)), salvage: Math.max(0, Math.round(+x.salvage||0))})), potions: JSON.parse(JSON.stringify(settingsOf(null).potions))};
+      const settings = {win:{multi:+App.setDraft.win.multi||0, same:+App.setDraft.win.same||0, banned:+App.setDraft.win.banned||0}, chain:+App.setDraft.chain||0, lossDmg: Math.max(0, +App.setDraft.lossDmg||0), hq: {on: !!App.setDraft.hq.on, claimMin: Math.max(1, Math.round(+App.setDraft.hq.claimMin||10))}, gearCost: Math.max(0, Math.round(+App.setDraft.gearCost||0)), rouletteCost: Math.max(0, Math.round(+App.setDraft.rouletteCost||0)), gearRoll: Object.fromEntries(Object.keys(DEFAULT_GEAR_ROLL).map(k=>[k, Math.max(0, +App.setDraft.gearRoll[k]||0)])), roulette, gear:g, grades: App.setDraft.grades.map(x=>({w: Math.max(0, +x.w||0), dur: Math.max(1, Math.round(+x.dur||1)), stat: Math.max(0, +x.stat||0), repair: Math.max(0, Math.round(+x.repair||0)), salvage: Math.max(0, Math.round(+x.salvage||0))})), potions: JSON.parse(JSON.stringify(settingsOf(null).potions))};
       guard(async()=>{ await saveSrc({settings}); App.setDraft = null; App.setDirty = false; renderSkillModal(); updateSetupPreview(); toast('수치를 적용했습니다. 레이드 시작 시 반영됩니다.'); });
       return;
     }

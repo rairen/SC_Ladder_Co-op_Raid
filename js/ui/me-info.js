@@ -72,7 +72,13 @@ function renderMeInfo(s, me, canAct){
   const left = (s.fee[m]||0) - (s.spent[m]||0);
   const sum = k => ((s.money && s.money[m]) || []).filter(x=>x.k===k).reduce((a,x)=>a+x.a, 0);
   const parts = [['이월', sum('carry')], ['이번', sum('deposit')], ['지원', sum('fund')], ['분해', sum('salvage')]].filter(x=>x[1]).map(([k,v])=>`${k} ${fmt(v)}`);
-  $('meMoney').innerHTML = `<span class="label" style="margin:0">지참금</span><b class="num">${fmt(left)}</b><span class="hint">${parts.length ? parts.join(' + ') : '없음'}${s.spent[m] ? ` − 사용 ${fmt(s.spent[m])}` : ''}</span><button type="button" class="linkbtn" data-ledger="${esc(m)}">내역</button>`;
+  /* 지참금: 패널 맨 위에 크게. 지금 돈으로 할 수 있는 것도 같이 */
+  const rc = s.S.rouletteCost || 0, gc = s.S.gearCost || 0;
+  const can = [rc ? `룰렛 ${Math.floor(Math.max(0,left)/rc)}회` : '', gc ? `장비 룰렛 ${Math.floor(Math.max(0,left)/gc)}회` : ''].filter(Boolean).join(' · ');
+  $('meMoney').classList.toggle('low', left < Math.max(rc, 1));
+  $('meMoney').innerHTML = `<div class="mm-top"><span class="mm-label">${me && me === m ? '내 지참금' : '지참금'}</span><button type="button" class="linkbtn" data-ledger="${esc(m)}">내역</button></div>
+    <div class="mm-amt"><span class="mm-ico" aria-hidden="true">★</span><b class="num">${fmt(left)}</b><span class="mm-unit">별풍선</span></div>
+    <div class="mm-sub">${parts.length ? parts.join(' + ') : '가져온 지참금 없음'}${s.spent[m] ? ` − 사용 ${fmt(s.spent[m])}` : ''}${can ? `<span class="mm-can">${can} 가능</span>` : ''}</div>`;
   $('fundRow').hidden = !mine;
 
   /* 소모품 */

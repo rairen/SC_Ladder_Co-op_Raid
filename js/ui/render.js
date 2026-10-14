@@ -176,7 +176,10 @@ function render(){
   ['submitGame','spin','points','btnWin','btnLoss'].forEach(id=>{ $(id).disabled = !canAct || (App.spinning && id==='spin'); });
   document.querySelectorAll('.wt').forEach(b=>{ b.disabled = !canAct; });
   $('addMember').disabled = $('addMemberBtn').disabled = $('addMemberRole').disabled = !hasRaid || App.readOnly || s.status!=='live' || !!me || !canOperate();
-  $('spinFor').textContent = App.selected ? `${App.selected} 룰렛으로 기록 · 다음 판 효과는 공략대원 중 무작위로 적용` : '';
+  { const rc = s.S ? s.S.rouletteCost || 0 : 0, who = App.selected, left = who ? (s.fee[who] || 0) - (s.spent[who] || 0) : 0;
+    $('spin').textContent = rc ? `룰렛 돌리기 · ${fmt(rc)}` : '룰렛 돌리기';
+    if(rc && who && left < rc) $('spin').disabled = true;
+    $('spinFor').textContent = who ? `${who} 지참금 ${rc ? `−${fmt(rc)} (남은 ${fmt(left)})` : '사용 안 함'} · 다음 판 효과는 공략대원 중 무작위로 적용` : ''; }
   const dt = t => new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   $('subline').textContent = hasRaid ? `시작 ${dt(App.raid.startedAt)}${s.endedAt ? ` · 종료 ${dt(s.endedAt)}` : ''}` : '래더 점수로 보스를 잡는 협동 레이드';
   updateGamePreview();
