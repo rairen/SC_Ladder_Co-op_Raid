@@ -180,8 +180,8 @@ function render(){
     $('spin').textContent = rc ? `룰렛 돌리기 · ${fmt(rc)}` : '룰렛 돌리기';
     if(rc && who && left < rc) $('spin').disabled = true;
     $('spinFor').textContent = who ? `${who} 지참금 ${rc ? `−${fmt(rc)} (남은 ${fmt(left)})` : '사용 안 함'} · 다음 판 효과는 공략대원 중 무작위로 적용` : ''; }
-  const dt = t => new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  $('subline').textContent = hasRaid ? `시작 ${dt(App.raid.startedAt)}${s.endedAt ? ` · 종료 ${dt(s.endedAt)}` : ''}` : '래더로 잡는 협동 보스 레이드';
+  // 위쪽 설명 줄은 고정 (레이드 시작·종료 시각은 레이드 기록과 운영자 도구에서 봄)
+  $('subline').textContent = '래더로 잡는 협동 보스 레이드';
   updateGamePreview();
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
   renderTicker(s);

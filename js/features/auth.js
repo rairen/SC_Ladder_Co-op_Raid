@@ -10,7 +10,7 @@
      운영자        레이드 열기·종료, 공략대원 추가, 모든 공략대원 입력, 데이터 초기화 (콘솔에서 지정)
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, ROOM, TEST, esc, bootReady, leadName } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, TEST, esc, bootReady, leadName, bindModal, openModal } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { cleanName } from '@app/features/gear-roulette.js';
@@ -35,6 +35,7 @@ function initAuth(app){
     // 계정이 바뀌면 이전 사람의 "내 이름" 선택을 지움 (같은 PC를 여럿이 쓸 때)
     if((App.authUser && App.authUser.uid) !== (u && u.uid) && App.authUser !== null){ App.meName = ''; try{ localStorage.removeItem(ME_KEY); }catch(_){} }
     App.authUser = u || null;
+    if(u){ const m = document.getElementById('authModal'); if(m) m.hidden = true; }
     if(App.unsubProfile){ App.unsubProfile(); App.unsubProfile = null; }
     App.profile = null;
     if(u){
@@ -98,7 +99,7 @@ function renderAuth(){
   const anon = !!(App.authUser && App.authUser.isAnonymous);
   box.innerHTML = App.authUser
     ? `<button class="btn" type="button" id="profileBtn" title="내 프로필">${isAdmin() ? '<span class="adm-tag">운영자</span>' : ''}${anon ? '<span class="test-tag">테스트</span>' : ''}${esc(profileName() || '프로필 설정')}</button>`
-    : (TEST ? `<button class="btn primary" type="button" id="loginTestBtn">테스트 계정으로 시작</button>` : `<button class="btn primary" type="button" id="loginBtn">구글 로그인</button>`);
+    : `<button class="btn primary" type="button" id="loginBtn">${TEST ? '테스트 로그인' : '로그인'}</button>`;
   ['exportBtn','importBtn'].forEach(id=>{ $(id).hidden = !canOperate(); });
   if(!$('profileModal').hidden) renderProfile();
 }
@@ -112,8 +113,25 @@ async function loginTest(){
     else toast('테스트 계정으로 로그인하지 못했습니다. 잠시 뒤 다시 시도하세요.');
   }
 }
-async function login(){
-  if(TEST){ return loginTest(); }
+/* ---------- 로그인 창 ----------
+   로그인 방법(공급자)을 고르는 팝업. 지금은 구글, 나중에 SOOP 등을 PROVIDERS 에 추가하면 버튼이 생김
+   ready:false 면 "준비 중"으로 보이기만 함. 테스트 모드(?test=1)에서는 테스트 계정 버튼만 */
+const PROVIDERS = [
+  {id:'google', label:'Google 계정으로 로그인', ready:true,  run: ()=>loginGoogle()},
+  {id:'soop',   label:'SOOP 계정으로 로그인',   ready:false, note:'준비 중'}
+];
+function renderLoginModal(){
+  const list = TEST
+    ? `<button type="button" class="btn primary login-opt" id="loginTestBtn">테스트 계정으로 시작</button><p class="hint" style="margin:0">이 탭에서만 유지되는 테스트 계정입니다.</p>`
+    : PROVIDERS.map(p=>`<button type="button" class="btn login-opt lp-${p.id}${p.ready ? '' : ' soon'}" data-login="${p.id}"${p.ready ? '' : ' disabled'}><span class="lp-ic" aria-hidden="true"></span>${esc(p.label)}${p.note ? `<small>${esc(p.note)}</small>` : ''}</button>`).join('');
+  $('authList').innerHTML = list;
+}
+function login(){
+  if(!useAuth()) return;
+  renderLoginModal();
+  openModal('authModal', TEST ? '#loginTestBtn' : '[data-login]:not([disabled])');
+}
+async function loginGoogle(){
   const provider = new firebase.auth.GoogleAuthProvider();
   try{ await App.auth.signInWithPopup(provider); }
   catch(e){
@@ -181,10 +199,13 @@ async function deleteAccount(btn){
 /* 처음 한 번 실행: 화면 이벤트 연결, 초기값 설정 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
 
+  bindModal('authModal', 'authClose');
   App.auth = null; App.authUser = null; App.profile = null; App.admins = {}; App.adminsLoaded = false; App.unsubProfile = null;
 
   document.addEventListener('click', e=>{
     const id = e.target.id;
+    const lp = e.target.closest('[data-login]');
+    if(lp && !lp.disabled){ const p = PROVIDERS.find(x=>x.id === lp.dataset.login); if(p && p.ready) p.run(); return; }
     if(id === 'loginBtn') login();
     else if(id === 'loginTestBtn') loginTest();
     else if(id === 'profileBtn') openProfile(true);

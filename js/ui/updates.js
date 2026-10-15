@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    내용은 js/core/changelog.js 에서 고칩니다. 최신 묶음의 id 를 아직 안 본 방문자에게는 NEW 표시.
    ===================================================================== */
-import { CHANGELOG } from '@app/core/changelog.js';
+import { CHANGELOG, APP_VERSION } from '@app/core/changelog.js';
 import { $, OVERLAY, esc, bindModal, openModal } from '@app/core/state.js';
 
 const SEEN_KEY = 'sc-boss-raid:updSeen';
@@ -31,6 +31,7 @@ function openUpdates(){
 
 /* 처음 한 번 실행 (js/main.js 가 파일 순서대로 부름) */
 export function init(){
+  { const v = document.getElementById('appVer'); if(v) v.textContent = 'v' + APP_VERSION; }
   renderBar();
   bindModal('updModal', 'updClose');
   document.addEventListener('click', e=>{ if(e.target.closest('#updOpen')) openUpdates(); });

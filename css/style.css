@@ -922,3 +922,33 @@ html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-templa
 .fb-ctl{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--line);padding-top:8px}
 .fb-ctl textarea{width:100%;font:inherit;font-size:13px}
 .fb-ctl .btn{align-self:flex-end}
+.ver{font-family:var(--f-mono);font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);padding:1px 6px;border-radius:4px;align-self:center}
+
+/* 로그인 창 */
+.auth-box{max-width:420px}
+.auth-list{display:flex;flex-direction:column;gap:8px}
+.login-opt{display:flex;align-items:center;gap:10px;justify-content:flex-start;padding:12px 14px;font-size:15px;width:100%}
+.login-opt small{margin-left:auto;font-size:11px;color:var(--muted)}
+.login-opt.soon{opacity:.55;cursor:not-allowed}
+.lp-ic{width:22px;height:22px;border-radius:50%;flex:0 0 22px;display:grid;place-items:center;font-weight:800;font-size:12px;background:var(--panel2);border:1px solid var(--line);color:var(--fg)}
+.lp-google .lp-ic::before{content:"G"}
+.lp-soop .lp-ic::before{content:"S"}
+
+/* 프로필 캐릭터 탭 */
+.pf-box{max-width:min(720px,100%)}
+.pf-tabs{flex-wrap:wrap}
+.pf-char{display:flex;flex-direction:column;gap:8px}
+.pf-acc{display:flex;flex-direction:column;gap:12px}
+.pf-acc[hidden],.pf-char[hidden]{display:none}
+.pf-now{margin:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pf-stat td.num,.pf-stat td.r{font-size:15px}
+.sk-table tr.on td{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.pf-skill{display:flex;flex-direction:column;gap:6px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+.pf-skill.ready{border-color:var(--accent);box-shadow:0 0 12px color-mix(in srgb,var(--accent) 30%,transparent)}
+.pf-gear .gear{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pf-money{display:flex;align-items:baseline;gap:10px;padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--accent) 50%,transparent);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.pf-money b{font-size:22px;color:#fff3d1}
+.pf-money .linkbtn{margin-left:auto}
+.pf-pots{display:flex;gap:8px;flex-wrap:wrap}
+.pf-pot{display:flex;align-items:baseline;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
+.pf-pot small{color:var(--muted);font-size:11px}

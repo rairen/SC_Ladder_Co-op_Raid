@@ -170,7 +170,7 @@ function renderJoin(s, me){
   // 로그인 모드: 로그인 전에는 로그인 버튼, 로그인 후에는 프로필 닉네임으로 참가
   const authed = useAuth(), needLogin = authed && !App.authUser;
   $('joinLogin').hidden = !needLogin; $('joinForm').hidden = needLogin; $('joinIntro').hidden = needLogin;
-  $('loginBtn2').textContent = TEST ? '테스트 계정으로 시작' : '구글 로그인';
+  $('loginBtn2').textContent = TEST ? '테스트 로그인' : '로그인';
   $('joinExisting').hidden = authed && !isAdmin();
   const others = s.members;
   $('joinExisting').innerHTML = others.length

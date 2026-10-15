@@ -6,12 +6,12 @@
 <title>스타 보스 공략대 · SC Boss Raid RPG</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/style.css?v=202610151500">
+<link rel="stylesheet" href="css/style.css?v=202610151600">
 <script>
 document.documentElement.classList.add('booting');
 (function(){ var q = new URLSearchParams(location.search); if(q.has('overlay')){ document.documentElement.classList.add('overlay'); if(q.get('rage')==='0') document.documentElement.classList.add('no-rage'); if(q.get('view')==='skills') document.documentElement.classList.add('ovl-skills'); else if(q.get('view')==='meter') document.documentElement.classList.add('ovl-meter'); else if(q.get('view')==='hq') document.documentElement.classList.add('ovl-hq'); else document.documentElement.classList.add('ovl-hp'); var bg = q.get('bg'); if(bg==='green'||bg==='blue'||bg==='magenta') document.documentElement.classList.add('key','key-'+bg); } })();
 </script>
-<script src="firebase-config.js?v=202610151500"></script>
+<script src="firebase-config.js?v=202610151600"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -25,7 +25,7 @@ document.documentElement.classList.add('booting');
   <div class="upd-bar" id="updBar" hidden></div>
   <header class="top">
     <div class="brand">
-      <h1>스타 보스 공략대</h1><span class="en-sub">SC Boss Raid RPG</span><span class="beta">BETA</span>
+      <h1>스타 보스 공략대</h1><span class="en-sub">SC Boss Raid RPG</span><span class="beta">BETA</span><span class="ver" id="appVer"></span>
       <span class="sub" id="subline">래더로 잡는 협동 보스 레이드</span>
     </div>
     <div class="top-actions">
@@ -144,7 +144,7 @@ document.documentElement.classList.add('booting');
       <section class="panel join" id="joinPanel" hidden>
         <h2>레이드 참가</h2>
         <p class="hint" style="margin:0 0 10px" id="joinIntro"><b>참가하기</b>를 누르면 이름 · 역할 · 지참금을 정하는 창이 열립니다. 참가하면 이 브라우저에서는 내 결과와 룰렛만 입력하게 됩니다.</p>
-        <div class="join-login" id="joinLogin" hidden><button class="btn primary" type="button" id="loginBtn2">구글 로그인</button><span class="hint">로그인하면 내 프로필(닉네임·스타 닉네임)로 바로 참가합니다. 로그인할 때 다루는 정보는 <a href="privacy.html" target="_blank" rel="noopener">개인정보 안내</a>에 있습니다.</span></div>
+        <div class="join-login" id="joinLogin" hidden><button class="btn primary" type="button" id="loginBtn2">로그인</button><span class="hint">로그인하면 내 프로필(닉네임·스타 닉네임)로 바로 참가합니다. 로그인할 때 다루는 정보는 <a href="privacy.html" target="_blank" rel="noopener">개인정보 안내</a>에 있습니다.</span></div>
         <div class="join-cta" id="joinForm"><button class="btn primary" id="joinBtn" type="button">참가하기</button><span class="hint" id="joinCap"></span></div>
         <p class="late-note" id="joinLate" hidden></p>
         <p class="hint" id="joinExisting" style="margin:10px 0 0"></p>
@@ -415,12 +415,28 @@ document.documentElement.classList.add('booting');
     <p class="hint" id="ovlNote" style="margin:0"></p>
   </div>
 </div>
+<div class="modal" id="authModal" hidden role="dialog" aria-modal="true" aria-labelledby="authTitle">
+  <div class="modal-box auth-box">
+    <div class="modal-head">
+      <h2 id="authTitle">로그인</h2>
+      <button class="btn" id="authClose" type="button">닫기</button>
+    </div>
+    <p class="hint" style="margin:0">로그인하면 프로필(닉네임 · 스타 닉네임)로 공략대에 참가하고, 장비 · 지참금 · 기록이 계정에 이어집니다.</p>
+    <div class="auth-list" id="authList"></div>
+    <p class="hint" style="margin:0">로그인할 때 다루는 정보는 <a href="privacy.html" target="_blank" rel="noopener">개인정보 안내</a>에 있습니다. 계정 이름과 이메일은 화면에 공개되지 않습니다.</p>
+  </div>
+</div>
 <div class="modal" id="profileModal" hidden role="dialog" aria-modal="true" aria-labelledby="pfTitle">
   <div class="modal-box pf-box">
     <div class="modal-head">
       <h2 id="pfTitle">내 프로필</h2>
       <button class="btn" id="pfClose" type="button">닫기</button>
     </div>
+    <div class="seg pf-tabs" id="pfTabs" role="tablist" aria-label="프로필">
+      <button type="button" data-pftab="acc" aria-pressed="true">계정</button><button type="button" data-pftab="stat" aria-pressed="false">능력치</button><button type="button" data-pftab="skill" aria-pressed="false">스킬</button><button type="button" data-pftab="gear" aria-pressed="false">장비</button><button type="button" data-pftab="inv" aria-pressed="false">인벤토리</button>
+    </div>
+    <div class="pf-char" id="pfChar" hidden></div>
+    <div class="pf-acc" id="pfAcc">
     <p class="hint" id="pfEmail" style="margin:0"></p>
     <div class="field"><label class="label" for="pfName">닉네임</label><input type="text" id="pfName" maxlength="20" placeholder="레이드에 표시될 이름"></div>
     <div class="row" style="margin:0">
@@ -435,7 +451,8 @@ document.documentElement.classList.add('booting');
       <button class="btn" id="pfLogout" type="button">로그아웃</button>
       <button class="btn danger" id="pfDelete" type="button">로그인 정보 삭제</button>
     </div>
-  </div>
+    </div>
+</div>
 </div>
 <div class="toast" id="toast" hidden></div>
 <div class="live-feed" id="liveFeed" aria-live="polite"></div>
@@ -482,38 +499,39 @@ document.documentElement.classList.add('booting');
 <script type="importmap">
 {
   "imports": {
-    "@app/core/app.js": "./js/core/app.js?v=202610151500",
-    "@app/core/game-data.js": "./js/core/game-data.js?v=202610151500",
-    "@app/core/state.js": "./js/core/state.js?v=202610151500",
-    "@app/core/store.js": "./js/core/store.js?v=202610151500",
-    "@app/core/logic.js": "./js/core/logic.js?v=202610151500",
-    "@app/ui/render.js": "./js/ui/render.js?v=202610151500",
-    "@app/ui/me-info.js": "./js/ui/me-info.js?v=202610151500",
-    "@app/ui/admin-tools.js": "./js/ui/admin-tools.js?v=202610151500",
-    "@app/ui/player-raids.js": "./js/ui/player-raids.js?v=202610151500",
-    "@app/ui/ledger.js": "./js/ui/ledger.js?v=202610151500",
-    "@app/core/changelog.js": "./js/core/changelog.js?v=202610151500",
-    "@app/ui/updates.js": "./js/ui/updates.js?v=202610151500",
-    "@app/ui/feedback.js": "./js/ui/feedback.js?v=202610151500",
-    "@app/features/hq.js": "./js/features/hq.js?v=202610151500",
-    "@app/ui/setup.js": "./js/ui/setup.js?v=202610151500",
-    "@app/features/actions.js": "./js/features/actions.js?v=202610151500",
-    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610151500",
-    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610151500",
-    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610151500",
-    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610151500",
-    "@app/features/ladder.js": "./js/features/ladder.js?v=202610151500",
-    "@app/features/party.js": "./js/features/party.js?v=202610151500",
-    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610151500",
-    "@app/features/auth.js": "./js/features/auth.js?v=202610151500",
-    "@app/ui/history.js": "./js/ui/history.js?v=202610151500",
-    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610151500",
-    "@app/core/boot.js": "./js/core/boot.js?v=202610151500"
+    "@app/core/app.js": "./js/core/app.js?v=202610151600",
+    "@app/core/game-data.js": "./js/core/game-data.js?v=202610151600",
+    "@app/core/state.js": "./js/core/state.js?v=202610151600",
+    "@app/core/store.js": "./js/core/store.js?v=202610151600",
+    "@app/core/logic.js": "./js/core/logic.js?v=202610151600",
+    "@app/ui/render.js": "./js/ui/render.js?v=202610151600",
+    "@app/ui/me-info.js": "./js/ui/me-info.js?v=202610151600",
+    "@app/ui/admin-tools.js": "./js/ui/admin-tools.js?v=202610151600",
+    "@app/ui/player-raids.js": "./js/ui/player-raids.js?v=202610151600",
+    "@app/ui/ledger.js": "./js/ui/ledger.js?v=202610151600",
+    "@app/core/changelog.js": "./js/core/changelog.js?v=202610151600",
+    "@app/ui/updates.js": "./js/ui/updates.js?v=202610151600",
+    "@app/ui/feedback.js": "./js/ui/feedback.js?v=202610151600",
+    "@app/ui/character.js": "./js/ui/character.js?v=202610151600",
+    "@app/features/hq.js": "./js/features/hq.js?v=202610151600",
+    "@app/ui/setup.js": "./js/ui/setup.js?v=202610151600",
+    "@app/features/actions.js": "./js/features/actions.js?v=202610151600",
+    "@app/features/gear-roulette.js": "./js/features/gear-roulette.js?v=202610151600",
+    "@app/ui/overlay.js": "./js/ui/overlay.js?v=202610151600",
+    "@app/features/role-skill.js": "./js/features/role-skill.js?v=202610151600",
+    "@app/ui/info-window.js": "./js/ui/info-window.js?v=202610151600",
+    "@app/features/ladder.js": "./js/features/ladder.js?v=202610151600",
+    "@app/features/party.js": "./js/features/party.js?v=202610151600",
+    "@app/features/ladder-browser.js": "./js/features/ladder-browser.js?v=202610151600",
+    "@app/features/auth.js": "./js/features/auth.js?v=202610151600",
+    "@app/ui/history.js": "./js/ui/history.js?v=202610151600",
+    "@app/ui/dungeon.js": "./js/ui/dungeon.js?v=202610151600",
+    "@app/core/boot.js": "./js/core/boot.js?v=202610151600"
   }
 }
 </script>
-<script src="js/lib/ladder-local.js?v=202610151500"></script>
-<script type="module" src="js/main.js?v=202610151500"></script>
+<script src="js/lib/ladder-local.js?v=202610151600"></script>
+<script type="module" src="js/main.js?v=202610151600"></script>
 
 <footer class="site-foot"><a href="privacy.html">개인정보 안내</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid" target="_blank" rel="noopener">GitHub</a> · <a href="https://github.com/rairen/SC_Ladder_Co-op_Raid/blob/main/LICENSE" target="_blank" rel="noopener">MIT 라이선스</a></footer>
 </body>
