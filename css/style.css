@@ -27,6 +27,7 @@ header.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-
 .brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}
 .brand h1{font-family:var(--f-display);font-weight:800;font-size:28px;letter-spacing:.01em;margin:0;color:var(--accent);text-shadow:0 2px 0 #000,0 0 18px #d8b46a33}
 .brand .sub{color:var(--muted);font-size:13px}
+.brand .en-sub{font-family:var(--f-mono);font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:color-mix(in srgb,var(--accent) 75%,var(--fg))}
 .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.04em;border:1px solid var(--line);color:var(--muted)}
 .pill.live{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
@@ -812,7 +813,8 @@ html.booting .wrap{visibility:hidden}
 .boot-loader.done{opacity:0;pointer-events:none}
 html:not(.booting) .boot-loader:not(.done){display:none}
 .bl-box{display:flex;flex-direction:column;align-items:center;gap:16px}
-.bl-title{font-family:var(--f-display);font-size:26px;color:var(--accent)}
+.bl-title{font-family:var(--f-display);font-size:26px;color:var(--accent);margin-bottom:-10px}
+.bl-sub{font-family:var(--f-mono);font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
 .bl-spin{position:relative;width:64px;height:64px;display:grid;place-items:center}
 /* 가운데 원 + 그 테두리를 따라 도는 링 */
 .bl-spin::before{content:"";position:absolute;inset:0;border-radius:50%;

@@ -181,7 +181,7 @@ function render(){
     if(rc && who && left < rc) $('spin').disabled = true;
     $('spinFor').textContent = who ? `${who} 지참금 ${rc ? `−${fmt(rc)} (남은 ${fmt(left)})` : '사용 안 함'} · 다음 판 효과는 공략대원 중 무작위로 적용` : ''; }
   const dt = t => new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  $('subline').textContent = hasRaid ? `시작 ${dt(App.raid.startedAt)}${s.endedAt ? ` · 종료 ${dt(s.endedAt)}` : ''}` : '래더 점수로 보스를 잡는 협동 레이드';
+  $('subline').textContent = hasRaid ? `시작 ${dt(App.raid.startedAt)}${s.endedAt ? ` · 종료 ${dt(s.endedAt)}` : ''}` : '래더로 잡는 협동 보스 레이드';
   updateGamePreview();
   if(typeof autoArchive === 'function' && hasRaid && !OVERLAY) autoArchive(s);
   renderTicker(s);

@@ -6,7 +6,7 @@ pause
 exit /b
 #>
 # =====================================================================
-#  래더 점수 자동 수집기 (래더 협동 보스 레이드)
+#  래더 점수 자동 수집기 (스타 보스 공략대)
 #  ---------------------------------------------------------------------
 #  스타크래프트: 리마스터가 켜져 있는 PC 한 대에서 실행합니다.
 #  레이드 공략대원에 등록된 래더 아이디의 점수를 주기적으로 조회해서,
@@ -164,7 +164,7 @@ function Members-Of($raid) {
 
 # ---------- 시작 ----------
 Write-Host ''
-Write-Host "  래더 협동 보스 레이드 · 래더 점수 자동 수집기 v$Version" -ForegroundColor Cyan
+Write-Host "  스타 보스 공략대 · 래더 점수 자동 수집기 v$Version" -ForegroundColor Cyan
 Write-Host '  이 창을 열어 두는 동안 공략대원의 래더 결과가 자동으로 들어갑니다. (종료: 창 닫기)' -ForegroundColor DarkGray
 Write-Host ''
 try { $DatabaseUrl = Find-DatabaseUrl; Log "레이드 저장소: $DatabaseUrl" }
