@@ -2,7 +2,8 @@
    auth.js — 로그인(구글), 내 프로필(닉네임·게임 아이디), 운영자 권한
    ---------------------------------------------------------------------
    Firebase 를 연결했을 때만 동작합니다. (브라우저 저장 모드에서는 로그인 없음)
-     users/<uid>   내 프로필 {name, ladder, gw}       본인만 쓰기
+     users/<uid>   내 프로필 {name, stars:{<서버_닉>:{id,gw}}, star}   본인만 쓰기
+     starIds/<서버>/<닉>  스타 닉 주인 {uid, id, gwn}   먼저 등록한 계정만 (중복 등록 불가)
      admins/<uid>  운영자 표시 true                   사이트에서는 못 씀 (Firebase 콘솔에서만 등록·삭제)
    권한
      로그인 안 함   보기만 가능
@@ -14,7 +15,7 @@ import { $, OVERLAY, ROOM, TEST, esc, bootReady, leadName, bindModal, openModal,
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { cleanName } from '@app/features/gear-roulette.js';
-import { LADDER_GW, cleanLadderId } from '@app/features/ladder.js';
+import { LADDER_GW, cleanLadderId, STAR_PER_GW, starRef, starKey, myStars, gwLabel } from '@app/features/ladder.js';
 import { ME_KEY } from '@app/core/boot.js';
 
 
@@ -42,6 +43,7 @@ function initAuth(app){
       const ref = App.db.ref('users/'+u.uid), h = snap=>{
         App.profile = snap.val();
         if(!App.profile || !App.profile.name){ openProfile(true); }
+        else if(!$('profileModal').hidden) renderStars();
         render(); renderAuth();
       };
       ref.on('value', h); App.unsubProfile = ()=>ref.off('value', h);
@@ -151,13 +153,57 @@ function openProfile(open){
     const p = App.profile || {};
     /* 구글 계정 이름은 쓰지 않음 (방송에 실명이 드러나지 않게): 기본값은 '공략대원' + 숫자, 테스트 계정은 '테스트' + 숫자 */
     $('pfName').value = p.name || ((App.authUser && App.authUser.isAnonymous ? '테스트' : '공략대원') + String(Math.floor(Math.random()*9000)+1000));
-    $('pfLadder').value = p.ladder || '';
-    $('pfGw').innerHTML = LADDER_GW.map(([k,l])=>`<option value="${k}"${k===(Number(p.gw)||30)?' selected':''}>${l}</option>`).join('');
+    /* 예전 프로필의 스타 닉(ladder)이 아직 등록 안 됐으면 등록 칸에 미리 넣어 둠 */
+    const legacy = cleanLadderId(p.ladder), lgw = Number(p.gw)||30;
+    const hasLegacy = legacy && !myStars().some(x=>x.key === starKey(legacy, lgw));
+    $('pfStarId').value = hasLegacy ? legacy : '';
+    $('pfStarGw').innerHTML = LADDER_GW.map(([k,l])=>`<option value="${k}"${k===(hasLegacy ? lgw : 30)?' selected':''}>${l}</option>`).join('');
+    $('pfStarHint').textContent = hasLegacy ? `예전에 넣어 둔 스타 닉 "${legacy}"은(는) 아직 등록되지 않았습니다. 등록을 눌러 주세요.` : '';
     renderProfile();
     setTimeout(()=>$('pfName').focus(), 0);
   }
 }
+function renderStars(){
+  const box = $('pfStars'); if(!box) return;
+  const list = myStars();
+  box.innerHTML = list.length ? list.map(x=>`<div class="pf-star"><b>${esc(x.id)}</b><span class="hint">${esc(gwLabel(x.gw))}</span>${(App.profile && App.profile.star) === x.key ? '<span class="pf-star-last">최근 사용</span>' : ''}<button type="button" class="btn sm" data-starrm="${esc(x.key)}">삭제</button></div>`).join('')
+    : '<p class="hint" style="margin:0">아직 등록한 스타 닉이 없습니다.</p>';
+}
+/* 스타 닉 등록: starIds 에 먼저 내 계정으로 자리를 잡고(이미 다른 계정 것이면 실패), 프로필 목록에 추가 */
+async function addStar(){
+  const id = cleanLadderId($('pfStarId').value), gw = Number($('pfStarGw').value)||30;
+  if(!id){ toast('스타 닉네임을 입력하세요.'); $('pfStarId').focus(); return; }
+  if(!/^[^.#$\[\]\/]+$/.test(id)){ toast('스타 닉네임에 . # $ [ ] / 는 쓸 수 없습니다.'); return; }
+  const list = myStars(), key = starKey(id, gw);
+  if(list.some(x=>x.key === key)){ toast('이미 등록한 스타 닉입니다.'); return; }
+  if(list.filter(x=>x.gw === gw).length >= STAR_PER_GW){ toast(`${gwLabel(gw)} 서버에는 스타 닉을 ${STAR_PER_GW}개까지 등록할 수 있습니다.`); return; }
+  const uid = App.authUser.uid, ref = App.db.ref('starIds/'+starRef(id, gw));
+  await guard(async()=>{
+    const cur = (await ref.once('value')).val();
+    if(cur && cur.uid !== uid){ toast(`"${id}"(${gwLabel(gw)})은(는) 이미 다른 계정이 등록한 스타 닉입니다. 내 닉이 맞다면 운영자에게 문의하세요.`); return; }
+    if(!cur){
+      try{ await ref.set({uid, id, gwn: gw}); }
+      catch(_){ toast(`"${id}"(${gwLabel(gw)})은(는) 이미 다른 계정이 등록한 스타 닉입니다. 내 닉이 맞다면 운영자에게 문의하세요.`); return; }
+    }
+    await App.db.ref('users/'+uid+'/stars/'+key).set({id, gw});
+    if(!App.profile || !App.profile.star) await App.db.ref('users/'+uid+'/star').set(key);
+    $('pfStarId').value = ''; $('pfStarHint').textContent = '';
+    toast(`스타 닉 ${id} (${gwLabel(gw)})을(를) 등록했습니다.`);
+  });
+}
+async function removeStar(key){
+  const x = myStars().find(s=>s.key === key); if(!x) return;
+  const uid = App.authUser.uid, ref = App.db.ref('starIds/'+starRef(x.id, x.gw));
+  await guard(async()=>{
+    const cur = (await ref.once('value')).val();
+    if(cur && cur.uid === uid) await ref.remove();
+    await App.db.ref('users/'+uid+'/stars/'+key).remove();
+    if(App.profile && App.profile.star === key) await App.db.ref('users/'+uid+'/star').remove();
+    toast(`스타 닉 ${x.id}을(를) 삭제했습니다. 이미 참가한 공략대에 쓴 닉은 그대로입니다.`);
+  });
+}
 function renderProfile(){
+  renderStars();
   $('pfEmail').textContent = !App.authUser ? '' : App.authUser.isAnonymous ? '테스트 계정 · 이 탭에서만 유지됩니다. 탭을 닫거나 로그아웃하면 이 계정은 다시 쓸 수 없습니다.' : (App.authUser.email || '');
   const idHtml = `내 계정 ID: <code class="uid">${esc(App.authUser ? App.authUser.uid : '')}</code> <button class="btn sm" type="button" id="copyUid">복사</button>`;
   $('pfAdmin').innerHTML = isAdmin()
@@ -167,12 +213,10 @@ function renderProfile(){
 async function saveProfile(){
   const name = cleanName($('pfName').value);
   if(!name){ toast('닉네임을 입력하세요.'); $('pfName').focus(); return; }
-  const ladder = cleanLadderId($('pfLadder').value), gw = Number($('pfGw').value)||30;
   const old = profileName();
   await guard(async()=>{
-    await App.db.ref('users/'+App.authUser.uid).set({name, ladder, gw, updatedAt: now()});
-    // 지금 레이드에 참가 중이면 게임 아이디도 같이 바꿈
-    if(App.raid && (App.raid.members||[]).includes(name)) await store.setRoster(name, {ladder, gw, uid: App.authUser.uid});
+    // update: 스타 닉 목록(stars)은 그대로 둠
+    await App.db.ref('users/'+App.authUser.uid).update({name, updatedAt: now()});
     openProfile(false);
     toast(old && old !== name ? `닉네임을 ${name}(으)로 바꿨습니다. 이미 참가한 레이드의 이름은 그대로입니다.` : '프로필을 저장했습니다.');
   });
@@ -183,6 +227,8 @@ async function deleteAccount(btn){
   App.deleteArm = false;
   const uid = App.authUser.uid;
   await guard(async()=>{
+    // 내가 등록한 스타 닉 자리도 풀어 줌 (다른 계정이 쓸 수 있게)
+    for(const x of myStars()){ const ref = App.db.ref('starIds/'+starRef(x.id, x.gw)); const cur = (await ref.once('value')).val(); if(cur && cur.uid === uid) await ref.remove().catch(()=>{}); }
     await App.db.ref('users/'+uid).remove();
     if(App.raid) await App.db.ref('joins/'+ROOM+'/'+App.raid.raidId+'/'+uid).remove().catch(()=>{});
     const u = App.auth.currentUser;
@@ -212,10 +258,12 @@ export function init(){
     else if(id === 'pfClose') openProfile(false);
     else if(id === 'pfSave') saveProfile();
     else if(id === 'pfDelete') deleteAccount(e.target);
+    else if(id === 'pfStarAdd') addStar();
+    else if(e.target.closest('[data-starrm]')) removeStar(e.target.closest('[data-starrm]').dataset.starrm);
     else if(id === 'pfLogout'){ App.auth.signOut(); openProfile(false); toast('로그아웃했습니다.'); }
     else if(id === 'copyUid'){ navigator.clipboard.writeText(App.authUser.uid).then(()=>toast('계정 ID를 복사했습니다.'), ()=>toast(App.authUser.uid)); }
   });
-  $('profileModal').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('#pfName,#pfLadder')) saveProfile(); if(e.key==='Escape') openProfile(false); });
+  $('profileModal').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('#pfName')) saveProfile(); if(e.key==='Enter' && e.target.matches('#pfStarId')) addStar(); if(e.key==='Escape') openProfile(false); });
 
   /* 로그인 정보 삭제: 내 프로필과 구글 로그인 연결을 지움 (끝난 레이드 기록은 남음) */
   App.deleteArm = false;

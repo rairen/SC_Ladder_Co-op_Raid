@@ -10,7 +10,7 @@ import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repa
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
 import { openSkillModal } from '@app/ui/info-window.js';
-import { cleanLadderId } from '@app/features/ladder.js';
+import { gwLabel, myStars, rosterStar } from '@app/features/ladder.js';
 import { canOperate, isAdmin, login, openProfile, profileName, useAuth } from '@app/features/auth.js';
 import { ME_KEY } from '@app/core/boot.js';
 
@@ -128,13 +128,14 @@ function doJoin(){
   if(authed){ const ro0 = App.raid.roster && App.raid.roster[rosterKey(name)]; if(already && ro0 && ro0.uid && ro0.uid !== App.authUser.uid){ toast('같은 이름의 공략대원이 이미 있습니다. 프로필에서 닉네임을 바꿔 주세요.'); return false; } }
   /* 스타 닉(래더 아이디)은 프로필 값을 씀 */
   const fee = already || rejoin ? 0 : Math.max(0, Math.round(Number($('joinFee').value)||0));
-  const ladder = authed ? cleanLadderId((App.profile && App.profile.ladder) || '') : '', gw = authed ? (Number(App.profile && App.profile.gw)||30) : 30;
+  /* 참가할 스타 닉: 프로필에 등록한 닉 중 고른 것 (없음이면 결과 직접 입력) */
+  const sel = $('joinStarSel'), star = authed && sel ? (myStars().find(x=>x.key === sel.value) || null) : null;
   /* 다시 들어오는 이름은 원래 역할 그대로 */
   const role = already || rejoin ? rosterOf(App.raid, name).role : $('jcRole').value;
-  joinNow(name, role, fee, ladder, gw, already, needCode, code, authed, rejoin);
+  joinNow(name, role, fee, star, already, needCode, code, authed, rejoin);
   return true;
 }
-function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed, rejoin = false){
+function joinNow(name, role, fee, star, already, needCode, code, authed, rejoin = false){
   guard(async()=>{
     if(authed){
       if(needCode){
@@ -148,7 +149,10 @@ function joinNow(name, role, fee, ladder, gw, already, needCode, code, authed, r
     await store.join(name);
     if(rejoin) await store.setRoster(name, {left: null});
     else if(!already){ const bag = await store.loadBag(name); await store.setRoster(name, bag ? {role, fee, bag} : {role, fee}); }
-    if(authed) await store.setRoster(name, {uid: App.authUser.uid, ladder, gw});
+    if(authed){
+      await store.setRoster(name, {uid: App.authUser.uid, ...rosterStar(star)});
+      await App.db.ref('users/'+App.authUser.uid+'/star').set(star ? star.key : null).catch(()=>{});
+    }
     // 본부 모집 공략대: 처음 참가한 공략대원이 공략대장
     const wasLead = !!(App.raid.lead && (App.raid.members||[]).includes(App.raid.lead.name));
     await store.claimLead(name, authed ? App.authUser.uid : '');
@@ -219,15 +223,22 @@ function renderRejoinInfo(name){
     ${st ? `<li><span>지금까지 기록</span><b class="num">${st.w||0}승 ${st.l||0}패 · 데미지 ${fmt(st.dmg||0)}</b></li>` : ''}`;
 }
 const S_POT = () => (App.lastState && App.lastState.S && App.lastState.S.potions) || {};
-/* 스타 닉(래더 아이디)은 프로필에서 정함. 참가 팝업에는 보여 주기만 */
+/* 스타 닉(래더 아이디): 프로필에 등록한 닉 중에서 고름 (등록은 프로필 창에서) */
 function renderJoinStar(){
   const el = $('joinStar'), authed = useAuth();
   el.hidden = !authed;
   if(!authed) return;
-  const nick = (App.profile && App.profile.ladder) || '';
-  el.innerHTML = nick
-    ? `스타 닉 <b>${esc(nick)}</b> · 래더 자동 수집에 씁니다. <button type="button" class="linkbtn" data-openprofile="1">프로필에서 바꾸기</button>`
-    : `스타 닉이 없습니다. <button type="button" class="linkbtn" data-openprofile="1">프로필에서 스타 닉 입력</button>하면 래더 결과를 자동으로 모읍니다.`;
+  const list = myStars();
+  if(!list.length){
+    el.innerHTML = `<span class="label">참가할 스타 닉</span><p class="hint" style="margin:0">등록한 스타 닉이 없습니다. <button type="button" class="linkbtn" data-openprofile="1">프로필에서 스타 닉 등록</button>하면 래더 결과를 자동으로 모읍니다. (없이 참가하면 결과를 직접 입력)</p>`;
+    return;
+  }
+  const nm = cleanName($('joinName').value), ro = nm && App.raid && App.raid.roster && App.raid.roster[rosterKey(nm)];
+  const cur = ro && ro.ladder ? list.find(x=>x.id === ro.ladder && x.gw === (Number(ro.gw)||30)) : null;
+  const def = cur ? cur.key : (list.find(x=>x.key === (App.profile && App.profile.star)) || list[0]).key;
+  el.innerHTML = `<label class="label" for="joinStarSel">참가할 스타 닉 <small class="hint">래더 자동 수집</small></label>
+    <select id="joinStarSel">${list.map(x=>`<option value="${esc(x.key)}"${x.key === def ? ' selected' : ''}>${esc(x.id)} · ${esc(gwLabel(x.gw))}</option>`).join('')}<option value="">없음 (결과 직접 입력)</option></select>
+    <p class="hint" style="margin:0">이 공략대에서 플레이할 계정을 고르세요. <button type="button" class="linkbtn" data-openprofile="1">스타 닉 관리</button></p>`;
 }
 /* self: 내가 참가하는 팝업 (이름·지참금·초대 코드·래더 아이디까지 입력). 아니면 운영자의 공략대원 추가 확인 */
 let joinSelf = false;
@@ -348,7 +359,7 @@ export function init(){
   $('joinBtn').onclick = openJoin;
   $('joinName').addEventListener('input', renderJoinWho);
   $('joinName').addEventListener('change', ()=>{ const nm = cleanName($('joinName').value); loadJoinBag(nm, joinOk); if(App.raid){ applyJoinLock(nm, $('jcRole').value); if(!$('joinFee').disabled) renderJoinGear(); } });
-  document.addEventListener('click', e=>{ if(e.target.closest('[data-openprofile]')){ $('joinModal').hidden = true; joinOk = null; openProfile(true); } });
+  document.addEventListener('click', e=>{ if(e.target.closest('[data-openprofile]')){ $('joinModal').hidden = true; $('ladderModal').hidden = true; joinOk = null; openProfile(true); } });
   ['joinName','joinFee','joinCode'].forEach(id=>$(id).addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); $('jcOk').click(); } }));
   $('joinExisting').addEventListener('click', e=>{ const b = e.target.closest('[data-claim]'); if(b) setMe(b.dataset.claim); });
 

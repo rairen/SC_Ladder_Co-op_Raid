@@ -19,6 +19,25 @@ const LADDER_GW = [[30,'한국'], [45,'아시아'], [10,'미국 서부'], [11,'�
 const COLLECTOR_ALIVE_MS = 90 * 1000;   // 이 시간 안에 신호가 있으면 "수집 중"
 
 const cleanLadderId = v => String(v||'').trim().replace(/\s+/g,'').slice(0,24);
+const gwLabel = gw => (LADDER_GW.find(x=>x[0]===Number(gw))||[0,'한국'])[1];
+
+/* ---------- 스타 닉네임 등록 (중복 방지) ----------
+   starIds/<서버>/<닉 소문자>  {uid, id, gwn}   먼저 등록한 계정만 그 닉을 씀 (다른 계정은 등록·삭제 불가)
+   users/<uid>/stars/<서버_닉>  {id, gw}        내 프로필에 등록한 스타 닉 목록 (서버마다 최대 3개)
+   공략대 roster 에 ladder 를 넣을 때는 starRef('<서버>/<닉>') 를 같이 넣어야 규칙을 통과함 */
+const STAR_PER_GW = 3;
+const starName = id => String(id||'').toLowerCase().replace(/[.#$\[\]\/]/g,'_');
+const starRef = (id, gw) => `${Number(gw)||30}/${starName(id)}`;
+const starKey = (id, gw) => `${Number(gw)||30}_${starName(id)}`;
+/* 내 프로필의 스타 닉 목록 [{key, id, gw}] (서버 → 이름 순) */
+function myStars(){
+  const st = (App.profile && App.profile.stars) || {};
+  const ord = g => LADDER_GW.findIndex(x=>x[0]===g);
+  return Object.entries(st).filter(([,x])=>x && x.id).map(([key, x])=>({key, id: String(x.id), gw: Number(x.gw)||30}))
+    .sort((a,b)=>(ord(a.gw)-ord(b.gw)) || a.id.localeCompare(b.id));
+}
+/* 공략대 roster 에 넣을 값 (등록 안 한 닉이면 비움) */
+function rosterStar(star){ return star ? {ladder: star.id, gw: star.gw, starRef: starRef(star.id, star.gw)} : {ladder: '', gw: 30, starRef: null}; }
 function collectorAlive(){ return !App.local && App.collector && (now() - Number(App.collector.t||0)) < COLLECTOR_ALIVE_MS; }
 function ladderOf(name){ return App.ladderSnap[rosterKey(name)] || null; }
 /* 이 공략대원의 결과가 자동으로 들어오는 중인가 */
@@ -51,7 +70,18 @@ function renderLadderPanel(s, me){
   if(body.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
   const live = s.status === 'live' && !App.readOnly;
   body.innerHTML = s.members.length ? s.members.map(m=>{
-    const ro = rosterOf(App.raid, m), snap = ladderOf(m), canEdit = live && (!me || me === m);
+    const ro = rosterOf(App.raid, m), snap = ladderOf(m);
+    /* 로그인 모드: 운영자만 직접 입력, 본인은 프로필에 등록한 스타 닉 중에서 고름 (남의 닉을 못 쓰게) */
+    const authMode = !App.local && !!App.auth, adm = authMode && App.authUser && App.admins[App.authUser.uid] === true;
+    const canEdit = live && (authMode ? adm : (!me || me === m));
+    const pick = live && authMode && !adm && me === m;
+    if(pick){
+      const mine = myStars(), cur = mine.find(x=>x.id === ro.ladder && x.gw === ro.gw);
+      const opts = `<option value=""${cur ? '' : ' selected'}>없음 (결과 직접 입력)</option>` + mine.map(x=>`<option value="${esc(x.key)}"${cur && cur.key === x.key ? ' selected' : ''}>${esc(x.id)} · ${esc(gwLabel(x.gw))}</option>`).join('');
+      const idPick = `<select data-lstar="${esc(m)}" aria-label="참가할 스타 닉">${opts}</select>${mine.length ? '' : ' <button type="button" class="linkbtn" data-openprofile="1">프로필에서 등록</button>'}`;
+      const stPick = !ro.ladder ? '<span class="hint">직접 입력</span>' : !(snap && snap.id === ro.ladder) ? '<span class="hint">조회 대기</span>' : snap.err ? `<span class="err">${esc(snap.err)}</span>` : `<span class="ok" title="마지막 조회 ${agoText(snap.t)}">연결됨</span>`;
+      return `<tr><td>${esc(m)}</td><td colspan="2">${idPick}</td><td>${stPick}</td></tr>`;
+    }
     const idCell = canEdit
       ? `<input type="text" value="${esc(ro.ladder)}" data-lid="${esc(m)}" placeholder="게임 아이디" maxlength="24" autocomplete="off" spellcheck="false" aria-label="${esc(m)} 래더 아이디">`
       : (ro.ladder ? esc(ro.ladder) : '<span class="hint">-</span>');
@@ -80,6 +110,8 @@ export function init(){
     const i = e.target.closest('[data-lid]'), g = e.target.closest('[data-lgw]');
     if(i){ const v = cleanLadderId(i.value); i.value = v; guard(()=>store.setRoster(i.dataset.lid, {ladder: v})).then(()=>{ i.blur(); render(); }); }
     if(g) guard(()=>store.setRoster(g.dataset.lgw, {gw: Number(g.value)||30}));
+    const sp = e.target.closest('[data-lstar]');
+    if(sp){ const star = myStars().find(x=>x.key === sp.value) || null; guard(async()=>{ await store.setRoster(sp.dataset.lstar, rosterStar(star)); await App.db.ref('users/'+App.authUser.uid+'/star').set(star ? star.key : null); }).then(()=>{ sp.blur(); render(); }); }
   });
   $('ladderBody').addEventListener('keydown', e=>{ if(e.key==='Enter' && e.target.matches('[data-lid]')) e.target.blur(); });
   // "몇 초 전" 표시를 갱신
@@ -89,4 +121,4 @@ export function init(){
 }
 
 
-export { collectorAlive, ladderOf, autoOn, agoText, renderLadderPanel, LADDER_GW, COLLECTOR_ALIVE_MS, cleanLadderId };
+export { STAR_PER_GW, starName, starRef, starKey, myStars, rosterStar, gwLabel, collectorAlive, ladderOf, autoOn, agoText, renderLadderPanel, LADDER_GW, COLLECTOR_ALIVE_MS, cleanLadderId };

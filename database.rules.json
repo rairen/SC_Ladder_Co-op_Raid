@@ -21,6 +21,15 @@
         ".write": "auth != null && auth.uid === $uid && newData.isString() && newData.val() === root.child('config/collectorKey').val()"
       }
     },
+    "starIds": {
+      ".read": true,
+      "$gw": {
+        "$name": {
+          ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (!data.exists() && newData.child('uid').val() === auth.uid) || (data.child('uid').val() === auth.uid && !newData.exists()))",
+          ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'id', 'gwn']) && newData.child('id').isString() && newData.child('id').val().length > 0 && newData.child('id').val().length <= 24 && newData.child('id').val().toLowerCase().replace('.', '_').replace('#', '_').replace('$', '_').replace('[', '_').replace(']', '_').replace('/', '_') === $name && (($gw === '30' && newData.child('gwn').val() === 30) || ($gw === '45' && newData.child('gwn').val() === 45) || ($gw === '10' && newData.child('gwn').val() === 10) || ($gw === '11' && newData.child('gwn').val() === 11) || ($gw === '20' && newData.child('gwn').val() === 20)))"
+        }
+      }
+    },
     "invites": {
       ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
@@ -71,7 +80,7 @@
           },
           "roster": {
             "$m": {
-              ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()))"
+              ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()) || (root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() && $m === root.child('coop/raids').child($rid).child('uids').child(auth.uid).val().replace('.', '_').replace('#', '_').replace('$', '_').replace('[', '_').replace(']', '_').replace('/', '_') && ((newData.child('ladder').val() === data.child('ladder').val() && newData.child('gw').val() === data.child('gw').val()) || !newData.child('ladder').exists() || newData.child('ladder').val() === '' || (root.child('starIds').child(newData.child('starRef').val()).child('uid').val() === auth.uid && root.child('starIds').child(newData.child('starRef').val()).child('id').val() === newData.child('ladder').val() && root.child('starIds').child(newData.child('starRef').val()).child('gwn').val() === newData.child('gw').val()))))"
             }
           }
         }
@@ -112,7 +121,7 @@
           },
           "roster": {
             "$m": {
-              ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()))"
+              ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()) || (root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() && $m === root.child('versus/raids').child($rid).child('uids').child(auth.uid).val().replace('.', '_').replace('#', '_').replace('$', '_').replace('[', '_').replace(']', '_').replace('/', '_') && ((newData.child('ladder').val() === data.child('ladder').val() && newData.child('gw').val() === data.child('gw').val()) || !newData.child('ladder').exists() || newData.child('ladder').val() === '' || (root.child('starIds').child(newData.child('starRef').val()).child('uid').val() === auth.uid && root.child('starIds').child(newData.child('starRef').val()).child('id').val() === newData.child('ladder').val() && root.child('starIds').child(newData.child('starRef').val()).child('gwn').val() === newData.child('gw').val()))))"
             }
           }
         }

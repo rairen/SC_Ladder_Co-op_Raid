@@ -958,3 +958,15 @@ html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-templa
   padding:10px 12px;border-radius:8px;background:#3a1418;border:1px solid #ff6b74;color:#ffd7da;box-shadow:0 6px 24px #0008;font-size:13px}
 .err-bar[hidden]{display:none}
 .err-bar .eb-tx{flex:1;min-width:200px}
+
+/* 프로필 · 스타 닉 등록 */
+.pf-stars{display:flex;flex-direction:column;gap:6px}
+.pf-star-list{display:flex;flex-direction:column;gap:4px}
+.pf-star{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
+.pf-star b{font-size:15px}
+.pf-star .btn{margin-left:auto}
+.pf-star-last{font-size:11px;padding:1px 6px;border-radius:4px;border:1px solid color-mix(in srgb,var(--accent) 50%,transparent);color:var(--accent)}
+.pf-star-add{display:flex;gap:6px;flex-wrap:wrap}
+.pf-star-add input{flex:1 1 160px;width:auto!important}
+.jc-star{display:flex;flex-direction:column;gap:4px}
+.jc-star select{width:100%}
