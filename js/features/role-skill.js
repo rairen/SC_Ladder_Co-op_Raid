@@ -4,7 +4,7 @@
 /* ---------- Role skill bar ---------- */
 import { App } from '@app/core/app.js';
 import { ROLES } from '@app/core/game-data.js';
-import { $, esc } from '@app/core/state.js';
+import { $, esc, now } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 
 function renderRoleBar(s, me, canAct){
@@ -26,7 +26,7 @@ export function init(){
   document.addEventListener('click', e=>{
     if(e.target.id !== 'useRole' || e.target.disabled || !App.raid || !App.selected) return;
     const who = App.selected;
-    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'role', member:who, undone:false}); toast(`${who} 역할 스킬 사용`); });
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:now(), type:'role', member:who, undone:false}); toast(`${who} 역할 스킬 사용`); });
   });
   /* 공략대 현황에서 역할·지참금 고치기 */
   $('partyBody').addEventListener('change', e=>{

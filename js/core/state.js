@@ -73,4 +73,34 @@ function openModal(id, focusSel){
   if(f) setTimeout(()=>f.focus(), 0);
 }
 
-export { bootNeed, bootReady, bootFinish, $, esc, fmt, CUR_KEY, squadLabel, squadAlias, leadName, OVERLAY, TEST, MODE, ROOM, base, bindModal, openModal };
+/* ---------- 오류 알림 ----------
+   예상하지 못한 오류가 나면 화면 위에 안내 줄을 띄움 (새로고침 버튼). 같은 오류는 30초에 한 번만.
+   방송 오버레이에서는 화면을 가리지 않도록 콘솔에만 남김 */
+let lastErr = '', lastErrAt = 0;
+function reportError(err, where = ''){
+  const msg = String((err && (err.message || err.reason && err.reason.message)) || err || '알 수 없는 오류');
+  console.error('[스타 보스 공략대]', where, err);
+  if(OVERLAY) return;
+  const t = Date.now(); if(msg === lastErr && t - lastErrAt < 30000) return;
+  lastErr = msg; lastErrAt = t;
+  let bar = document.getElementById('errBar');
+  if(!bar){
+    bar = document.createElement('div'); bar.id = 'errBar'; bar.className = 'err-bar'; bar.setAttribute('role', 'alert');
+    bar.innerHTML = '<span class="eb-tx"></span><button type="button" class="btn sm primary" data-eb="reload">새로고침</button><button type="button" class="btn sm" data-eb="close">닫기</button>';
+    bar.addEventListener('click', e=>{ const b = e.target.closest('[data-eb]'); if(!b) return; if(b.dataset.eb === 'reload') location.reload(); else bar.hidden = true; });
+    document.body.appendChild(bar);
+  }
+  bar.hidden = false;
+  bar.querySelector('.eb-tx').textContent = `문제가 생겼습니다${where ? ` (${where})` : ''}. 화면이 이상하면 새로고침하세요. 계속되면 건의·문의로 알려 주세요. · ${msg.slice(0, 120)}`;
+}
+/* 이 사이트 파일에서 난 오류만 (브라우저 확장 프로그램 오류는 무시) */
+function ownError(e){ const f = (e && (e.filename || (e.reason && e.reason.stack) || (e.error && e.error.stack))) || ''; return !f || f.includes(location.host) || f.includes('/js/'); }
+if(typeof window !== 'undefined'){
+  window.addEventListener('error', e=>{ if(ownError(e)) reportError(e.error || e.message, ''); });
+  window.addEventListener('unhandledrejection', e=>{ if(ownError(e)) reportError(e.reason, ''); });
+}
+
+/* 서버 기준 현재 시각 (ms). 각자 PC 시계가 틀려도 기록 순서·본부지원 시간이 어긋나지 않게 Firebase 서버 시각 차이를 더함 */
+function now(){ return Date.now() + (Number(App.timeOffset) || 0); }
+
+export { now, reportError, bootNeed, bootReady, bootFinish, $, esc, fmt, CUR_KEY, squadLabel, squadAlias, leadName, OVERLAY, TEST, MODE, ROOM, base, bindModal, openModal };

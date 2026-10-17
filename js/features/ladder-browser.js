@@ -8,7 +8,7 @@
    - 수집기 프로그램이 이미 돌고 있으면 중복 기록을 막기 위해 시작하지 않습니다.
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, base, esc } from '@app/core/state.js';
+import { $, OVERLAY, base, esc, now } from '@app/core/state.js';
 import { toast } from '@app/core/store.js';
 import { compute, rosterKey, rosterOf } from '@app/core/logic.js';
 import { cleanLadderId, collectorAlive } from '@app/features/ladder.js';
@@ -67,7 +67,7 @@ async function bcTick(){
         // 이전 값: 이 탭의 기억 → 없으면 DB 에 남은 마지막 조회 (다른 수집기와 이어받기)
         const saved = snaps[key];
         const prev = cache[key] || (saved && saved.id === toon && +saved.gw === gw ? saved : null);
-        const snap = {id:toon, gw, t:Date.now()};
+        const snap = {id:toon, gw, t:now()};
         try{
           const r = await BW_LOCAL.ladder(bc.port, toon, gw);
           if(!r.ok) throw new Error(r.err);
@@ -78,9 +78,9 @@ async function bcTick(){
               const delta = r.rating - (+prev.rating||0);
               if(+prev.rating > 0 && r.rating > 0){
                 const win = (dw > 0 && dl === 0) || (dw > 0 && dl > 0 && delta >= 0), pts = Math.abs(delta);
-                const ev = {raidId:rid, t:Date.now(), type:'game', member:m, points: win ? pts : -pts, multi:false, same:false, banned:false, undone:false, auto:true, input:'auto', src:'browser', rating:r.rating};
+                const ev = {raidId:rid, t:now(), type:'game', member:m, points: win ? pts : -pts, multi:false, same:false, banned:false, undone:false, auto:true, input:'auto', src:'browser', rating:r.rating};
                 if(n > 1) ev.games = n;
-                if(App.local){ (App.localDB.events[rid] = App.localDB.events[rid] || []).push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); }
+                if(App.local){ (App.localDB.events[rid] = App.localDB.events[rid] || []).push({...ev, _id:'l'+now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); }
                 else await App.db.ref(base()+'/events/'+rid).push(ev);
               } else snap.err = '배치 게임 중이라 점수 변동을 알 수 없음 (직접 입력)';
             }
@@ -100,7 +100,7 @@ async function bcTick(){
       if(state === 'ok') bc.msg = `수집 중 · 공략대 ${live.length}개 · ${count}명`;
     }
   }catch(e){ state = 'error'; bc.msg = '오류: ' + (e && e.message || e); }
-  if(!App.local){ try{ await App.db.ref(base()+'/collector').set({t:Date.now(), state, msg:bc.msg, ver:'browser', src:'browser'}); }catch(_){} }
+  if(!App.local){ try{ await App.db.ref(base()+'/collector').set({t:now(), state, msg:bc.msg, ver:'browser', src:'browser'}); }catch(_){} }
   bc.busy = false;
   renderBrowserCollect();
   if(bc.on) bc.timer = setTimeout(bcTick, BC_INTERVAL);

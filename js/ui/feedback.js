@@ -8,7 +8,7 @@
    브라우저 저장 모드에서는 이 브라우저(localStorage)에만 저장됩니다.
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, esc, bindModal, openModal } from '@app/core/state.js';
+import { $, OVERLAY, esc, bindModal, openModal, now } from '@app/core/state.js';
 import { guard, toast } from '@app/core/store.js';
 import { isAdmin, login, profileName, useAuth } from '@app/features/auth.js';
 import { fmtDate } from '@app/ui/history.js';
@@ -83,9 +83,9 @@ function send(){
   const kind = (document.querySelector('[data-fbkind][aria-pressed="true"]') || {}).dataset?.fbkind || 'suggest';
   const title = String($('fbTitle').value || '').trim().slice(0, 60), body = String($('fbText').value || '').trim().slice(0, 1000);
   if(!body){ toast('내용을 입력하세요.'); $('fbText').focus(); return; }
-  const item = {kind, title, body, t: Date.now(), status: 'new', name: (useAuth() ? profileName() : App.meName) || '이름 없음'};
+  const item = {kind, title, body, t: now(), status: 'new', name: (useAuth() ? profileName() : App.meName) || '이름 없음'};
   guard(async()=>{
-    if(!useAuth()){ const d = lsGet(); d.local = d.local || {}; d.local['l' + Date.now().toString(36)] = item; lsSet(d); watch(); }
+    if(!useAuth()){ const d = lsGet(); d.local = d.local || {}; d.local['l' + now().toString(36)] = item; lsSet(d); watch(); }
     else await App.db.ref('feedback/' + uid()).push(item);
     tab = 'mine'; render(); toast(`${KIND[kind]}을 보냈습니다. 운영자가 확인하면 내 내역에 상태가 바뀝니다.`);
   });
@@ -119,7 +119,7 @@ export function init(){
     if(st){ guard(()=>update(owner, id, {status: st.dataset.fbst})); return; }
     if(e.target.closest('[data-fbsave]')){
       const reply = String(ctl.querySelector('[data-fbreply]').value || '').trim().slice(0, 1000);
-      guard(async()=>{ await update(owner, id, reply ? {reply, replyT: Date.now(), status: 'done'} : {reply: null, replyT: null}); toast(reply ? '답변을 저장했습니다.' : '답변을 지웠습니다.'); });
+      guard(async()=>{ await update(owner, id, reply ? {reply, replyT: now(), status: 'done'} : {reply: null, replyT: null}); toast(reply ? '답변을 저장했습니다.' : '답변을 지웠습니다.'); });
     }
   });
   $('fbModal').addEventListener('input', e=>{ if(e.target.id === 'fbText') $('fbCount').textContent = `${e.target.value.length} / 1000`; });

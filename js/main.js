@@ -6,6 +6,7 @@
    새 파일을 만들면: 아래 import 와 modules 배열에 한 줄씩 추가하고, index.html 의 importmap 에도 경로를 넣으세요.
    ===================================================================== */
 import { App } from '@app/core/app.js';
+import { reportError } from '@app/core/state.js';
 import * as m0 from '@app/core/game-data.js';
 import * as m1 from '@app/core/state.js';
 import * as m2 from '@app/core/store.js';
@@ -44,4 +45,5 @@ if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){
 }
 
 /* 파일 순서대로 init() 실행 */
-for(const m of modules) if(typeof m.init === 'function') m.init();
+/* 한 모듈의 초기화가 실패해도 나머지는 계속 (오류는 화면 위 안내로) */
+for(const m of modules) if(typeof m.init === 'function'){ try{ m.init(); }catch(e){ reportError(e, '초기화'); } }

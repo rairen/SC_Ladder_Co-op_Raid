@@ -9,7 +9,7 @@
      coop/events/<raidId>         래더 한 판마다 type:'game', auto:true 기록 추가
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, esc, fmt, bindModal, openModal } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, bindModal, openModal, now } from '@app/core/state.js';
 import { guard, store } from '@app/core/store.js';
 import { rosterKey, rosterOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
@@ -19,13 +19,13 @@ const LADDER_GW = [[30,'한국'], [45,'아시아'], [10,'미국 서부'], [11,'�
 const COLLECTOR_ALIVE_MS = 90 * 1000;   // 이 시간 안에 신호가 있으면 "수집 중"
 
 const cleanLadderId = v => String(v||'').trim().replace(/\s+/g,'').slice(0,24);
-function collectorAlive(){ return !App.local && App.collector && (Date.now() - Number(App.collector.t||0)) < COLLECTOR_ALIVE_MS; }
+function collectorAlive(){ return !App.local && App.collector && (now() - Number(App.collector.t||0)) < COLLECTOR_ALIVE_MS; }
 function ladderOf(name){ return App.ladderSnap[rosterKey(name)] || null; }
 /* 이 공략대원의 결과가 자동으로 들어오는 중인가 */
 function autoOn(name){ return !!(App.raid && collectorAlive() && rosterOf(App.raid, name).ladder); }
 
 function agoText(t){
-  const s = Math.max(0, Math.round((Date.now() - Number(t||0))/1000));
+  const s = Math.max(0, Math.round((now() - Number(t||0))/1000));
   return s < 60 ? `${s}초 전` : s < 3600 ? `${Math.floor(s/60)}분 전` : `${Math.floor(s/3600)}시간 전`;
 }
 

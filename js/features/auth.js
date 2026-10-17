@@ -10,7 +10,7 @@
      운영자        레이드 열기·종료, 공략대원 추가, 모든 공략대원 입력, 데이터 초기화 (콘솔에서 지정)
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, ROOM, TEST, esc, bootReady, leadName, bindModal, openModal } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, TEST, esc, bootReady, leadName, bindModal, openModal, now } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { cleanName } from '@app/features/gear-roulette.js';
@@ -170,7 +170,7 @@ async function saveProfile(){
   const ladder = cleanLadderId($('pfLadder').value), gw = Number($('pfGw').value)||30;
   const old = profileName();
   await guard(async()=>{
-    await App.db.ref('users/'+App.authUser.uid).set({name, ladder, gw, updatedAt: Date.now()});
+    await App.db.ref('users/'+App.authUser.uid).set({name, ladder, gw, updatedAt: now()});
     // 지금 레이드에 참가 중이면 게임 아이디도 같이 바꿈
     if(App.raid && (App.raid.members||[]).includes(name)) await store.setRoster(name, {ladder, gw, uid: App.authUser.uid});
     openProfile(false);

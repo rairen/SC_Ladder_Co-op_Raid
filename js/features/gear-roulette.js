@@ -4,7 +4,7 @@
 /* ---------- 장비 룰렛 ---------- */
 import { App } from '@app/core/app.js';
 import { DEFAULT_GEAR_ROLL, GEAR_GRADES, GEAR_SLOT, PARTY_HP, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, ROOM, TEST, esc, fmt, squadLabel, squadAlias, bindModal, openModal } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, TEST, esc, fmt, squadLabel, squadAlias, bindModal, openModal, now } from '@app/core/state.js';
 import { guard, rpath, store, toast } from '@app/core/store.js';
 import { gaugeOf, gearHtml, gearItemName, gearRollList, gradeOf, itemScore, repairCost, salvageValue, sellGearValue, roleSkillsOf, rosterKey, rosterOf, settingsOf } from '@app/core/logic.js';
 import { render } from '@app/ui/render.js';
@@ -309,19 +309,19 @@ export function init(){
       return;
     }
     App.dropArm = null;
-    guard(async()=>{ await store.addEvent(kind === 'salvage' ? {raidId:App.raid.raidId, t:Date.now(), type:'sell', member:who, item:id, undone:false} : {raidId:App.raid.raidId, t:Date.now(), type:'drop', member:who, item:id, undone:false}); toast(`${who} 장비 ${kind === 'salvage' ? '판매' : '버리기'}`); });
+    guard(async()=>{ await store.addEvent(kind === 'salvage' ? {raidId:App.raid.raidId, t:now(), type:'sell', member:who, item:id, undone:false} : {raidId:App.raid.raidId, t:now(), type:'drop', member:who, item:id, undone:false}); toast(`${who} 장비 ${kind === 'salvage' ? '판매' : '버리기'}`); });
   });
   document.addEventListener('click', e=>{
     const rp = e.target.closest('[data-repair]');
     if(!rp || rp.disabled || !App.raid || !App.selected) return;
     const who = App.selected;
-    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'repair', member:who, item: rp.dataset.repair, undone:false}); toast(`${who} 장비 수리`); });
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:now(), type:'repair', member:who, item: rp.dataset.repair, undone:false}); toast(`${who} 장비 수리`); });
   });
   document.addEventListener('click', e=>{
     const eqb = e.target.closest('[data-equip]'), off = e.target.closest('[data-unequip]');
     if(!(eqb || off) || !App.raid || !App.selected) return;
     const who = App.selected;
-    guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'equip', member:who, item: eqb ? eqb.dataset.equip : 'off:'+off.dataset.unequip, undone:false}));
+    guard(()=>store.addEvent({raidId:App.raid.raidId, t:now(), type:'equip', member:who, item: eqb ? eqb.dataset.equip : 'off:'+off.dataset.unequip, undone:false}));
   });
   App.gearSpinning = false;
   $('gearSpin').onclick = ()=>{
@@ -335,7 +335,7 @@ export function init(){
       if(i < steps){ show(keys[Math.floor(Math.random()*keys.length)]); i++; setTimeout(tick, 50 + i*i*2); return; }
       show(key, key==='none' ? '꽝' : GEAR_SLOT[key.split(':')[0]] + ' 획득', grade);
       App.gearSpinning = false;
-      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'gear', member:who, item:key, ...(grade ? {grade} : {}), cost, undone:false}));
+      guard(()=>store.addEvent({raidId:App.raid.raidId, t:now(), type:'gear', member:who, item:key, ...(grade ? {grade} : {}), cost, undone:false}));
       render();
     };
     tick();
@@ -356,7 +356,7 @@ export function init(){
     const a = Math.round(Number($('fundAmt').value) || 0), who = App.selected;
     if(!App.raid || !who) return;
     if(a <= 0){ toast('추가 지원금은 1 이상 넣어 주세요.'); $('fundAmt').focus(); return; }
-    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'fund', member:who, amount:a, undone:false}); $('fundAmt').value = ''; toast(`${who} 추가 지원금 +${fmt(a)}`); });
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:now(), type:'fund', member:who, amount:a, undone:false}); $('fundAmt').value = ''; toast(`${who} 추가 지원금 +${fmt(a)}`); });
   };
   $('fundBtn').onclick = addFund;
   $('fundAmt').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addFund(); } });

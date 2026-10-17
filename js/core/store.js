@@ -4,7 +4,7 @@
 /* ---------- Store ---------- */
 /* 공략대(레이드) 경로: 지정이 없으면 지금 보고 있는 공략대 */
 import { App } from '@app/core/app.js';
-import { $, ROOM, base } from '@app/core/state.js';
+import { $, ROOM, base, now } from '@app/core/state.js';
 import { rosterKey } from '@app/core/logic.js';
 import { isAdmin, useAuth } from '@app/features/auth.js';
 import { commit, commitHistory, selectRaid } from '@app/core/boot.js';
@@ -28,7 +28,7 @@ const store = {
   /* 레이드가 끝날 때 공략대원 가방·남은 지참금 저장, 이번 레이드 지참금 내역은 ledger/<레이드ID> 에 추가 */
   async saveBags(bags, sum){
     if(!bags) return;
-    const t = Date.now(), patch = {}, rid = (sum && sum.raidId) || ('r'+t);
+    const t = now(), patch = {}, rid = (sum && sum.raidId) || ('r'+t);
     const head = {t, label: (sum && sum.squadLabel) || '', boss: (sum && sum.name) || '', status: (sum && sum.status) || ''};
     for(const [name, b] of Object.entries(bags)){
       const k = rosterKey(name);
@@ -53,7 +53,7 @@ const store = {
     await App.db.ref(rpath()).update(patch);
   },
   async addEvent(ev){
-    if(App.local){ App.events.push({...ev, _id:'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); return; }
+    if(App.local){ App.events.push({...ev, _id:'l'+now().toString(36)+Math.random().toString(36).slice(2,6)}); commit(); return; }
     await App.db.ref(base()+'/events/'+ev.raidId).push(ev);
   },
   async setRoster(name, patch){
@@ -149,7 +149,7 @@ const store = {
   /* 공략대 구성 변화 기록 (참가, 내보내기, 역할·지참금 변경). 계산에는 영향 없음 */
   async partyLog(member, action, extra){
     if(!App.raid) return;
-    await this.addEvent({raidId: App.raid.raidId, t: Date.now(), type:'party', member, action, ...(extra||{}), undone:false});
+    await this.addEvent({raidId: App.raid.raidId, t: now(), type:'party', member, action, ...(extra||{}), undone:false});
   },
   async setUndone(id, undone){
     if(App.local){ const e = App.events.find(x=>x._id===id); if(e) e.undone = undone; commit(); return; }
@@ -167,7 +167,7 @@ async function guard(fn){
     const msg = String((e && (e.code || e.message)) || '');
     if(/permission/i.test(msg)){
       const ua = typeof useAuth === 'function' && useAuth();
-      toast(ua && !App.authUser ? '로그인해야 입력할 수 있습니다. 오른쪽 위 구글 로그인을 누르세요.'
+      toast(ua && !App.authUser ? '로그인해야 입력할 수 있습니다. 오른쪽 위 로그인을 누르세요.'
         : ua && !isAdmin() && !(typeof App.adminsLoaded !== 'undefined' && App.adminsLoaded && !Object.keys(App.admins).length) ? '운영자만 할 수 있는 작업이거나, Firebase 규칙이 최신이 아닙니다.'
         : 'Firebase 규칙이 쓰기를 막고 있습니다. 레포의 database.rules.json 을 Firebase 규칙 탭에 다시 게시하세요.');
     }

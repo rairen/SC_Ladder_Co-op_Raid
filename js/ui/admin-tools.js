@@ -35,6 +35,19 @@ function renderAdminBtn(){
   else if(!$('adminModal').hidden) renderAdminTools();
 }
 
+/* 래더 수집기 키: config/collectorKey (운영자만 읽고 씀). 수집기는 이 키로 자기 계정을 collectors/<uid> 에 등록해야 기록을 쓸 수 있음 */
+let colKey = null;
+async function loadColKey(){
+  if(App.local || !App.db){ $('admColKey').textContent = '브라우저 저장 모드에서는 쓰지 않습니다'; return; }
+  try{ const snap = await App.db.ref('config/collectorKey').once('value'); colKey = snap.val(); $('admColKey').textContent = colKey || '아직 없음 · 새 키를 만드세요'; }
+  catch(_){ $('admColKey').textContent = '읽지 못함 (Firebase 규칙 게시 필요)'; }
+}
+async function newColKey(){
+  const a = new Uint32Array(4); crypto.getRandomValues(a);
+  const k = Array.from(a, x=>x.toString(36).toUpperCase().padStart(7,'0').slice(-7)).join('-');
+  await App.db.ref('config/collectorKey').set(k); colKey = k; $('admColKey').textContent = k;
+  toast('새 수집기 키를 만들었습니다. 수집기를 다시 실행하고 이 키를 넣으세요.');
+}
 function renderAdminTools(){
   const ids = Object.keys(App.raids).sort((a,b)=>(App.raids[a].squad||0)-(App.raids[b].squad||0));
   $('admRaids').innerHTML = ids.length ? ids.map(rid=>{
@@ -50,9 +63,11 @@ function renderAdminTools(){
 export function init(){
   const testUrl = ()=>{ const u = new URL(location.href); u.search = '?test=1'; u.hash = ''; return u.toString(); };
   $('admTestUrl').textContent = testUrl();
+  $('admColCopy').onclick = ()=>{ if(colKey) navigator.clipboard.writeText(colKey).then(()=>toast('수집기 키를 복사했습니다.'), ()=>toast(colKey)); };
+  $('admColNew').onclick = ()=>guard(newColKey);
   $('admTestCopy').onclick = ()=>{ navigator.clipboard.writeText(testUrl()).then(()=>toast('테스트 계정 주소를 복사했습니다.'), ()=>toast(testUrl())); };
   $('admTestOpen').onclick = ()=>{ window.open(testUrl(), '_blank', 'noopener'); };
-  $('adminBtn').onclick = ()=>{ $('admWipeWord').value = ''; document.querySelector('input[name="wipeKind"][value="history"]').checked = true; renderAdminTools(); openModal('adminModal', '#adminClose'); };
+  $('adminBtn').onclick = ()=>{ $('admWipeWord').value = ''; document.querySelector('input[name="wipeKind"][value="history"]').checked = true; renderAdminTools(); loadColKey(); openModal('adminModal', '#adminClose'); };
   bindModal('adminModal', 'adminClose');
   $('admWipeWord').addEventListener('input', renderWipe);
   document.querySelectorAll('input[name="wipeKind"]').forEach(r=>r.addEventListener('change', renderWipe));

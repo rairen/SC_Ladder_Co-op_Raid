@@ -6,7 +6,7 @@
    ===================================================================== */
 import { App } from '@app/core/app.js';
 import { ROLES, PARTY_HP, REVIVE_HP, PENDING_LABEL } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, now } from '@app/core/state.js';
 import { gearHtml, statusTags, sellPotValue } from '@app/core/logic.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
@@ -111,13 +111,13 @@ export function init(){
     const sb = e.target.closest('[data-potsell]');
     if(sb && !sb.disabled && App.raid && App.selected){
       const who = App.selected, k = sb.dataset.potsell, p = App.lastState && App.lastState.S.potions[k];
-      guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'sell', member:who, pot:k, undone:false}); if(p) toast(`${who} ${p.name} 판매`); });
+      guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:now(), type:'sell', member:who, pot:k, undone:false}); if(p) toast(`${who} ${p.name} 판매`); });
       return;
     }
     const b = e.target.closest('[data-potbuy],[data-potuse]'); if(!b || b.disabled || !App.raid || !App.selected) return;
     const who = App.selected, buy = !!b.dataset.potbuy, item = buy ? b.dataset.potbuy : b.dataset.potuse;
     const p = App.lastState && App.lastState.S.potions[item];
-    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:Date.now(), type: buy ? 'buy' : 'use', member:who, item, undone:false}); if(p) toast(`${who} ${p.name} ${buy ? '구매' : '사용'}`); });
+    guard(async()=>{ await store.addEvent({raidId:App.raid.raidId, t:now(), type: buy ? 'buy' : 'use', member:who, item, undone:false}); if(p) toast(`${who} ${p.name} ${buy ? '구매' : '사용'}`); });
   });
 }
 

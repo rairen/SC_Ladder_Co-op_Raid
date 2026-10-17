@@ -4,7 +4,7 @@
 /* ---------- Boot ---------- */
 /* 베타 로컬 저장: 같은 브라우저의 다른 탭에도 자동 반영 */
 import { App } from '@app/core/app.js';
-import { $, CUR_KEY, MODE, OVERLAY, ROOM, base, TEST, bootNeed, bootReady } from '@app/core/state.js';
+import { $, CUR_KEY, MODE, OVERLAY, ROOM, base, TEST, bootNeed, bootReady, now } from '@app/core/state.js';
 import { toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
@@ -31,7 +31,7 @@ function loadLocal(){
 function commit(){
   if(App.raid){ App.localDB.raids[App.raid.raidId] = App.raid; App.localDB.events[App.raid.raidId] = App.events; }
   App.raids = App.localDB.raids; App.allEvents = App.localDB.events;
-  try{ localStorage.setItem(LS_KEY, JSON.stringify({raids: App.localDB.raids, events: App.localDB.events, savedAt:Date.now()})); }
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({raids: App.localDB.raids, events: App.localDB.events, savedAt:now()})); }
   catch(_){ toast('브라우저 저장 공간에 저장하지 못했습니다. "백업 저장"으로 파일을 남겨두세요.'); }
   // 입력 칸의 change/blur 도중에 화면을 다시 그리면 오류가 나므로 한 박자 뒤에 그림
   setTimeout(render, 0);
@@ -134,6 +134,8 @@ export function init(){
     }catch(e){ startLocal(); bootNeed([]); toast('Firebase 설정이 올바르지 않습니다. firebase-config.js 값을 확인하세요.'); return; }
 
     App.db.ref('.info/connected').on('value', snap=>{ App.online = snap.val() === true; render(); });
+    // 서버 시각과 내 PC 시계의 차이 (now() 가 보정에 씀)
+    App.db.ref('.info/serverTimeOffset').on('value', snap=>{ App.timeOffset = Number(snap.val()) || 0; });
     App.db.ref(base()+'/history').on('value', snap=>{ App.history = Object.values(snap.val() || {}); renderHistory(); bootReady('history'); }, ()=>bootReady('history'));
     App.db.ref(base()+'/collector').on('value', snap=>{ App.collector = snap.val(); render(); });
 

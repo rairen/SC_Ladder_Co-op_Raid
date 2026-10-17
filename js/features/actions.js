@@ -1,6 +1,6 @@
 /* =====================================================================
    actions.js — 버튼 동작: 결과 반영, 룰렛, 참가, 공략대원 추가
-import { $, esc, fmt } from '@app/core/state.js';
+import { $, esc, fmt, now } from '@app/core/state.js';
 /* ---------- Events ---------- */
 import { App } from '@app/core/app.js';
 import { BOSS_SETS, ITEMS, TIERS, ROLE_STATS } from '@app/core/game-data.js';
@@ -22,7 +22,7 @@ function submitGame(){
   const p = Math.abs(parseInt($('points').value,10) || 0);
   if(!App.selected){ toast('공략대원을 먼저 고르세요.'); return; }
   if(!p){ toast('래더 결과 화면의 점수 변동값을 입력하세요.'); $('points').focus(); return; }
-  const ev = {raidId:App.raid.raidId, t:Date.now(), type:'game', member:App.selected, points: App.isWin ? p : -p,
+  const ev = {raidId:App.raid.raidId, t:now(), type:'game', member:App.selected, points: App.isWin ? p : -p,
     input:'manual', undone:false};
   guard(async()=>{
     await store.addEvent(ev);
@@ -86,7 +86,7 @@ export function init(){
     const race = $('bossRace').value || raceOfName(nm);
     const ss = (App.setupSrc && App.setupSrc.race === race) ? App.setupSrc : null;
     const extra = {}; if(ss){ if(ss.roleSkills) extra.roleSkills = ss.roleSkills; if(ss.gauge) extra.gauge = ss.gauge; if(ss.settings) extra.settings = ss.settings; }
-    const data = {...extra, raidId:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, roleStats: JSON.parse(JSON.stringify(ROLE_STATS)), bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof App.authUser !== 'undefined' && App.authUser) ? App.authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: App.setupRoles[m] || 'dealer', fee:0}])), diff: App.diff, cfg:setupCfg(), startedAt:Date.now(), ...(maxMembers ? {maxMembers} : {}), ...($('privateRaid').checked ? {private:true} : {}), ...(ms.length ? {lead: {name: ms[0]}} : {})};
+    const data = {...extra, raidId:'r'+now().toString(36)+Math.random().toString(36).slice(2,6), name:nm, race, roleStats: JSON.parse(JSON.stringify(ROLE_STATS)), bossSkills: (ss ? ss.bossSkills : BOSS_SETS[race]).map(x=>({...x})), squad, owner: (typeof App.authUser !== 'undefined' && App.authUser) ? App.authUser.uid : '', members:ms, roster: Object.fromEntries(ms.map(m=>[rosterKey(m), {role: App.setupRoles[m] || 'dealer', fee:0}])), diff: App.diff, cfg:setupCfg(), startedAt:now(), ...(maxMembers ? {maxMembers} : {}), ...($('privateRaid').checked ? {private:true} : {}), ...(ms.length ? {lead: {name: ms[0]}} : {})};
     guard(async()=>{
       /* 지난 레이드에서 쓰던 장비·소모품 가져오기 */
       const bags = await Promise.all(ms.map(m=>store.loadBag(m)));
@@ -128,7 +128,7 @@ export function init(){
       if(result.id === 'pot'){ const r2 = new Uint32Array(1); crypto.getRandomValues(r2); extra = {pot: r2[0] % 2 ? 'mp' : 'hp'}; }
       showReel(result, result.tier + (target ? ` · ${target}${result.next ? ' 다음 판' : ''}` : ''));
       App.spinning = false;
-      guard(()=>store.addEvent({raidId:App.raid.raidId, t:Date.now(), type:'roulette', member:who, item:result.id, ...(target ? {target} : {}), ...extra, ...(cost ? {cost} : {}), undone:false}));
+      guard(()=>store.addEvent({raidId:App.raid.raidId, t:now(), type:'roulette', member:who, item:result.id, ...(target ? {target} : {}), ...extra, ...(cost ? {cost} : {}), undone:false}));
       if(target) toast(`룰렛 ${result.title || ''} → ${target} · ${result.name}`);
       render();
     };

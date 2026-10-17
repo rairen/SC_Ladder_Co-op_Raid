@@ -24,7 +24,8 @@ $Mode        = 'coop'    # 협동 레이드 데이터 위치
 $IntervalSec = 20        # 조회 간격(초)
 $LocalApi    = ''        # 비워두면 스타크래프트가 연 주소를 자동으로 찾음 (예: http://127.0.0.1:50250)
 $ApiKey      = ''        # 비워두면 사이트의 firebase-config.js 에서 읽음 (수집기 로그인용)
-$Version     = '1.4'
+$CollectorKey = ''      # 수집기 키 (운영자 도구 > 래더 수집기 키). 비워두면 처음 실행할 때 물어보고 이 PC에 저장
+$Version     = '1.5'
 # -------------------------------------------------
 
 $ErrorActionPreference = 'Stop'
@@ -36,6 +37,9 @@ if ($env:RAID_DB_URL)    { $DatabaseUrl = $env:RAID_DB_URL }
 if ($env:RAID_API_KEY)   { $ApiKey = $env:RAID_API_KEY }
 if ($env:RAID_LOCAL_API) { $LocalApi = $env:RAID_LOCAL_API }
 if ($env:RAID_INTERVAL)  { $IntervalSec = [int]$env:RAID_INTERVAL }
+if ($env:RAID_COLLECTOR_KEY) { $CollectorKey = $env:RAID_COLLECTOR_KEY }
+$KeyFile = Join-Path $env:APPDATA 'sc-boss-raid-collector.key'
+if (-not $CollectorKey -and (Test-Path $KeyFile)) { try { $CollectorKey = ([IO.File]::ReadAllText($KeyFile)).Trim() } catch {} }
 $Once = [bool]$env:RAID_ONCE
 
 $GATEWAYS = @(30, 45, 10, 11, 20)   # 한국, 아시아, 미국 서부, 미국 동부, 유럽
@@ -74,7 +78,7 @@ function Enc($s) { [Uri]::EscapeDataString([string]$s) }
 
 # ---------- Firebase (REST) ----------
 # 수집기 로그인: Firebase 익명 로그인으로 토큰을 받아 쓰기 권한을 얻습니다 (1시간마다 갱신).
-$script:IdToken = ''; $script:RefreshToken = ''; $script:TokenUntil = [DateTime]::MinValue; $script:NextAuthTry = [DateTime]::MinValue; $script:AuthWarned = $false
+$script:IdToken = ''; $script:RefreshToken = ''; $script:Uid = ''; $script:KeyOk = $false; $script:TokenUntil = [DateTime]::MinValue; $script:NextAuthTry = [DateTime]::MinValue; $script:AuthWarned = $false
 $IdpUrl = 'https://identitytoolkit.googleapis.com/v1/accounts:signUp'; $StsUrl = 'https://securetoken.googleapis.com/v1/token'
 if ($env:RAID_IDP_URL) { $IdpUrl = $env:RAID_IDP_URL; $StsUrl = $env:RAID_STS_URL }
 function Get-Token {
@@ -84,13 +88,18 @@ function Get-Token {
   try {
     if ($script:RefreshToken) {
       $r = (Http 'POST' "$($StsUrl)?key=$ApiKey" ("grant_type=refresh_token&refresh_token=" + (Enc $script:RefreshToken)) 10000 'application/x-www-form-urlencoded') | ConvertFrom-Json
-      $script:IdToken = $r.id_token; $script:RefreshToken = $r.refresh_token; $sec = [int]$r.expires_in
+      $script:IdToken = $r.id_token; $script:RefreshToken = $r.refresh_token; $sec = [int]$r.expires_in; $script:Uid = $r.user_id
     } else {
       $r = (Http 'POST' "$($IdpUrl)?key=$ApiKey" '{"returnSecureToken":true}' 10000) | ConvertFrom-Json
-      $script:IdToken = $r.idToken; $script:RefreshToken = $r.refreshToken; $sec = [int]$r.expiresIn
+      $script:IdToken = $r.idToken; $script:RefreshToken = $r.refreshToken; $sec = [int]$r.expiresIn; $script:Uid = $r.localId; $script:KeyOk = $false
       Log '수집기 로그인 완료 (익명)' 'Green'
     }
     $script:TokenUntil = [DateTime]::UtcNow.AddSeconds([Math]::Max(60, $sec - 300))
+    # 수집기 키로 이 수집기 계정을 등록해야 레이드에 기록을 쓸 수 있음 (DB 규칙 collectors/<uid>)
+    if (-not $script:KeyOk -and $CollectorKey -and $script:Uid) {
+      try { [void](Http 'PUT' ($DatabaseUrl.TrimEnd('/') + '/collectors/' + $script:Uid + '.json?auth=' + $script:IdToken) (ToJson $CollectorKey)); $script:KeyOk = $true; Log '수집기 키 확인 완료' 'Green' }
+      catch { Log ('수집기 키가 맞지 않습니다. 운영자 도구의 "래더 수집기 키"를 확인하세요: ' + (Err $_)) 'Red'; if (Test-Path $KeyFile) { Remove-Item $KeyFile -ErrorAction SilentlyContinue } }
+    }
     return $script:IdToken
   } catch {
     $script:IdToken = ''; $script:RefreshToken = ''; $script:NextAuthTry = [DateTime]::UtcNow.AddMinutes(5)
@@ -169,6 +178,11 @@ Write-Host '  이 창을 열어 두는 동안 공략대원의 래더 결과가 �
 Write-Host ''
 try { $DatabaseUrl = Find-DatabaseUrl; Log "레이드 저장소: $DatabaseUrl" }
 catch { Log ("레이드 사이트 설정을 읽지 못했습니다: " + (Err $_)) 'Red'; return }
+if (-not $CollectorKey) {
+  Write-Host '  처음 실행입니다. 운영자에게 받은 수집기 키를 입력하세요 (운영자 도구 > 래더 수집기 키).' -ForegroundColor Yellow
+  $CollectorKey = (Read-Host '  수집기 키').Trim()
+  if ($CollectorKey) { try { [IO.File]::WriteAllText($KeyFile, $CollectorKey) } catch {} }
+}
 
 $api = $null
 $cache = @{}          # 공략대원별 마지막 기록 (rating, wins, losses, season, id, gw)
@@ -229,7 +243,7 @@ while ($true) {
                 if ([int]$prev.rating -gt 0 -and $r.rating -gt 0) {
                   $win = ($dw -gt 0 -and $dl -eq 0) -or ($dw -gt 0 -and $dl -gt 0 -and $delta -ge 0)
                   $pts = [Math]::Abs($delta)
-                  $ev = @{ raidId = $rid; t = (Now-Ms); type = 'game'; member = [string]$m; points = $(if ($win) { $pts } else { -$pts });
+                  $ev = @{ raidId = $rid; t = @{ '.sv' = 'timestamp' }; type = 'game'; member = [string]$m; points = $(if ($win) { $pts } else { -$pts });
                            multi = $false; same = $false; banned = $false; undone = $false; auto = $true; input = 'auto'; src = 'collector'; rating = $r.rating }
                   if ($n -gt 1) { $ev.games = $n }
                   Db-Post "$Mode/events/$rid" $ev

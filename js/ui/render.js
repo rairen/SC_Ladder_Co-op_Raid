@@ -4,7 +4,7 @@
 /* ---------- Rendering ---------- */
 import { App } from '@app/core/app.js';
 import { PARTY_HP, PENDING_LABEL, PRESETS, REVIVE_HP, ROLES } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel, squadAlias, leadName } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, squadAlias, leadName, reportError } from '@app/core/state.js';
 import { compute, gearHtml, rosterOf, skillHtml, statusTags, whatHtml, catOf, catTag, LOG_CATS, dmgByText } from '@app/core/logic.js';
 import { renderEndBtn } from '@app/ui/setup.js';
 import { renderOdds } from '@app/features/actions.js';
@@ -23,7 +23,12 @@ import { autoArchive, renderSkillBoard, bossSpecHtml, bossSpecOf } from '@app/ui
 import { renderLobby } from '@app/ui/dungeon.js';
 import { myName } from '@app/core/boot.js';
 
+/* 화면 그리기: 한 부분에서 오류가 나도 페이지 전체가 멈추지 않게 감싸고 알림 */
 function render(){
+  try{ renderAll(); }
+  catch(e){ reportError(e, '화면 그리기'); }
+}
+function renderAll(){
   if(typeof applyAccess === 'function') applyAccess();
   let s = compute(App.raid, App.events);
   const hasRaid = !!App.raid;

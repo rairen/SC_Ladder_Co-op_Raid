@@ -10,6 +10,17 @@
       ".read": true,
       ".write": false
     },
+    "config": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true"
+    },
+    "collectors": {
+      ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && newData.isString() && newData.val() === root.child('config/collectorKey').val()"
+      }
+    },
     "invites": {
       ".read": "auth != null && root.child('admins').child(auth.uid).val() === true",
       ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
@@ -53,25 +64,31 @@
             }
           },
           "members": {
-            ".write": "auth != null && (root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() || root.child('admins').child(auth.uid).val() === true)"
+            ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || root.child('coop/raids').child($rid).child('lead/uid').val() === auth.uid || (root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() && (newData.exists() ? (newData.numChildren() >= data.numChildren() - 1 && newData.numChildren() <= data.numChildren() + 1) : data.numChildren() <= 1)))"
           },
           "lead": {
             ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || data.child('uid').val() === auth.uid || (!data.child('name').exists() && newData.child('uid').val() === auth.uid && root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists()))"
           },
           "roster": {
             "$m": {
-              ".write": "(auth != null && (root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() || root.child('admins').child(auth.uid).val() === true)) || (auth != null && auth.token.firebase.sign_in_provider === 'anonymous')"
+              ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()))"
             }
           }
         }
       },
       "events": {
         "$rid": {
-          ".write": "(auth != null && (root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() || root.child('admins').child(auth.uid).val() === true)) || (auth != null && auth.token.firebase.sign_in_provider === 'anonymous')"
+          ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+          "$eid": {
+            ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || ((root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()) && !data.exists() && newData.child('type').val() === 'game') || (root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists() && ((!data.exists() && newData.exists() && (newData.child('member').val() === root.child('coop/raids').child($rid).child('uids').child(auth.uid).val() || (newData.child('type').val() === 'hq' && newData.child('by').val() === root.child('coop/raids').child($rid).child('uids').child(auth.uid).val()) || (newData.child('type').val() === 'game' && newData.child('input').val() === 'auto') || (newData.child('type').val() === 'party' && newData.child('action').val() === 'kick' && root.child('coop/raids').child($rid).child('lead/uid').val() === auth.uid))) || (data.exists() && newData.exists() && data.child('member').val() === root.child('coop/raids').child($rid).child('uids').child(auth.uid).val() && newData.child('member').val() === data.child('member').val() && newData.child('type').val() === data.child('type').val() && newData.child('t').val() === data.child('t').val() && newData.child('points').val() === data.child('points').val() && newData.child('item').val() === data.child('item').val() && newData.child('target').val() === data.child('target').val() && newData.child('amount').val() === data.child('amount').val() && newData.child('cost').val() === data.child('cost').val() && newData.child('games').val() === data.child('games').val() && newData.child('grade').val() === data.child('grade').val() && newData.child('pot').val() === data.child('pot').val() && newData.child('action').val() === data.child('action').val() && data.child('type').val() !== 'roulette' && data.child('type').val() !== 'gear' && data.child('type').val() !== 'hq'))))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['type', 't']) && newData.child('t').isNumber() && newData.child('t').val() <= now + 600000)"
+          }
         }
       },
       "ladder": {
-        ".write": "auth != null"
+        "$rid": {
+          ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()) || root.child('coop/raids').child($rid).child('uids').child(auth.uid).exists())"
+        }
       },
       "collector": {
         ".write": "auth != null"
@@ -88,25 +105,31 @@
             }
           },
           "members": {
-            ".write": "auth != null && (root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() || root.child('admins').child(auth.uid).val() === true)"
+            ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || root.child('versus/raids').child($rid).child('lead/uid').val() === auth.uid || (root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() && (newData.exists() ? (newData.numChildren() >= data.numChildren() - 1 && newData.numChildren() <= data.numChildren() + 1) : data.numChildren() <= 1)))"
           },
           "lead": {
             ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || data.child('uid').val() === auth.uid || (!data.child('name').exists() && newData.child('uid').val() === auth.uid && root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists()))"
           },
           "roster": {
             "$m": {
-              ".write": "(auth != null && (root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() || root.child('admins').child(auth.uid).val() === true)) || (auth != null && auth.token.firebase.sign_in_provider === 'anonymous')"
+              ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()))"
             }
           }
         }
       },
       "events": {
         "$rid": {
-          ".write": "(auth != null && (root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() || root.child('admins').child(auth.uid).val() === true)) || (auth != null && auth.token.firebase.sign_in_provider === 'anonymous')"
+          ".write": "auth != null && root.child('admins').child(auth.uid).val() === true",
+          "$eid": {
+            ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || ((root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()) && !data.exists() && newData.child('type').val() === 'game') || (root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists() && ((!data.exists() && newData.exists() && (newData.child('member').val() === root.child('versus/raids').child($rid).child('uids').child(auth.uid).val() || (newData.child('type').val() === 'hq' && newData.child('by').val() === root.child('versus/raids').child($rid).child('uids').child(auth.uid).val()) || (newData.child('type').val() === 'game' && newData.child('input').val() === 'auto') || (newData.child('type').val() === 'party' && newData.child('action').val() === 'kick' && root.child('versus/raids').child($rid).child('lead/uid').val() === auth.uid))) || (data.exists() && newData.exists() && data.child('member').val() === root.child('versus/raids').child($rid).child('uids').child(auth.uid).val() && newData.child('member').val() === data.child('member').val() && newData.child('type').val() === data.child('type').val() && newData.child('t').val() === data.child('t').val() && newData.child('points').val() === data.child('points').val() && newData.child('item').val() === data.child('item').val() && newData.child('target').val() === data.child('target').val() && newData.child('amount').val() === data.child('amount').val() && newData.child('cost').val() === data.child('cost').val() && newData.child('games').val() === data.child('games').val() && newData.child('grade').val() === data.child('grade').val() && newData.child('pot').val() === data.child('pot').val() && newData.child('action').val() === data.child('action').val() && data.child('type').val() !== 'roulette' && data.child('type').val() !== 'gear' && data.child('type').val() !== 'hq'))))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['type', 't']) && newData.child('t').isNumber() && newData.child('t').val() <= now + 600000)"
+          }
         }
       },
       "ladder": {
-        ".write": "auth != null"
+        "$rid": {
+          ".write": "auth != null && (root.child('admins').child(auth.uid).val() === true || (root.child('config/collectorKey').exists() && root.child('collectors').child(auth.uid).val() === root.child('config/collectorKey').val()) || root.child('versus/raids').child($rid).child('uids').child(auth.uid).exists())"
+        }
       },
       "collector": {
         ".write": "auth != null"

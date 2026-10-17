@@ -7,7 +7,7 @@
    ===================================================================== */
 import { App } from '@app/core/app.js';
 import { PRESETS } from '@app/core/game-data.js';
-import { $, OVERLAY, esc, fmt, squadLabel, squadAlias, leadName } from '@app/core/state.js';
+import { $, OVERLAY, esc, fmt, squadLabel, squadAlias, leadName, now } from '@app/core/state.js';
 import { compute } from '@app/core/logic.js';
 import { topDealer } from '@app/ui/render.js';
 import { openSetup } from '@app/ui/setup.js';
@@ -83,7 +83,7 @@ function rankData(){
     if(!canSeeRaid(r)) continue;
     const st = compute(r, eventsOf(r.raidId));
     const dmg = st.members.reduce((a,m)=>a + (st.stats[m].dmg||0), 0);
-    const end = st.status !== 'live' ? Math.max(r.startedAt||0, ...eventsOf(r.raidId).filter(e=>!e.undone).map(e=>e.t||0)) : Date.now();
+    const end = st.status !== 'live' ? Math.max(r.startedAt||0, ...eventsOf(r.raidId).filter(e=>!e.undone).map(e=>e.t||0)) : now();
     squads.push({label: `${squadAlias(r)} (${squadLabel(r)})`, boss: r.name, diff: r.diff, status: st.status, live: true, progress: st.maxHp ? 1 - st.hp/st.maxHp : 0, dmg, n: st.members.length, mvp: topDealer(st) || '', start: r.startedAt||0, end});
     st.members.forEach(m=>addP(m, st.stats[m], squadLabel(r), true, st.status === 'clear'));
   }

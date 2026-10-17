@@ -9,7 +9,7 @@
    브라우저 저장 모드에서는 초대 코드 없이 예전처럼 이름으로 참가합니다.
    ===================================================================== */
 import { App } from '@app/core/app.js';
-import { $, OVERLAY, ROOM, esc } from '@app/core/state.js';
+import { $, OVERLAY, ROOM, esc, now } from '@app/core/state.js';
 import { guard, store, toast } from '@app/core/store.js';
 import { render } from '@app/ui/render.js';
 import { isAdmin, isLeader, useAuth } from '@app/features/auth.js';
@@ -23,7 +23,7 @@ function genCode(len = 6){
 }
 async function newInvite(raidId){
   const rid = raidId || (App.raid && App.raid.raidId); if(!rid) return;
-  await App.db.ref('invites/'+ROOM+'/'+rid).set({code: genCode(), raidId: rid, t: Date.now()});
+  await App.db.ref('invites/'+ROOM+'/'+rid).set({code: genCode(), raidId: rid, t: now()});
 }
 /* 운영자·공략대장일 때만 비공개 공략대 초대 코드를 구독 (그 외에는 규칙상 읽을 수 없음) */
 function watchInvite(){

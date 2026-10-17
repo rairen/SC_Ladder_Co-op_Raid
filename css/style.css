@@ -952,3 +952,9 @@ html.raid-locked .grid{grid-template-columns:minmax(0,1fr)!important;grid-templa
 .pf-pots{display:flex;gap:8px;flex-wrap:wrap}
 .pf-pot{display:flex;align-items:baseline;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
 .pf-pot small{color:var(--muted);font-size:11px}
+
+/* 오류 알림 줄 */
+.err-bar{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:min(760px,calc(100% - 24px));
+  padding:10px 12px;border-radius:8px;background:#3a1418;border:1px solid #ff6b74;color:#ffd7da;box-shadow:0 6px 24px #0008;font-size:13px}
+.err-bar[hidden]{display:none}
+.err-bar .eb-tx{flex:1;min-width:200px}
